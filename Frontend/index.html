@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Analysis Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        header {
+            padding: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            background: #1e1e1e;
+            border-bottom: 1px solid #333;
+        }
+
+        .container {
+            margin-top: 80px;
+        }
+
+        .btn {
+            display: block;
+            width: 220px;
+            margin: 15px auto;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #1f1f1f;
+            color: #ffffff;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #333;
+            transform: scale(1.05);
+        }
+
+        footer {
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    Attendance Analysis Dashboard
+</header>
+
+<div class="container">
+    <a href="login.html" class="btn">Login</a>
+    <a href="student.html" class="btn">Student Panel</a>
+    <a href="teacher.html" class="btn">Teacher Panel</a>
+    <a href="admin.html" class="btn">Admin Panel</a>
+</div>
+
+<footer>
+    © 2026 Attendance System | All Rights Reserved
+</footer>
+
+<script>
+    window.onload = function () {
+        console.log("Dark Theme Dashboard Loaded Successfully");
+    };
+</script>
+
+</body>
+</html>
