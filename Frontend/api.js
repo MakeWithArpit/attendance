@@ -6,7 +6,7 @@
  *  Teacher PK = employee_id  (e.g. "T001")
  *  Subject PK = subject_code (e.g. "CS301")
  */
-const API_BASE = 'http://127.0.0.1:8000/api/';
+const API_BASE = 'http://inattendancesystembackend.pythonanywhere.com/api/';
 
 const Auth = {
   save(d) {
