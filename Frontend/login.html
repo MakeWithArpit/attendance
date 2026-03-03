@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — AttendX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #070b14;
+      --panel: #111827;
+      --border: #1e2d45;
+      --blue: #3b82f6;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow: hidden
+    }
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(59, 130, 246, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, .04) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none
+    }
+
+    .blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      opacity: .12
+    }
+
+    .blob1 {
+      width: 400px;
+      height: 400px;
+      background: var(--blue);
+      top: -100px;
+      right: -100px;
+      animation: float 8s ease-in-out infinite
+    }
+
+    .blob2 {
+      width: 300px;
+      height: 300px;
+      background: var(--green);
+      bottom: -80px;
+      left: -80px;
+      animation: float 10s ease-in-out infinite reverse
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0)
+      }
+
+      50% {
+        transform: translateY(-20px)
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      width: 100%;
+      max-width: 440px;
+      position: relative;
+      z-index: 1
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--blue), #818cf8);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px
+    }
+
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 20px
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    .tabs {
+      display: flex;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 24px
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      transition: all .2s;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600
+    }
+
+    .tab.active {
+      background: var(--panel);
+      color: var(--blue);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .3)
+    }
+
+    .form-group {
+      margin-bottom: 14px
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-weight: 500;
+      letter-spacing: .05em;
+      text-transform: uppercase
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s
+    }
+
+    input:focus {
+      border-color: var(--blue)
+    }
+
+    .btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      margin-top: 4px;
+      letter-spacing: .04em
+    }
+
+    .btn-blue {
+      background: var(--blue);
+      color: #fff
+    }
+
+    .btn-blue:hover {
+      background: #2563eb
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--blue);
+      color: var(--blue)
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+
+    .err {
+      background: rgba(239, 68, 68, .1);
+      border: 1px solid rgba(239, 68, 68, .3);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--red);
+      margin-top: 8px;
+      display: none
+    }
+
+    .err.show {
+      display: block
+    }
+
+    .ok {
+      background: rgba(16, 185, 129, .1);
+      border: 1px solid rgba(16, 185, 129, .3);
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--green);
+      margin-top: 8px;
+      display: none
+    }
+
+    .ok.show {
+      display: block
+    }
+
+    .step {
+      display: none
+    }
+
+    .step.active {
+      display: block
+    }
+
+    .steps-indicator {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px
+    }
+
+    .step-dot {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      transition: background .3s
+    }
+
+    .step-dot.done {
+      background: var(--green)
+    }
+
+    .step-dot.active {
+      background: var(--blue)
+    }
+
+    .hint-box {
+      background: rgba(59, 130, 246, .08);
+      border: 1px solid rgba(59, 130, 246, .15);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.7
+    }
+
+    .hint-box b {
+      color: var(--blue)
+    }
+
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 999
+    }
+
+    .toast {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all .3s;
+      max-width: 280px
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0)
+    }
+
+    .toast-success {
+      border-color: var(--green)
+    }
+
+    .toast-success span {
+      color: var(--green)
+    }
+
+    .toast-error {
+      border-color: var(--red)
+    }
+
+    .toast-error span {
+      color: var(--red)
+    }
+  </style>
+</head>
+
+<body>
+  <div class="grid-bg"></div>
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div id="toast-container"></div>
+
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">📋</div>
+      <div>
+        <div class="logo-text">AttendX</div>
+        <div class="logo-sub">Attendance Management System</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">Login</div>
+      <div class="tab" onclick="switchTab('forgot')">Forgot Password</div>
+    </div>
+
+    <!-- ── LOGIN TAB ── -->
+    <div id="tab-login">
+      <div class="hint-box">
+        <b>Admin:</b> admin001 / admin@123 &nbsp;|&nbsp;
+        <b>Teacher:</b> T001–T006 / teacher@123 &nbsp;|&nbsp;
+        <b>Student:</b> STU2024001–020 / student@123
+      </div>
+      <div class="form-group">
+        <label>Username</label>
+        <input id="l-user" placeholder="e.g. admin001, T001, STU2024001" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="err" id="l-err"></div>
+      <button class="btn btn-blue" onclick="doLogin()" id="btn-login">Sign In →</button>
+    </div>
+
+    <!-- ── FORGOT TAB ── -->
+    <div id="tab-forgot" style="display:none">
+      <div class="steps-indicator">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+        <div class="step-dot" id="dot3"></div>
+      </div>
+
+      <!-- Step 1: Enter username -->
+      <div class="step active" id="fp-step1">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Apna username enter karo — OTP registered email
+          par bhej diya jaayega.</p>
+        <div class="form-group"><label>Username</label><input id="fp-user" placeholder="e.g. STU2024001"></div>
+        <div class="err" id="fp-err1"></div>
+        <div class="ok" id="fp-ok1"></div>
+        <button class="btn btn-blue" onclick="fpStep1()">Send OTP →</button>
+      </div>
+
+      <!-- Step 2: OTP + new password -->
+      <div class="step" id="fp-step2">
+        <div class="ok show" id="fp-email-hint">OTP bhej diya gaya!</div>
+        <div class="form-group" style="margin-top:14px"><label>6-digit OTP</label><input id="fp-otp"
+            placeholder="123456" maxlength="6"></div>
+        <div class="form-group"><label>New Password (min 8 chars)</label><input id="fp-newpass" type="password"
+            placeholder="NewPass@123"></div>
+        <div class="err" id="fp-err2"></div>
+        <button class="btn btn-blue" onclick="fpStep2()">Reset Password →</button>
+        <button class="btn btn-ghost" onclick="fpBack()" style="margin-top:8px">← Back</button>
+      </div>
+
+      <!-- Step 3: Success -->
+      <div class="step" id="fp-step3">
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:48px;margin-bottom:12px">✅</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:8px">Password Reset Ho
+            Gaya!</div>
+          <div style="font-size:13px;color:var(--muted)">Ab naye password se login karo.</div>
+        </div>
+        <button class="btn btn-blue" onclick="switchTab('login')">Login Karo →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (Auth.isLoggedIn()) Auth.redirectByRole();
+
+    function switchTab(tab) {
+      document.getElementById('tab-login').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('tab-forgot').style.display = tab === 'forgot' ? 'block' : 'none';
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1)));
+    }
+
+    async function doLogin() {
+      const user = document.getElementById('l-user').value.trim();
+      const pass = document.getElementById('l-pass').value;
+      const errEl = document.getElementById('l-err');
+      const btn = document.getElementById('btn-login');
+      if (!user || !pass) { errEl.textContent = 'Username aur password zaruri hain.'; errEl.classList.add('show'); return; }
+      errEl.classList.remove('show');
+      btn.disabled = true; btn.textContent = 'Logging in...';
+      const r = await POST('auth/login/', { username: user, password: pass });
+      btn.disabled = false; btn.textContent = 'Sign In →';
+      if (r && r.ok) {
+        Auth.save(r.data);
+        toast('Login successful! Redirecting...');
+        setTimeout(() => Auth.redirectByRole(), 800);
+      } else {
+        const msg = r && r.data ? (r.data.detail || r.data.non_field_errors?.[0] || JSON.stringify(r.data)) : 'Server error';
+        errEl.textContent = msg;
+        errEl.classList.add('show');
+      }
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+    let fpUsername = '';
+
+    function setFpStep(n) {
+      document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === n - 1));
+      [1, 2, 3].forEach(i => {
+        const d = document.getElementById('dot' + i);
+        d.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+      });
+    }
+
+    async function fpStep1() {
+      const u = document.getElementById('fp-user').value.trim();
+      const errEl = document.getElementById('fp-err1');
+      if (!u) { errEl.textContent = 'Username zaruri hai.'; errEl.classList.add('show'); return; }
+      errEl.classList.remove('show');
+      const r = await POST('auth/forgot-password/', { username: u });
+      if (r && r.ok) {
+        fpUsername = u;
+        document.getElementById('fp-email-hint').textContent = r.data.message || 'OTP bhej diya gaya!';
+        setFpStep(2);
+      } else {
+        const msg = r && r.data ? (r.data.username?.[0] || r.data.detail || JSON.stringify(r.data)) : 'Error';
+        errEl.textContent = msg; errEl.classList.add('show');
+      }
+    }
+
+    async function fpStep2() {
+      const otp = document.getElementById('fp-otp').value.trim();
+      const pass = document.getElementById('fp-newpass').value;
+      const errEl = document.getElementById('fp-err2');
+      if (!otp || !pass) { errEl.textContent = 'OTP aur naya password zaruri hain.'; errEl.classList.add('show'); return; }
+      if (pass.length < 8) { errEl.textContent = 'Password kam se kam 8 characters ka hona chahiye.'; errEl.classList.add('show'); return; }
+      errEl.classList.remove('show');
+      const r = await POST('auth/reset-password/', { username: fpUsername, otp: otp, new_password: pass });
+      if (r && r.ok) {
+        setFpStep(3);
+      } else {
+        const msg = r && r.data ? (r.data.error || r.data.detail || JSON.stringify(r.data)) : 'Error';
+        errEl.textContent = msg; errEl.classList.add('show');
+      }
+    }
+
+    function fpBack() { setFpStep(1); }
+  </script>
+</body>
+
+</html>
