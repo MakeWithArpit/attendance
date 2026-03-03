@@ -86,7 +86,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Email Settings (for parent notifications)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

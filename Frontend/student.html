@@ -949,7 +949,7 @@
   </main>
   <script src="api.js"></script>
   <script>
-    if (!Auth.isLoggedIn() || Auth.getRole() !== 'student') { window.location.href = 'Index.html'; }
+    if (!Auth.isLoggedIn() || Auth.getRole() !== 'student') { window.location.href = 'login.html'; }
     document.getElementById('sb-name').textContent = Auth.getName() || 'Student';
 
     const titles = { home: 'Home', attendance: 'My Attendance', sessions: 'Active Sessions', 'face-att': 'Face Attendance', leaves: 'Leave Requests', profile: 'My Profile', 'change-pass': 'Change Password' };
@@ -960,7 +960,7 @@
       document.querySelectorAll('.nav-item').forEach(n => { if (n.onclick && n.onclick.toString().includes("'" + id + "'")) n.classList.add('active'); });
       document.getElementById('pg-title').textContent = titles[id] || id;
     }
-    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'Index.html'; }
+    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'login.html'; }
 
     // HOME
     async function initHome() {

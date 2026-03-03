@@ -1511,7 +1511,7 @@
   </main>
   <script src="api.js"></script>
   <script>
-    if (!Auth.isLoggedIn() || Auth.getRole() !== 'admin') { window.location.href = 'Index.html'; }
+    if (!Auth.isLoggedIn() || Auth.getRole() !== 'admin') { window.location.href = 'login.html'; }
     document.getElementById('sb-name').textContent = Auth.getName() || 'Admin';
 
     const titles = {
@@ -1539,7 +1539,7 @@
       document.getElementById('pg-title').textContent = titles[id] || id;
     }
 
-    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'Index.html'; }
+    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'login.html'; }
 
     // DASHBOARD
     async function loadProfile() { const r = await GET('auth/me/'); document.getElementById('profile-out').textContent = JSON.stringify(r.data, null, 2); }

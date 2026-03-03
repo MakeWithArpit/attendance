@@ -1153,7 +1153,7 @@
   </main>
   <script src="api.js"></script>
   <script>
-    if (!Auth.isLoggedIn() || Auth.getRole() !== 'teacher') { window.location.href = 'Index.html'; }
+    if (!Auth.isLoggedIn() || Auth.getRole() !== 'teacher') { window.location.href = 'login.html'; }
     document.getElementById('sb-name').textContent = Auth.getName() || 'Teacher';
     document.getElementById('sess-date').value = new Date().toISOString().split('T')[0];
 
@@ -1165,7 +1165,7 @@
       document.querySelectorAll('.nav-item').forEach(n => { if (n.onclick && n.onclick.toString().includes("'" + id + "'")) n.classList.add('active'); });
       document.getElementById('pg-title').textContent = titles[id] || id;
     }
-    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'Index.html'; }
+    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'login.html'; }
 
     // DASHBOARD
     async function loadDashboard() {

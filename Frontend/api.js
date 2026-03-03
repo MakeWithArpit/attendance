@@ -28,7 +28,7 @@ const Auth = {
     if (r === 'admin') window.location.href = 'admin.html';
     else if (r === 'teacher') window.location.href = 'teacher.html';
     else if (r === 'student') window.location.href = 'student.html';
-    else window.location.href = 'Index.html';
+    else window.location.href = 'login.html';
   }
 };
 
@@ -54,7 +54,7 @@ async function _fetch(url, opts = {}) {
       res = await fetch(API_BASE + url, opts);
     } else {
       Auth.clear();
-      window.location.href = 'Index.html';
+      window.location.href = 'login.html';
       return;
     }
   }
