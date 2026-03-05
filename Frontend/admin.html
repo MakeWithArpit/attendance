@@ -881,16 +881,36 @@
 
       <!-- ══ EDIT STUDENT ══ -->
       <div class="section" id="s-edit-student">
-        <div style="max-width:680px">
 
-          <!-- Profile Edit Box -->
-          <div class="box" style="margin-bottom:16px">
+        <!-- Page Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-ghost btn-sm" onclick="show('students');loadStudents()">← Back</button>
+            <div>
+              <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px">Edit Student</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">
+                ID: <span class="tag" id="edit-stu-id-label">—</span>
+              </div>
+            </div>
+          </div>
+          <div id="edit-stu-face-badge"></div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start">
+
+          <!-- LEFT — Profile Form -->
+          <div class="box">
             <div class="box-header">
-              <span class="box-title">✏️ Edit Student — <span id="edit-stu-id-label">—</span></span>
-              <button class="btn btn-ghost btn-sm" onclick="show('students')">← Back</button>
+              <span class="box-title">👤 Profile Details</span>
+              <span style="font-size:11px;color:var(--muted)">Pre-filled with current data</span>
             </div>
             <div class="box-body">
-              <div class="hint">Sirf woh fields bharo jo update karni hain — baaki same rahenge.</div>
+
+              <!-- Section: Basic -->
+              <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+                Basic Info
+              </div>
               <div class="frow">
                 <div class="fgrp">
                   <label>Roll Number</label>
@@ -931,52 +951,82 @@
                   <input id="es-state" placeholder="Uttar Pradesh">
                 </div>
               </div>
-              <div style="font-weight:600;color:var(--muted);font-size:11px;margin:12px 0 6px">PARENT DETAILS</div>
+
+              <!-- Section: Parent -->
+              <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+                Parent Details
+              </div>
               <div class="frow">
+                <div class="fgrp">
+                  <label>Father Name</label>
+                  <input id="es-father-name" placeholder="Father full name">
+                </div>
                 <div class="fgrp">
                   <label>Father Mobile</label>
                   <input id="es-father-mobile" placeholder="Father mobile">
                 </div>
+              </div>
+              <div class="frow">
                 <div class="fgrp">
-                  <label>Father Email</label>
-                  <input id="es-father-email" type="email" placeholder="Father email">
+                  <label>Father Email <span style="color:var(--green);font-size:9px">(alerts)</span></label>
+                  <input id="es-father-email" type="email" placeholder="father@email.com">
+                </div>
+                <div class="fgrp">
+                  <label>Mother Mobile</label>
+                  <input id="es-mother-mobile" placeholder="Mother mobile">
                 </div>
               </div>
-              <div style="display:flex;gap:8px;margin-top:12px">
-                <button class="btn btn-primary" onclick="submitEditStudent()">💾 Save Changes</button>
-                <button class="btn btn-ghost" onclick="show('students')">Cancel</button>
+
+              <!-- Action Buttons -->
+              <div style="display:flex;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+                <button class="btn btn-primary" onclick="submitEditStudent()" style="flex:1;padding:9px">
+                  💾 Save Profile Changes
+                </button>
+                <button class="btn btn-ghost" onclick="show('students');loadStudents()">Cancel</button>
               </div>
               <div class="res-box" id="res-edit-stu"></div>
+
             </div>
           </div>
 
-          <!-- Face Register / Update Box -->
+          <!-- RIGHT — Face Register -->
           <div class="box">
             <div class="box-header">
-              <span class="box-title">📷 Face Photo — Register / Update</span>
-              <span id="face-status-badge"></span>
+              <span class="box-title">📷 Face Photo</span>
+              <span id="face-reg-status-badge"></span>
             </div>
             <div class="box-body">
-              <div class="hint">Student ki clear, front-facing photo upload karo. Yeh facial attendance ke liye use
-                hogi.</div>
 
-              <!-- Upload Area -->
-              <div id="face-upload-area"
-                style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px"
-                onclick="document.getElementById('face-photo-input').click()">
-                <img id="face-preview" src="" alt=""
-                  style="max-width:200px;max-height:200px;border-radius:8px;display:none;margin:0 auto 8px">
-                <div id="face-upload-hint" style="color:var(--muted);font-size:13px">
-                  📁 Click to select student photo<br>
-                  <span style="font-size:11px">JPG/PNG recommended — clear front face</span>
+              <!-- Upload Zone -->
+              <div id="face-drop-zone"
+                onclick="document.getElementById('face-file-input').click()"
+                onmouseover="this.style.borderColor='var(--blue)';this.style.background='rgba(59,130,246,.04)'"
+                onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,.01)'"
+                style="border:2px dashed var(--border);border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;background:rgba(255,255,255,.01)">
+                <img id="face-img-preview" src="" alt=""
+                  style="width:140px;height:140px;border-radius:10px;display:none;margin:0 auto 10px;object-fit:cover;border:2px solid var(--border)">
+                <div id="face-drop-hint">
+                  <div style="font-size:36px;margin-bottom:10px">📸</div>
+                  <div style="color:var(--text);font-size:13px;font-weight:500">Click to select photo</div>
+                  <div style="color:var(--muted);font-size:11px;margin-top:6px;line-height:1.6">
+                    JPG / PNG<br>
+                    Clear front-facing<br>
+                    Good lighting
+                  </div>
                 </div>
               </div>
-              <input type="file" id="face-photo-input" accept="image/*" style="display:none"
-                onchange="previewFacePhoto(this)">
+              <input type="file" id="face-file-input" accept="image/*" style="display:none" onchange="previewFacePhoto(this)">
 
-              <button class="btn btn-primary" onclick="registerFace()" style="width:100%">
-                📷 Upload / Update Face Photo
+              <button class="btn btn-success" onclick="registerFace()"
+                style="width:100%;padding:10px;font-size:12px">
+                📷 Upload &amp; Register
               </button>
+
+              <!-- Info note -->
+              <div style="margin-top:12px;padding:10px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.6">
+                <b style="color:var(--green)">ℹ️ Note:</b> Yeh photo DeepFace facial recognition ke liye store hogi. Agar student ka pehle se photo registered hai toh yeh replace ho jaayega.
+              </div>
+
               <div class="res-box" id="res-face-reg"></div>
             </div>
           </div>
@@ -1081,49 +1131,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ EDIT TEACHER ══ -->
-      <div class="section" id="s-edit-teacher">
-        <div class="box" style="max-width:560px">
-          <div class="box-header">
-            <span class="box-title">Edit Teacher — <span id="edit-tch-id-label">—</span></span>
-            <button class="btn btn-ghost btn-sm" onclick="show('teachers')">← Back</button>
-          </div>
-          <div class="box-body">
-            <div class="hint">Sirf woh fields bharo jo update karni hain.</div>
-            <div class="frow">
-              <div class="fgrp">
-                <label>Name</label>
-                <input id="et-name" placeholder="Full name">
-              </div>
-              <div class="fgrp">
-                <label>Email</label>
-                <input id="et-email" type="email" placeholder="teacher@email.com">
-              </div>
-            </div>
-            <div class="frow">
-              <div class="fgrp">
-                <label>Mobile</label>
-                <input id="et-mobile" placeholder="10 digit mobile">
-              </div>
-              <div class="fgrp">
-                <label>Department</label>
-                <input id="et-dept" placeholder="Computer Science">
-              </div>
-            </div>
-            <div class="fgrp">
-              <label>Designation</label>
-              <input id="et-desig" placeholder="Assistant Professor">
-            </div>
-
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn btn-primary" onclick="submitEditTeacher()">Save Changes</button>
-              <button class="btn btn-ghost" onclick="show('teachers')">Cancel</button>
-            </div>
-            <div class="res-box" id="res-edit-tch"></div>
           </div>
         </div>
       </div>
@@ -1551,6 +1558,7 @@
       home: 'Dashboard',
       branches: 'Branches',
       students: 'Students',
+      'edit-student': 'Edit Student',
       'leaves': 'Leave Requests',
       teachers: 'Teachers',
       subjects: 'Subjects',
@@ -1560,9 +1568,7 @@
       'att-edit': 'Attendance Correction',
       analytics: 'Analytics',
       report: 'Reports',
-      notify: 'Notify Parents',
-      'edit-student': 'Edit Student',
-      'edit-teacher': 'Edit Teacher',
+      notify: 'Notify Parents'
     };
     function show(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1638,9 +1644,9 @@
       <td>${s.profile?.name || '—'}</td>
       <td>${s.profile?.branch || s.profile?.branch_code || '—'}</td>
       <td>${s.has_face_registered ? '<span class="badge bg">✓ Yes</span>' : '<span class="badge bx">No</span>'}</td>
-      <td>
+      <td style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="openEditStudent('${s.student_id}')" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6)">✏️ Edit</button>
         <button class="btn btn-ghost btn-sm" onclick="viewStudent('${s.student_id}')">View</button>
-        <button class="btn btn-primary btn-sm" onclick="openEditStudent('${s.student_id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="delStudent('${s.student_id}')">Del</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="6" class="empty">No students</td></tr>';
@@ -1696,131 +1702,6 @@
       if (r.ok) { toast('Student created!'); loadStudents(); } else toast('Error creating student', 'error');
     }
 
-    
-    // ── EDIT STUDENT ─────────────────────────────────────────
-    var currentEditStudentId = null;
-
-    async function openEditStudent(sid) {
-      currentEditStudentId = sid;
-      document.getElementById('edit-stu-id-label').textContent = sid;
-
-      // Reset face section
-      document.getElementById('face-preview').style.display = 'none';
-      document.getElementById('face-upload-hint').style.display = 'block';
-      document.getElementById('res-face-reg').classList.remove('show');
-      document.getElementById('face-photo-input').value = '';
-
-      // Load current data to pre-fill fields
-      const r = await GET('auth/students/' + sid + '/');
-      if (r.ok) {
-        const d = r.data;
-        const p = d.profile || {};
-        const pd = d.parent_detail || {};
-
-        document.getElementById('es-roll').value = d.roll_number || '';
-        document.getElementById('es-rfid').value = d.rfid_number || '';
-        document.getElementById('es-aadhar').value = d.aadhar_number || '';
-        document.getElementById('es-mobile').value = p.mobile_number || '';
-        document.getElementById('es-email').value = p.email || '';
-        document.getElementById('es-year').value = p.academic_year || '';
-        document.getElementById('es-branch').value = p.branch || '';
-        document.getElementById('es-state').value = p.domicile_state || '';
-        document.getElementById('es-father-mobile').value = pd.father_mobile || '';
-        document.getElementById('es-father-email').value = pd.father_email || '';
-
-        // Face status badge
-        const badge = document.getElementById('face-status-badge');
-        if (d.has_face_registered) {
-          badge.innerHTML = '<span class="badge bg">✓ Face Registered</span>';
-        } else {
-          badge.innerHTML = '<span class="badge bx">✗ Not Registered</span>';
-        }
-      }
-
-      show('edit-student');
-    }
-
-    async function submitEditStudent() {
-      if (!currentEditStudentId) return;
-
-      const profile = {};
-      const parent_detail = {};
-      const body = {};
-
-      const roll = document.getElementById('es-roll').value.trim();
-      const rfid = document.getElementById('es-rfid').value.trim();
-      const aadhar = document.getElementById('es-aadhar').value.trim();
-      const mobile = document.getElementById('es-mobile').value.trim();
-      const email = document.getElementById('es-email').value.trim();
-      const year = document.getElementById('es-year').value.trim();
-      const branch = document.getElementById('es-branch').value.trim();
-      const state = document.getElementById('es-state').value.trim();
-      const fmob = document.getElementById('es-father-mobile').value.trim();
-      const femail = document.getElementById('es-father-email').value.trim();
-
-      if (roll) body.roll_number = roll;
-      if (rfid) body.rfid_number = rfid;
-      if (aadhar) body.aadhar_number = aadhar;
-      if (mobile) profile.mobile_number = mobile;
-      if (email) profile.email = email;
-      if (year) profile.academic_year = year;
-      if (branch) profile.branch = branch;
-      if (state) profile.domicile_state = state;
-      if (fmob) parent_detail.father_mobile = fmob;
-      if (femail) parent_detail.father_email = femail;
-
-      if (Object.keys(profile).length) body.profile = profile;
-      if (Object.keys(parent_detail).length) body.parent_detail = parent_detail;
-
-      if (Object.keys(body).length === 0)
-        return toast('Kuch bhi fill nahi kiya!', 'error');
-
-      const r = await PATCH('auth/students/' + currentEditStudentId + '/', body);
-      renderResponse('res-edit-stu', r);
-      if (r.ok) {
-        toast('Student updated!');
-        loadStudents();
-      } else {
-        toast('Error: ' + (r.data?.detail || r.status), 'error');
-      }
-    }
-
-    // ── FACE REGISTER ────────────────────────────────────────
-    function previewFacePhoto(input) {
-      if (!input.files || !input.files[0]) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const img = document.getElementById('face-preview');
-        img.src = e.target.result;
-        img.style.display = 'block';
-        document.getElementById('face-upload-hint').style.display = 'none';
-      };
-      reader.readAsDataURL(input.files[0]);
-    }
-
-    async function registerFace() {
-      if (!currentEditStudentId) return toast('Student select nahi kiya', 'error');
-      const fileInput = document.getElementById('face-photo-input');
-      if (!fileInput.files || !fileInput.files[0])
-        return toast('Pehle photo select karo', 'error');
-
-      const fd = new FormData();
-      fd.append('student_id', currentEditStudentId);
-      fd.append('photo', fileInput.files[0]);
-
-      toast('Uploading...', 'info');
-      const r = await FORM('attendance/face/register/', fd);
-      renderResponse('res-face-reg', r);
-      if (r.ok) {
-        toast('Face photo registered!');
-        document.getElementById('face-status-badge').innerHTML =
-          '<span class="badge bg">✓ Face Registered</span>';
-        loadStudents(); // list refresh karo
-      } else {
-        toast('Error: ' + (r.data?.error || r.status), 'error');
-      }
-    }
-
     //LEAVE
     var currentLeaveId = null;
     async function loadLeaves() {
@@ -1874,7 +1755,7 @@
         toast('Error: ' + (r.data?.error || r.status), 'error');
       }
     }
-
+    
     // TEACHERS
     async function loadTeachers() {
       const r = await GET('auth/teachers/');
@@ -1884,8 +1765,7 @@
       <td><span class="tag">${t.employee_id}</span></td>
       <td>${t.name}</td><td>${t.department}</td><td>${t.email}</td>
       <td><button class="btn btn-danger btn-sm" onclick="delTeacher('${t.employee_id}')">Del</button></td>
-      <td><button class="btn btn-primary btn-sm" onclick="openEditTeacher('${t.employee_id}')">Edit</button></td>
-      </tr>`).join('') || '<tr><td colspan="5" class="empty">No teachers</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No teachers</td></tr>';
       const dl = document.getElementById('teacher-list');
       if (dl) dl.innerHTML = list.map(t => `<option value="${t.employee_id}">${t.name}`).join('');
     }
@@ -1905,54 +1785,6 @@
       if (!confirm('Delete teacher ' + eid + '?')) return;
       const r = await DEL('auth/teachers/' + eid + '/');
       if (r.ok) { toast('Deleted!'); loadTeachers(); } else toast('Error', 'error');
-    }
-
-    // ── EDIT TEACHER ──────────────────────────────
-    var currentEditTeacherId = null;
-
-    async function openEditTeacher(eid) {
-      currentEditTeacherId = eid;
-      document.getElementById('edit-tch-id-label').textContent = eid;
-
-      const r = await GET('auth/teachers/' + eid + '/');
-      if (r.ok) {
-        const d = r.data;
-        document.getElementById('et-name').value = d.name || '';
-        document.getElementById('et-email').value = d.email || '';
-        document.getElementById('et-mobile').value = d.mobile || '';
-        document.getElementById('et-dept').value = d.department || '';
-        document.getElementById('et-desig').value = d.designation || '';
-      }
-      show('edit-teacher');
-    }
-
-    async function submitEditTeacher() {
-      if (!currentEditTeacherId) return;
-
-      const body = {};
-      const name = document.getElementById('et-name').value.trim();
-      const email = document.getElementById('et-email').value.trim();
-      const mob = document.getElementById('et-mobile').value.trim();
-      const dept = document.getElementById('et-dept').value.trim();
-      const desig = document.getElementById('et-desig').value.trim();
-
-      if (name) body.name = name;
-      if (email) body.email = email;
-      if (mob) body.mobile = mob;
-      if (dept) body.department = dept;
-      if (desig) body.designation = desig;
-
-      if (Object.keys(body).length === 0)
-        return toast('Kuch bhi fill nahi kiya!', 'error');
-
-      const r = await PATCH('auth/teachers/' + currentEditTeacherId + '/', body);
-      renderResponse('res-edit-tch', r);
-      if (r.ok) {
-        toast('Teacher updated!');
-        loadTeachers();
-      } else {
-        toast('Error: ' + (r.data?.detail || r.status), 'error');
-      }
     }
 
     // SUBJECTS
@@ -2159,6 +1991,99 @@
       const status = document.getElementById('aac-status').value === 'true';
       const r = await PATCH('analytics/admin/attendance/' + id + '/', { is_present: status });
       renderResponse('res-aac', r); if (r.ok) toast('Corrected!'); else toast('Error', 'error');
+    }
+
+    // EDIT STUDENT
+    var currentEditStudentId = null;
+    async function openEditStudent(sid) {
+      currentEditStudentId = sid;
+      document.getElementById('edit-stu-id-label').textContent = sid;
+      // Reset face section
+      document.getElementById('face-img-preview').style.display = 'none';
+      document.getElementById('face-drop-hint').style.display = 'block';
+      document.getElementById('face-file-input').value = '';
+      document.getElementById('res-face-reg').classList.remove('show');
+      document.getElementById('res-edit-stu').classList.remove('show');
+      show('edit-student');
+      // Load current data
+      const r = await GET('auth/students/' + sid + '/');
+      if (!r.ok) return toast('Student load failed', 'error');
+      const d = r.data;
+      const p  = d.profile       || {};
+      const pd = d.parent_detail || {};
+      document.getElementById('es-roll').value          = d.roll_number        || '';
+      document.getElementById('es-rfid').value          = d.rfid_number        || '';
+      document.getElementById('es-aadhar').value        = d.aadhar_number      || '';
+      document.getElementById('es-mobile').value        = p.mobile_number      || '';
+      document.getElementById('es-email').value         = p.email              || '';
+      document.getElementById('es-year').value          = p.academic_year      || '';
+      document.getElementById('es-branch').value        = p.branch             || '';
+      document.getElementById('es-state').value         = p.domicile_state     || '';
+      document.getElementById('es-father-name').value   = pd.father_name       || '';
+      document.getElementById('es-father-mobile').value = pd.father_mobile     || '';
+      document.getElementById('es-father-email').value  = pd.father_email      || '';
+      document.getElementById('es-mother-mobile').value = pd.mother_mobile     || '';
+      // Face status badge
+      const faceBadge = document.getElementById('face-reg-status-badge');
+      const editBadge = document.getElementById('edit-stu-face-badge');
+      const faceHtml = d.has_face_registered
+        ? '<span class="badge bg">✓ Face Registered</span>'
+        : '<span class="badge bx">✗ Face Not Registered</span>';
+      faceBadge.innerHTML = faceHtml;
+      editBadge.innerHTML = faceHtml;
+    }
+    async function submitEditStudent() {
+      if (!currentEditStudentId) return;
+      const profile = {}, parent_detail = {}, body = {};
+      const v = id => document.getElementById(id).value.trim();
+      if (v('es-roll'))           body.roll_number              = v('es-roll');
+      if (v('es-rfid'))           body.rfid_number              = v('es-rfid');
+      if (v('es-aadhar'))         body.aadhar_number            = v('es-aadhar');
+      if (v('es-mobile'))         profile.mobile_number         = v('es-mobile');
+      if (v('es-email'))          profile.email                 = v('es-email');
+      if (v('es-year'))           profile.academic_year         = v('es-year');
+      if (v('es-branch'))         profile.branch                = v('es-branch');
+      if (v('es-state'))          profile.domicile_state        = v('es-state');
+      if (v('es-father-name'))    parent_detail.father_name     = v('es-father-name');
+      if (v('es-father-mobile'))  parent_detail.father_mobile   = v('es-father-mobile');
+      if (v('es-father-email'))   parent_detail.father_email    = v('es-father-email');
+      if (v('es-mother-mobile'))  parent_detail.mother_mobile   = v('es-mother-mobile');
+      if (Object.keys(profile).length)       body.profile       = profile;
+      if (Object.keys(parent_detail).length) body.parent_detail = parent_detail;
+      if (!Object.keys(body).length) return toast('Kuch bhi fill nahi kiya!', 'error');
+      const r = await PATCH('auth/students/' + currentEditStudentId + '/', body);
+      renderResponse('res-edit-stu', r);
+      if (r.ok) { toast('Student updated! ✓'); loadStudents(); }
+      else toast('Error: ' + (r.data?.detail || r.data?.error || r.status), 'error');
+    }
+    function previewFacePhoto(input) {
+      if (!input.files || !input.files[0]) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.getElementById('face-img-preview');
+        img.src = e.target.result;
+        img.style.display = 'block';
+        document.getElementById('face-drop-hint').style.display = 'none';
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+    async function registerFace() {
+      if (!currentEditStudentId) return toast('Student select nahi hua', 'error');
+      const fi = document.getElementById('face-file-input');
+      if (!fi.files || !fi.files[0]) return toast('Pehle photo select karo', 'error');
+      const fd = new FormData();
+      fd.append('student_id', currentEditStudentId);
+      fd.append('photo', fi.files[0]);
+      toast('Uploading...', 'info');
+      const r = await FORM('attendance/face/register/', fd);
+      renderResponse('res-face-reg', r);
+      if (r.ok) {
+        toast('Face photo registered! ✓');
+        const badge = '<span class="badge bg">✓ Face Registered</span>';
+        document.getElementById('face-reg-status-badge').innerHTML = badge;
+        document.getElementById('edit-stu-face-badge').innerHTML = badge;
+        loadStudents();
+      } else toast('Error: ' + (r.data?.error || r.status), 'error');
     }
 
     // INIT
