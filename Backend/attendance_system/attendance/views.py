@@ -151,7 +151,7 @@ class RegisterFaceView(APIView):
     Admin/Teacher uploads student's face photo for encoding.
     Body: multipart form with 'photo' file and 'student_id'
     """
-    permission_classes = [IsTeacherOrAdmin]
+    permission_classes = [IsAdmin]
 
     def post(self, request):
         student_id = request.data.get('student_id')

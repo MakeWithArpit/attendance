@@ -114,7 +114,7 @@ TEMPLATES = [
     },
 ]
 
-CORS_ALLOWED_ORIGINS = ["https://attendance-ashen-ten.vercel.app/"]
+CORS_ALLOWED_ORIGINS = ["https://attendance-ashen-ten.vercel.app", "http://localhost:8000"]
 
 
 

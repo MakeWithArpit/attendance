@@ -59,7 +59,7 @@ class Command(BaseCommand):
     # ─────────────────────────────────────────────────────────────────────
     def _clear_data(self):
         from accounts.models import User, Branch, Student, Teacher
-        from academics.models import Subject, CourseRegistration, Timetable
+        from academics.models import Subject, CourseRegistration, TimeTable
         from attendance.models import Attendance, AttendanceSession, LeaveRequest
 
         self.stdout.write('🗑  Clearing old data...')
@@ -67,7 +67,7 @@ class Command(BaseCommand):
         Attendance.objects.all().delete()
         AttendanceSession.objects.all().delete()
         CourseRegistration.objects.all().delete()
-        Timetable.objects.all().delete()
+        TimeTable.objects.all().delete()
         Subject.objects.all().delete()
         Student.objects.all().delete()
         Teacher.objects.all().delete()
@@ -329,14 +329,14 @@ class Command(BaseCommand):
             for student in students_a:
                 CourseRegistration.objects.get_or_create(
                     student=student, subject=subj,
-                    defaults={'branch_id': 'CSE', 'semester': 3, 'section': 'A', 'academic_year': '2024-2025'}
+                    defaults={'branch_id': 'CSE', 'semester': 3, 'section': 'A'}
                 )
                 count += 1
 
             for student in students_b:
                 CourseRegistration.objects.get_or_create(
                     student=student, subject=subj,
-                    defaults={'branch_id': 'CSE', 'semester': 3, 'section': 'B', 'academic_year': '2024-2025'}
+                    defaults={'branch_id': 'CSE', 'semester': 3, 'section': 'B'}
                 )
                 count += 1
 
@@ -344,7 +344,7 @@ class Command(BaseCommand):
 
     # ─────────────────────────────────────────────────────────────────────
     def _create_timetable(self):
-        from academics.models import Subject, Timetable
+        from academics.models import Subject, TimeTable
         self.stdout.write('🗓  Creating timetable...')
 
         # Section A timetable
@@ -368,7 +368,7 @@ class Command(BaseCommand):
         for subj_code, day, period, start, end in timetable_a:
             subj = Subject.objects.get(subject_code=subj_code)
             for section in ['A', 'B']:
-                Timetable.objects.get_or_create(
+                TimeTable.objects.get_or_create(
                     branch_id='CSE', subject=subj, semester=3,
                     section=section, day=day, period_number=period,
                     defaults={'start_time': start, 'end_time': end, 'academic_year': '2024-2025'}

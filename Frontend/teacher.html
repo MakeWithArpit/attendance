@@ -715,7 +715,6 @@
       <div class="nav-sec">Attendance</div>
       <div class="nav-item" onclick="show('session')">▶️ Start Session</div>
       <div class="nav-item" onclick="show('manual')">✏️ Manual</div>
-      <div class="nav-item" onclick="show('face')">😊 Face Register</div>
       <div class="nav-item" onclick="show('rfid')">📡 RFID</div>
       <div class="nav-item" onclick="show('records')">📋 Records</div>
       <div class="nav-sec">Students</div>
@@ -908,24 +907,6 @@
             </div>
             <button class="btn btn-primary" onclick="markManual()">Submit Attendance</button>
             <div class="res-box" id="res-manual"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- FACE REGISTER -->
-      <div class="section" id="s-face">
-        <div class="box" style="max-width:500px">
-          <div class="box-header"><span class="box-title">Register Student Face</span></div>
-          <div class="box-body">
-            <div class="hint">
-              <b>student_id</b> = student PK (e.g. "BCS2024001")<br>
-              DeepFace use ho raha hai — student ki ek clear front-facing photo upload karo.
-            </div>
-            <div class="fgrp"><label>Student ID (student_id PK)</label><input id="face-sid" placeholder="BCS2024001">
-            </div>
-            <div class="fgrp"><label>Face Photo</label><input id="face-photo" type="file" accept="image/*"></div>
-            <button class="btn btn-primary" onclick="registerFace()">Register Face</button>
-            <div class="res-box" id="res-face"></div>
           </div>
         </div>
       </div>
@@ -1157,7 +1138,7 @@
     document.getElementById('sb-name').textContent = Auth.getName() || 'Teacher';
     document.getElementById('sess-date').value = new Date().toISOString().split('T')[0];
 
-    const titles = { home: 'Dashboard', timetable: 'My Timetable', session: 'Start Session', manual: 'Manual Attendance', face: 'Face Register', rfid: 'RFID', records: 'Attendance Records', students: 'Students', leaves: 'Leave Requests', analytics: 'Analytics', notify: 'Notify Parents' };
+    const titles = { home: 'Dashboard', timetable: 'My Timetable', session: 'Start Session', manual: 'Manual Attendance', rfid: 'RFID', records: 'Attendance Records', students: 'Students', leaves: 'Leave Requests', analytics: 'Analytics', notify: 'Notify Parents' };
     function show(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1262,17 +1243,6 @@
         attendance: att
       });
       renderResponse('res-manual', r); if (r.ok) toast('Attendance marked!'); else toast('Error', 'error');
-    }
-
-    // FACE
-    async function registerFace() {
-      const sid = document.getElementById('face-sid').value.trim();
-      const photo = document.getElementById('face-photo').files[0];
-      if (!sid || !photo) return toast('student_id aur photo zaruri hain', 'error');
-      const fd = new FormData();
-      fd.append('student_id', sid); fd.append('photo', photo);
-      const r = await FORM('attendance/face/register/', fd);
-      renderResponse('res-face', r); if (r.ok) toast('Face registered!'); else toast('Error', 'error');
     }
 
     // RFID
