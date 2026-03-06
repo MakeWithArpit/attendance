@@ -669,6 +669,8 @@
       <div class="nav-item" onclick="show('analytics')">📈 Analytics</div>
       <div class="nav-item" onclick="show('report')">📄 Reports</div>
       <div class="nav-item" onclick="show('notify')">🔔 Notify Parents</div>
+      <div class="nav-item" onclick="show('att-requests');loadAttRequests()">📨 Att. Requests</div>
+      <div class="nav-item" onclick="show('devices');loadDevices()">📱 Devices</div>
     </nav>
     <div class="sb-footer">
       <div class="user-pill">
@@ -1073,7 +1075,7 @@
         </div>
 
         <!-- Approve/Reject Modal -->
-        <div class="box" style="max-width:460px;margin-top:16px" id="leave-action-box" style="display:none">
+        <div class="box" style="max-width:460px;margin-top:16px;display:none" id="leave-action-box">
           <div class="box-header"><span class="box-title">Review Leave — ID: <span id="lv-act-id">—</span></span></div>
           <div class="box-body">
             <div class="fgrp"><label>Remarks (optional)</label>
@@ -1547,6 +1549,94 @@
         </div>
       </div>
 
+      <!-- ══ ATTENDANCE REQUESTS (from Teachers) ══ -->
+      <div class="section" id="s-att-requests">
+        <div class="two-col">
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">📨 Attendance Requests</span>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select id="areq-filter" onchange="loadAttRequests()" style="padding:4px 8px;font-size:11px;width:auto">
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" onclick="loadAttRequests()">Load</button>
+              </div>
+            </div>
+            <div class="box-body">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Teacher</th>
+                    <th>Subject</th>
+                    <th>Date</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="areq-tbody">
+                  <tr><td colspan="7" class="empty">Click Load</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="box" id="areq-action-box" style="max-width:400px;display:none">
+            <div class="box-header"><span class="box-title">Review Request — ID: <span id="areq-act-id">—</span></span></div>
+            <div class="box-body">
+              <div id="areq-detail" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--muted);line-height:2"></div>
+              <div class="fgrp"><label>Admin Remark (optional)</label>
+                <textarea id="areq-remark" placeholder="Attendance approved — student had valid reason..."></textarea>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-success" onclick="resolveAttRequest('approved')">✓ Approve & Mark Present</button>
+                <button class="btn btn-danger" onclick="resolveAttRequest('rejected')">✗ Reject</button>
+                <button class="btn btn-ghost" onclick="document.getElementById('areq-action-box').style.display='none'">Cancel</button>
+              </div>
+              <div class="res-box" id="res-areq-act"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DEVICE MANAGEMENT ══ -->
+      <div class="section" id="s-devices">
+        <div class="two-col">
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">📱 Reset Student Device</span>
+            </div>
+            <div class="box-body">
+              <div class="hint">
+                Student ka phone gum/kharab ho jaaye toh <b>Device Reset</b> karo.<br>
+                Reset ke baad student nayi device se login karega — nayi device ID auto-register hogi.
+              </div>
+              <div class="fgrp"><label>Student ID</label><input id="dev-sid" placeholder="BCS2024001" list="dev-sid-list"><datalist id="dev-sid-list"></datalist></div>
+              <button class="btn btn-warn" onclick="resetDevice()">🔄 Reset Device Tokens</button>
+              <div class="res-box" id="res-dev-reset"></div>
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">All Registered Devices</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadDevices()">Load</button>
+            </div>
+            <div class="box-body">
+              <table>
+                <thead>
+                  <tr><th>Student ID</th><th>Name</th><th>Device</th><th>Last Login</th><th>Action</th></tr>
+                </thead>
+                <tbody id="dev-tbody">
+                  <tr><td colspan="5" class="empty">Click Load</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
   <script src="api.js"></script>
@@ -1568,7 +1658,9 @@
       'att-edit': 'Attendance Correction',
       analytics: 'Analytics',
       report: 'Reports',
-      notify: 'Notify Parents'
+      notify: 'Notify Parents',
+      'att-requests': 'Attendance Requests',
+      devices: 'Device Management'
     };
     function show(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1624,12 +1716,6 @@
       const r = await GET('auth/students/');
       allStudents = r.data.results || r.data || [];
       renderStudents(allStudents);
-    }
-    function filterStudents() {
-      const q = document.getElementById('stu-search').value.toLowerCase();
-      renderStudents(allStudents.filter(s =>
-        (s.student_id || s.enrollment_number || s.profile?.name || '') + ' ' + (s.profile?.name || '') + ' ' + s.enrollment_number
-      ).filter(s => typeof s === 'string' ? s.toLowerCase().includes(q) : JSON.stringify(s).toLowerCase().includes(q)));
     }
     function filterStudents() {
       const q = document.getElementById('stu-search').value.toLowerCase();
@@ -2084,6 +2170,80 @@
         document.getElementById('edit-stu-face-badge').innerHTML = badge;
         loadStudents();
       } else toast('Error: ' + (r.data?.error || r.status), 'error');
+    }
+
+    // ATTENDANCE REQUESTS (from Teachers)
+    var currentAReqId = null;
+    async function loadAttRequests() {
+      const filter = document.getElementById('areq-filter')?.value || 'pending';
+      const r = await GET('attendance/admin/attendance-requests/?status=' + filter);
+      const list = r.data.requests || [];
+      document.getElementById('areq-tbody').innerHTML = list.map(req => `
+        <tr>
+          <td>
+            <div style="font-weight:600"><span class="tag">${req.student_id}</span></div>
+            <div style="font-size:10px;color:var(--muted)">${req.student_name || ''}</div>
+          </td>
+          <td style="font-size:12px">${req.teacher_name || req.teacher_id}</td>
+          <td style="font-size:12px">${req.subject}</td>
+          <td style="font-size:11px">${req.date}</td>
+          <td style="font-size:11px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${req.reason}">${req.reason}</td>
+          <td><span class="badge ${req.status==='approved'?'bg':req.status==='rejected'?'br':'bw'}">${req.status}</span></td>
+          <td>
+            ${req.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="openAReq(${req.id},'${req.student_id}','${req.student_name||''}','${req.subject}','${req.date}','${(req.reason||'').replace(/'/g,'').substring(0,60)}')">Review</button>` : '—'}
+          </td>
+        </tr>`).join('') || '<tr><td colspan="7" class="empty">No requests found</td></tr>';
+    }
+    function openAReq(id, sid, sname, subject, date, reason) {
+      currentAReqId = id;
+      document.getElementById('areq-act-id').textContent = id;
+      document.getElementById('areq-detail').innerHTML = `
+        <b>Student:</b> ${sid} — ${sname}<br>
+        <b>Subject:</b> ${subject}<br>
+        <b>Date:</b> ${date}<br>
+        <b>Reason:</b> ${reason}`;
+      document.getElementById('areq-remark').value = '';
+      document.getElementById('areq-action-box').style.display = 'block';
+      document.getElementById('res-areq-act').classList.remove('show');
+    }
+    async function resolveAttRequest(action) {
+      if (!currentAReqId) return;
+      const remark = document.getElementById('areq-remark').value.trim();
+      const r = await PATCH('attendance/admin/attendance-requests/' + currentAReqId + '/', { action, remark });
+      renderResponse('res-areq-act', r);
+      if (r.ok) {
+        toast(action === 'approved' ? '✓ Approved — Attendance marked!' : 'Request rejected');
+        document.getElementById('areq-action-box').style.display = 'none';
+        loadAttRequests();
+      } else toast('Error: ' + (r.data?.error || r.status), 'error');
+    }
+
+    // DEVICE MANAGEMENT
+    async function resetDevice() {
+      const sid = document.getElementById('dev-sid').value.trim();
+      if (!sid) return toast('Student ID zaruri hai', 'error');
+      if (!confirm('Reset device tokens for ' + sid + '? Student will need OTP on next new device login.')) return;
+      const r = await POST('auth/admin/device-reset/', { student_id: sid });
+      renderResponse('res-dev-reset', r);
+      if (r.ok) { toast('✓ Device tokens reset! Student can now login from new device.'); loadDevices(); }
+      else toast('Error: ' + (r.data?.error || r.status), 'error');
+    }
+    async function loadDevices() {
+      const r = await GET('auth/admin/device-reset/');
+      const list = r.data.devices || [];
+      document.getElementById('dev-tbody').innerHTML = list.map(d => `
+        <tr>
+          <td><span class="tag">${d.student_id}</span></td>
+          <td style="font-size:12px">${d.student_name || '—'}</td>
+          <td style="font-size:11px;color:var(--muted)">${d.device_label?.substring(0,40) || d.device_id}</td>
+          <td style="font-size:11px">${d.last_login?.split('T')[0] || '—'}</td>
+          <td>
+            <button class="btn btn-warn btn-sm" onclick="document.getElementById('dev-sid').value='${d.student_id}';resetDevice()">Reset</button>
+          </td>
+        </tr>`).join('') || '<tr><td colspan="5" class="empty">No devices registered</td></tr>';
+      // Also populate datalist for student search
+      const dl = document.getElementById('dev-sid-list');
+      if(dl) dl.innerHTML = list.map(d => `<option value="${d.student_id}">${d.student_name || d.student_id}</option>`).join('');
     }
 
     // INIT
