@@ -225,6 +225,9 @@ class PasswordResetOTP(models.Model):
         return f"OTP for {self.user.username} | Valid: {self.is_valid}"
 
 
+# ─────────────────────────────────────────────
+# Device Token
+# ─────────────────────────────────────────────
 class DeviceToken(models.Model):
     """
     Stores the browser fingerprint (device_id) for each student.
