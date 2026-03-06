@@ -92,7 +92,9 @@ class TimeTableListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['branch', 'semester', 'section', 'day', 'academic_year']
 
     def get_queryset(self):
-        return TimeTable.objects.select_related('branch', 'subject', 'subject__assigned_teacher').all()
+        return TimeTable.objects.select_related(
+            'branch', 'subject', 'subject__assigned_teacher'
+        ).all().order_by('day', 'period_number', 'start_time')
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -129,5 +131,3 @@ class MyTimetableView(APIView):
             'today_schedule': TimeTableSerializer(today_schedule, many=True).data,
             'weekly_schedule': TimeTableSerializer(weekly_schedule, many=True).data,
         })
-
-

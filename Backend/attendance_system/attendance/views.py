@@ -536,7 +536,7 @@ class AttendanceListView(generics.ListAPIView):
     def get_queryset(self):
         return Attendance.objects.select_related(
             'student__profile', 'subject', 'marked_by'
-        ).all()
+        ).all().order_by('-date', 'student')
 
 
 class AttendanceEditView(APIView):
@@ -699,25 +699,32 @@ class TeacherDashboardView(APIView):
         # Subject-wise class stats
         subjects = teacher.subjects.all()
         subject_stats = []
+        total_students_set = set()  # unique students across all subjects
+
         for subject in subjects:
             total_classes = AttendanceSession.objects.filter(
                 teacher=teacher, subject=subject, status='closed'
             ).count()
 
-            # Students below 75 in this subject
             from academics.models import CourseRegistration
-            regs = CourseRegistration.objects.filter(subject=subject).count()
+            student_ids = CourseRegistration.objects.filter(
+                subject=subject
+            ).values_list('student_id', flat=True)
+
+            enrolled = len(student_ids)
+            total_students_set.update(student_ids)
 
             subject_stats.append({
                 'subject_code':  subject.subject_code,
                 'subject_name':  subject.subject_name,
                 'total_classes': total_classes,
-                'enrolled':      regs,
+                'enrolled':      enrolled,
             })
 
         return Response({
             'total_sessions_taken': sessions_taken,
             'pending_leaves':       pending_leaves,
+            'total_students':       len(total_students_set),
             'subjects':             subject_stats,
         })
 

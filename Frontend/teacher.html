@@ -767,7 +767,7 @@
           </div>
           <div class="stat-card">
             <div>👤</div>
-            <div class="stat-val">—</div>
+            <div class="stat-val" id="st-students">—</div>
             <div class="stat-label">Total Students</div>
           </div>
         </div>
@@ -1256,8 +1256,9 @@
       renderResponse('res-dash', r);
       if (r.ok) {
         document.getElementById('st-sessions').textContent = r.data.total_sessions_taken ?? '—';
-        document.getElementById('st-pending').textContent = r.data.pending_leaves ?? '—';
-        document.getElementById('st-subs').textContent = r.data.subjects?.length ?? '—';
+        document.getElementById('st-pending').textContent  = r.data.pending_leaves ?? '—';
+        document.getElementById('st-subs').textContent     = r.data.subjects?.length ?? '—';
+        document.getElementById('st-students').textContent = r.data.total_students ?? '—';
       }
     }
     async function loadProfile() { const r = await GET('auth/me/'); document.getElementById('profile-out').textContent = JSON.stringify(r.data, null, 2); }

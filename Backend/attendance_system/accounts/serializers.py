@@ -98,6 +98,12 @@ class StudentCreateSerializer(serializers.Serializer):
     rfid_number       = serializers.CharField(required=False, allow_blank=True)
     aadhar_number     = serializers.CharField(required=False, allow_blank=True)
 
+    # Face recognition photo (optional at registration — can be uploaded later too)
+    registered_photo  = serializers.ImageField(
+        required=False, allow_null=True,
+        help_text="Student ki clear front-facing photo for face recognition."
+    )
+
     # Profile
     profile = StudentProfileSerializer()
 
@@ -111,6 +117,7 @@ class StudentCreateSerializer(serializers.Serializer):
         parent_data          = validated_data.pop('parent_detail', None)
         permanent_addr_data  = validated_data.pop('permanent_address', None)
         present_addr_data    = validated_data.pop('present_address', None)
+        registered_photo     = validated_data.pop('registered_photo', None)
 
         # Create User
         user = User.objects.create_user(
@@ -127,6 +134,15 @@ class StudentCreateSerializer(serializers.Serializer):
             rfid_number=validated_data.get('rfid_number'),
             aadhar_number=validated_data.get('aadhar_number'),
         )
+
+        # Save face photo if provided
+        if registered_photo:
+            student.registered_photo.save(
+                f"face_{student.enrollment_number}.jpg",
+                registered_photo,
+                save=True
+            )
+
         StudentProfile.objects.create(student=student, **profile_data)
 
         if parent_data:

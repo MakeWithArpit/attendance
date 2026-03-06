@@ -73,9 +73,17 @@
     © 2026 Attendance System | All Rights Reserved
 </footer>
 
+<script src="api.js"></script>
 <script>
     window.onload = function () {
-        console.log("Dark Theme Dashboard Loaded Successfully");
+        // Agar already logged in hai to seedha dashboard pe bhejo
+        const role = Auth.getRole();
+        if (Auth.isLoggedIn() && ['admin', 'teacher', 'student'].includes(role)) {
+            Auth.redirectByRole();
+        } else if (Auth.isLoggedIn()) {
+            // Stale/incomplete auth — clear karo
+            Auth.clear();
+        }
     };
 </script>
 

@@ -451,8 +451,15 @@
 
   <script src="api.js"></script>
   <script>
-    // Redirect if already logged in
-    if (Auth.isLoggedIn()) Auth.redirectByRole();
+    // Auto-redirect: sirf tab jab token AND valid role dono hon
+    // Stale token (no role) = clear karo, login form dikhao — loop nahi
+    const _savedRole = Auth.getRole();
+    if (Auth.isLoggedIn() && ['admin', 'teacher', 'student'].includes(_savedRole)) {
+      Auth.redirectByRole();
+    } else if (Auth.isLoggedIn()) {
+      // Token hai lekin role missing/invalid — stale state clear karo
+      Auth.clear();
+    }
 
     function switchTab(tab) {
       document.getElementById('tab-login').style.display = tab === 'login' ? 'block' : 'none';

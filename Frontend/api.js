@@ -30,10 +30,11 @@ const Auth = {
   },
   redirectByRole() {
     const r = this.getRole();
-    if (r === 'admin') window.location.href = 'admin.html';
-    else if (r === 'teacher') window.location.href = 'teacher.html';
-    else if (r === 'student') window.location.href = 'student.html';
-    else window.location.href = 'login.html';
+    if (r === 'admin')   { window.location.href = 'admin.html';   return; }
+    if (r === 'teacher') { window.location.href = 'teacher.html'; return; }
+    if (r === 'student') { window.location.href = 'student.html'; return; }
+    // Role missing or unknown — clear corrupted auth and stay on login
+    this.clear();
   }
 };
 
@@ -59,7 +60,12 @@ async function _fetch(url, opts = {}) {
       res = await fetch(API_BASE + url, opts);
     } else {
       Auth.clear();
-      window.location.href = 'login.html';
+      // Sirf tab redirect karo jab already login page pe na hon
+      if (!window.location.pathname.endsWith('login.html') &&
+          !window.location.pathname.endsWith('/') &&
+          window.location.pathname !== '') {
+        window.location.href = 'login.html';
+      }
       return;
     }
   }

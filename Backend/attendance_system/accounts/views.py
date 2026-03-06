@@ -8,6 +8,7 @@ from rest_framework import generics, status, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
@@ -270,10 +271,11 @@ class StudentListView(generics.ListAPIView):
 class StudentCreateView(generics.CreateAPIView):
     """
     POST /api/auth/students/create/
-    Admin only.
+    Admin only. Supports multipart/form-data for registered_photo upload.
     """
     serializer_class = StudentCreateSerializer
     permission_classes = [IsAdmin]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def create(self, request, *args, **kwargs):
         if request.user.role != 'admin':
@@ -281,7 +283,19 @@ class StudentCreateView(generics.CreateAPIView):
                 {'error': 'Only admin can register new students.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        serializer = self.get_serializer(data=request.data)
+
+        # When FormData is used (multipart), nested fields come as JSON strings.
+        # Parse them into dicts so the serializer can validate them properly.
+        import json as _json
+        data = request.data.copy()
+        for key in ('profile', 'parent_detail', 'permanent_address', 'present_address'):
+            if key in data and isinstance(data[key], str):
+                try:
+                    data[key] = _json.loads(data[key])
+                except (ValueError, TypeError):
+                    pass
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         student = serializer.save()
         return Response(StudentSerializer(student).data, status=201)

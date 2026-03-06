@@ -798,6 +798,15 @@
               <div class="fgrp"><label>Aadhar Number (optional)</label><input id="s-aadhar" placeholder="123456789012">
               </div>
             </div>
+            <div class="fgrp" style="margin-top:4px">
+              <label>📷 Face Photo for Attendance (optional — can be uploaded later)</label>
+              <input id="s-face-photo" type="file" accept="image/*"
+                style="background:var(--bg2,#0f172a);border:1px solid var(--border,#1e3a5f);border-radius:8px;padding:8px;color:var(--text,#e2e8f0);width:100%;cursor:pointer">
+              <div style="font-size:10px;color:var(--muted,#64748b);margin-top:4px">
+                ⚠️ Clear, front-facing photo upload karo. Yahi face recognition ke liye use hogi.
+                Agar abhi nahi karo to baad mein "Register Face" se upload kar sakte ho.
+              </div>
+            </div>
             <div
               style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:12px 0 8px">
               Profile Details</div>
@@ -1748,42 +1757,52 @@
     }
     async function createStudent() {
       const hasPD = document.getElementById('pd-fname').value.trim();
-      const body = {
-        student_id: document.getElementById('s-id').value.trim(),
-        password: document.getElementById('s-pass').value,
-        enrollment_number: document.getElementById('s-enroll').value.trim(),
-        roll_number: document.getElementById('s-roll').value.trim(),
-        rfid_number: document.getElementById('s-rfid').value.trim() || undefined,
-        aadhar_number: document.getElementById('s-aadhar').value.trim() || undefined,
-        profile: {
-          name: document.getElementById('sp-name').value.trim(),
-          dob: document.getElementById('sp-dob').value,
-          gender: document.getElementById('sp-gender').value,
-          mobile_number: document.getElementById('sp-mobile').value.trim(),
-          email: document.getElementById('sp-email').value.trim() || undefined,
-          branch: document.getElementById('sp-branch').value.trim(),
-          date_of_joining: document.getElementById('sp-doj').value,
-          academic_year: document.getElementById('sp-acyear').value,
-          domicile_state: document.getElementById('sp-state').value.trim(),
-          marital_status: document.getElementById('sp-marital').value,
-          nationality: 'Indian',
-        }
+      const photoFile = document.getElementById('s-face-photo').files[0];
+
+      // Build nested JSON as a string — backend expects multipart with JSON fields
+      const profileData = {
+        name: document.getElementById('sp-name').value.trim(),
+        dob: document.getElementById('sp-dob').value,
+        gender: document.getElementById('sp-gender').value,
+        mobile_number: document.getElementById('sp-mobile').value.trim(),
+        email: document.getElementById('sp-email').value.trim() || null,
+        branch: document.getElementById('sp-branch').value.trim(),
+        date_of_joining: document.getElementById('sp-doj').value,
+        academic_year: document.getElementById('sp-acyear').value,
+        domicile_state: document.getElementById('sp-state').value.trim(),
+        marital_status: document.getElementById('sp-marital').value,
+        nationality: 'Indian',
       };
+
+      // Use FormData to support file upload
+      const fd = new FormData();
+      fd.append('student_id',        document.getElementById('s-id').value.trim());
+      fd.append('password',           document.getElementById('s-pass').value);
+      fd.append('enrollment_number',  document.getElementById('s-enroll').value.trim());
+      fd.append('roll_number',        document.getElementById('s-roll').value.trim());
+      const rfid   = document.getElementById('s-rfid').value.trim();
+      const aadhar = document.getElementById('s-aadhar').value.trim();
+      if (rfid)   fd.append('rfid_number',   rfid);
+      if (aadhar) fd.append('aadhar_number', aadhar);
+
+      // DRF nested serializers need JSON string for nested objects when using FormData
+      fd.append('profile', JSON.stringify(profileData));
+
       if (hasPD) {
-        body.parent_detail = {
-          father_name: document.getElementById('pd-fname').value.trim(),
-          father_mobile: document.getElementById('pd-fmobile').value.trim(),
-          father_email: document.getElementById('pd-femail').value.trim() || undefined,
-          father_occupation: document.getElementById('pd-focc').value.trim(),
-          mother_name: document.getElementById('pd-mname').value.trim(),
-          mother_mobile: document.getElementById('pd-mmobile').value.trim(),
-          mother_occupation: '',
-        };
+        fd.append('parent_detail', JSON.stringify({
+          father_name:        document.getElementById('pd-fname').value.trim(),
+          father_mobile:      document.getElementById('pd-fmobile').value.trim(),
+          father_email:       document.getElementById('pd-femail').value.trim() || null,
+          father_occupation:  document.getElementById('pd-focc').value.trim(),
+          mother_name:        document.getElementById('pd-mname').value.trim(),
+          mother_mobile:      document.getElementById('pd-mmobile').value.trim(),
+          mother_occupation:  '',
+        }));
       }
-      // Remove undefined keys recursively
-      function clean(o) { if (!o || typeof o !== 'object') return o; Object.keys(o).forEach(k => { if (o[k] === undefined) delete o[k]; else if (typeof o[k] === 'object') clean(o[k]); }); return o; }
-      clean(body);
-      const r = await POST('auth/students/create/', body);
+
+      if (photoFile) fd.append('registered_photo', photoFile);
+
+      const r = await FORM('auth/students/create/', fd);
       renderResponse('res-stu-create', r);
       if (r.ok) { toast('Student created!'); loadStudents(); } else toast('Error creating student', 'error');
     }
