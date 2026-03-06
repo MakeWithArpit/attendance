@@ -120,3 +120,85 @@ async function DOWNLOAD(url) {
   URL.revokeObjectURL(a.href);
   return { ok: true, status: res.status, data: { message: 'Downloaded: ' + filename } };
 }
+
+// ─────────────────────────────────────────────
+// Device fingerprint helper
+// Generates a stable browser fingerprint used as device_id
+// ─────────────────────────────────────────────
+function getDeviceId() {
+  let id = localStorage.getItem('_device_id');
+  if (!id) {
+    // Build a fingerprint from stable browser properties
+    const fp = [
+      navigator.userAgent,
+      navigator.language,
+      screen.width + 'x' + screen.height,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ].join('|');
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < fp.length; i++) {
+      hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+      hash |= 0;
+    }
+    id = 'dev_' + Math.abs(hash).toString(16) + '_' + Date.now().toString(36);
+    localStorage.setItem('_device_id', id);
+  }
+  return id;
+}
+
+function getDeviceLabel() {
+  return navigator.userAgent.substring(0, 200);
+}
+
+// ─────────────────────────────────────────────
+// Device OTP login flow
+// Call this instead of raw POST to login when
+// the server returns { requires_device_otp: true }
+// ─────────────────────────────────────────────
+async function loginWithDeviceCheck(username, password) {
+  const r = await POST('auth/login/', {
+    username,
+    password,
+    device_id:    getDeviceId(),
+    device_label: getDeviceLabel(),
+  });
+
+  if (!r.ok) return r;   // wrong credentials or other error
+
+  if (r.data.requires_device_otp) {
+    // New device detected — store pending state and show OTP screen
+    sessionStorage.setItem('_pending_user_id',  r.data.user_id);
+    sessionStorage.setItem('_pending_device_id', getDeviceId());
+    sessionStorage.setItem('_pending_device_label', getDeviceLabel());
+    return { ok: 'otp_required', data: r.data };
+  }
+
+  // Normal login — save tokens
+  Auth.save(r.data);
+  return r;
+}
+
+async function verifyDeviceOTP(otp) {
+  const user_id      = sessionStorage.getItem('_pending_user_id');
+  const device_id    = sessionStorage.getItem('_pending_device_id');
+  const device_label = sessionStorage.getItem('_pending_device_label');
+
+  if (!user_id || !device_id) {
+    return { ok: false, data: { error: 'Session expired. Please log in again.' } };
+  }
+
+  const r = await POST('auth/verify-device-otp/', {
+    user_id, otp, device_id, device_label
+  });
+
+  if (r.ok) {
+    Auth.save(r.data);
+    // Clear pending state
+    sessionStorage.removeItem('_pending_user_id');
+    sessionStorage.removeItem('_pending_device_id');
+    sessionStorage.removeItem('_pending_device_label');
+  }
+
+  return r;
+}

@@ -34,14 +34,39 @@ class StartAttendanceSessionView(APIView):
     POST /api/attendance/sessions/start/
     Teacher picks: branch, semester, section, subject, date
     System creates a session → used for all 4 attendance methods
+
+    Restrictions:
+    - Teacher can only start a session for a subject assigned to them.
+    - Only students enrolled in that subject are returned.
+
+    GET /api/attendance/sessions/start/
+    Returns only the subjects assigned to the requesting teacher
+    (used by frontend to populate the subject dropdown).
     """
     permission_classes = [IsTeacherOrAdmin]
 
+    def get(self, request):
+        """Return only this teacher's assigned subjects."""
+        teacher = get_object_or_404(Teacher, user=request.user)
+        subjects = Subject.objects.filter(assigned_teacher=teacher)
+        from academics.serializers import SubjectSerializer
+        return Response({'subjects': SubjectSerializer(subjects, many=True).data})
+
     def post(self, request):
         teacher = get_object_or_404(Teacher, user=request.user)
-
-        data = request.data
+        data    = request.data
         subject = get_object_or_404(Subject, pk=data.get('subject_id'))
+
+        # ── Restriction: subject must be assigned to this teacher ──
+        # Admin can bypass this check (they can start any session)
+        if request.user.role == 'teacher':
+            if subject.assigned_teacher_id != teacher.employee_id:
+                return Response({
+                    'error': (
+                        f'You are not assigned to teach "{subject.subject_name}". '
+                        'You can only start sessions for your own subjects.'
+                    )
+                }, status=403)
 
         session, created = AttendanceSession.objects.get_or_create(
             teacher=teacher,
@@ -52,23 +77,34 @@ class StartAttendanceSessionView(APIView):
             date=data.get('date', datetime.date.today()),
             academic_year=data.get('academic_year'),
             defaults={
-                'status':               'active',
-                # Teacher choose karta hai kaunse methods allow hain
-                'facial_enabled':       data.get('facial_enabled', False),
-                # Geo-fencing settings (optional)
-                'geo_fencing_enabled':  data.get('geo_fencing_enabled', False),
-                'campus_latitude':      data.get('campus_latitude'),
-                'campus_longitude':     data.get('campus_longitude'),
+                'status':                'active',
+                'facial_enabled':        data.get('facial_enabled', False),
+                'geo_fencing_enabled':   data.get('geo_fencing_enabled', False),
+                'campus_latitude':       data.get('campus_latitude'),
+                'campus_longitude':      data.get('campus_longitude'),
                 'allowed_radius_meters': data.get('allowed_radius_meters', 200),
             }
         )
 
-        # Load enrolled students
+        # ── Auto-expiry: set expires_at if duration_minutes provided ──
+        duration_minutes = data.get('duration_minutes')
+        if created and duration_minutes:
+            try:
+                mins = int(duration_minutes)
+                if mins > 0:
+                    session.duration_minutes = mins
+                    session.expires_at = timezone.now() + datetime.timedelta(minutes=mins)
+                    session.save(update_fields=['duration_minutes', 'expires_at'])
+            except (ValueError, TypeError):
+                pass
+
+        # ── Load ONLY students enrolled in this specific subject ──
+        # This naturally restricts to the right students regardless of branch/section params
         students = CourseRegistration.objects.filter(
-            branch_id=data.get('branch_id'),
+            subject=subject,
             semester=data.get('semester'),
             section=data.get('section'),
-            subject=subject,
+            branch_id=data.get('branch_id'),
         ).select_related('student__profile')
 
         student_list = [{
@@ -79,8 +115,8 @@ class StartAttendanceSessionView(APIView):
         } for s in students]
 
         return Response({
-            'session': AttendanceSessionSerializer(session).data,
-            'students': student_list,
+            'session':        AttendanceSessionSerializer(session).data,
+            'students':       student_list,
             'total_students': len(student_list),
         }, status=201 if created else 200)
 
@@ -339,7 +375,7 @@ class FacialAttendanceView(APIView):
             location_verified = True
 
         # ── Check 4: Face registered hai? ──
-        if not student.face_encoding:
+        if not student.registered_photo:
             return Response({
                 'error': 'Aapka face registered nahi hai. Admin se contact karo.'
             }, status=400)
@@ -569,8 +605,13 @@ class LeaveRequestListCreateView(generics.ListCreateAPIView):
     """
     Student: POST to apply for leave
     Teacher/Admin: GET to see all leave requests
+    Supports ?status=pending|approved|rejected filter
     """
     serializer_class = LeaveRequestSerializer
+    filter_backends  = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status']
+    ordering_fields  = ['applied_on']
+    ordering         = ['-applied_on']
 
     def get_permissions(self):
         if self.request.method == 'POST':

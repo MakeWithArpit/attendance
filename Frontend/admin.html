@@ -1043,7 +1043,7 @@
             <span class="box-title">Leave Requests</span>
             <div style="display:flex;gap:8px">
               <select id="lv-filter" onchange="loadLeaves()">
-                <option value="">All</option>
+                <option value="all">All</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
@@ -1791,9 +1791,9 @@
     //LEAVE
     var currentLeaveId = null;
     async function loadLeaves() {
-      const filter = document.getElementById('lv-filter')?.value || '';
+      const filter = document.getElementById('lv-filter')?.value || 'all';
       let url = 'attendance/leaves/';
-      if (filter) url += '?status=' + filter;
+      if (filter && filter !== 'all') url += '?status=' + filter;
       const r = await GET(url);
       const list = r.data.results || r.data || [];
       document.getElementById('leaves-tbody').innerHTML = list.map(l => `

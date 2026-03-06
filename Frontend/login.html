@@ -386,6 +386,26 @@
       <button class="btn btn-blue" onclick="doLogin()" id="btn-login">Sign In →</button>
     </div>
 
+    <!-- ── DEVICE OTP TAB (shown when new device detected) ── -->
+    <div id="tab-device-otp" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:32px">📱</div>
+        <div style="font-weight:700;font-size:16px;margin-top:8px">New Device Detected</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">
+          A 6-digit OTP has been sent to your registered email address.
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Enter OTP</label>
+        <input id="otp-input" placeholder="6-digit OTP" maxlength="6"
+               style="letter-spacing:6px;font-size:20px;text-align:center" autocomplete="one-time-code">
+      </div>
+      <div class="err" id="otp-err"></div>
+      <button class="btn btn-blue" onclick="doVerifyOTP()" id="btn-otp">Verify & Login →</button>
+      <button class="btn btn-ghost" onclick="cancelDeviceOTP()"
+              style="width:100%;margin-top:8px;font-size:12px">← Back to Login</button>
+    </div>
+
     <!-- ── FORGOT TAB ── -->
     <div id="tab-forgot" style="display:none">
       <div class="steps-indicator">
@@ -441,27 +461,83 @@
     }
 
     async function doLogin() {
-      const user = document.getElementById('l-user').value.trim();
-      const pass = document.getElementById('l-pass').value;
+      const user  = document.getElementById('l-user').value.trim();
+      const pass  = document.getElementById('l-pass').value;
       const errEl = document.getElementById('l-err');
-      const btn = document.getElementById('btn-login');
-      if (!user || !pass) { errEl.textContent = 'Username aur password zaruri hain.'; errEl.classList.add('show'); return; }
+      const btn   = document.getElementById('btn-login');
+      if (!user || !pass) {
+        errEl.textContent = 'Username aur password zaruri hain.';
+        errEl.classList.add('show'); return;
+      }
       errEl.classList.remove('show');
       btn.disabled = true; btn.textContent = 'Logging in...';
-      const r = await POST('auth/login/', { username: user, password: pass });
+
+      const r = await loginWithDeviceCheck(user, pass);
       btn.disabled = false; btn.textContent = 'Sign In →';
+
+      if (r && r.ok === 'otp_required') {
+        // New device — show OTP screen
+        document.getElementById('tab-login').style.display       = 'none';
+        document.getElementById('tab-device-otp').style.display  = 'block';
+        document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+        document.getElementById('otp-input').focus();
+        return;
+      }
+
       if (r && r.ok) {
-        Auth.save(r.data);
         toast('Login successful! Redirecting...');
         setTimeout(() => Auth.redirectByRole(), 800);
       } else {
-        const msg = r && r.data ? (r.data.detail || r.data.non_field_errors?.[0] || JSON.stringify(r.data)) : 'Server error';
+        const msg = r && r.data
+          ? (r.data.detail || r.data.non_field_errors?.[0] || JSON.stringify(r.data))
+          : 'Server error';
         errEl.textContent = msg;
         errEl.classList.add('show');
       }
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    async function doVerifyOTP() {
+      const otp   = document.getElementById('otp-input').value.trim();
+      const errEl = document.getElementById('otp-err');
+      const btn   = document.getElementById('btn-otp');
+      if (!otp || otp.length !== 6) {
+        errEl.textContent = '6-digit OTP enter karo.';
+        errEl.classList.add('show'); return;
+      }
+      errEl.classList.remove('show');
+      btn.disabled = true; btn.textContent = 'Verifying...';
+
+      const r = await verifyDeviceOTP(otp);
+      btn.disabled = false; btn.textContent = 'Verify & Login →';
+
+      if (r && r.ok) {
+        toast('Device verified! Logging in...');
+        setTimeout(() => Auth.redirectByRole(), 800);
+      } else {
+        const msg = r && r.data ? (r.data.error || r.data.detail || JSON.stringify(r.data)) : 'Error';
+        errEl.textContent = msg;
+        errEl.classList.add('show');
+      }
+    }
+
+    function cancelDeviceOTP() {
+      document.getElementById('tab-device-otp').style.display = 'none';
+      document.getElementById('tab-login').style.display      = 'block';
+      document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+      document.getElementById('otp-input').value = '';
+      document.getElementById('otp-err').classList.remove('show');
+      // Clear pending session
+      sessionStorage.removeItem('_pending_user_id');
+      sessionStorage.removeItem('_pending_device_id');
+      sessionStorage.removeItem('_pending_device_label');
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const otpVisible = document.getElementById('tab-device-otp').style.display !== 'none';
+        if (otpVisible) doVerifyOTP(); else doLogin();
+      }
+    });
 
     let fpUsername = '';
 

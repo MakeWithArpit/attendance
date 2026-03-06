@@ -9,6 +9,7 @@ from .views import (
     BranchListCreateView, BranchDetailView,
     StudentListView, StudentCreateView, StudentDetailView,
     TeacherListView, TeacherCreateView, TeacherDetailView,
+    VerifyDeviceOTPView, AdminDeviceResetView,
 )
 
 urlpatterns = [
@@ -22,6 +23,12 @@ urlpatterns = [
     # Forgot Password (login ke bina access)
     path('forgot-password/',  ForgotPasswordView.as_view(),  name='forgot_password'),
     path('reset-password/',   ResetPasswordView.as_view(),   name='reset_password'),
+
+    # Device OTP verification (new device login)
+    path('verify-device-otp/', VerifyDeviceOTPView.as_view(), name='verify_device_otp'),
+
+    # Admin — Device token management
+    path('admin/device-reset/', AdminDeviceResetView.as_view(), name='admin_device_reset'),
 
     # Branch
     path('branches/',           BranchListCreateView.as_view(), name='branch_list'),
