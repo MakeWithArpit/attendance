@@ -13,7 +13,7 @@ import tempfile, os
 
 from accounts.models import Student, Teacher
 from academics.models import CourseRegistration, Subject
-from .models import Attendance, AttendanceSession, LeaveRequest
+from .models import Attendance, AttendanceSession, LeaveRequest, AttendanceRequest
 from .serializers import (
     AttendanceSerializer, AttendanceSessionSerializer,
     BulkAttendanceSerializer, LeaveRequestSerializer,
@@ -283,6 +283,24 @@ class FacialAttendanceView(APIView):
 
         student = get_object_or_404(Student, user=request.user)
         session = get_object_or_404(AttendanceSession, id=session_id, status='active')
+
+        # ── Check 0a: Session expired? ──
+        if session.is_expired:
+            return Response(
+                {'error': 'Session expired. Contact your teacher.'},
+                status=400
+            )
+
+        # ── Check 0b: Device validation ──
+        device_id = request.data.get('device_id', '').strip()
+        if device_id:
+            from accounts.models import DeviceToken
+            tokens = DeviceToken.objects.filter(student=student)
+            if tokens.exists() and not tokens.filter(device_id=device_id).exists():
+                return Response({
+                    'error': 'Unrecognized device. Contact admin to reset your device.',
+                    'code':  'DEVICE_MISMATCH',
+                }, status=403)
 
         # ── Check 1: Facial recognition is session mein allowed hai? ──
         if not session.facial_enabled:
@@ -660,4 +678,186 @@ class TeacherDashboardView(APIView):
             'total_sessions_taken': sessions_taken,
             'pending_leaves':       pending_leaves,
             'subjects':             subject_stats,
+        })
+
+
+# ─────────────────────────────────────────────
+# Attendance Requests (Teacher → Admin)
+# ─────────────────────────────────────────────
+class TeacherAttendanceRequestView(APIView):
+    """
+    Teacher creates an attendance request for a student who could not mark
+    attendance via face/RFID during the session.
+    GET  → list my submitted requests (with admin remark visible)
+    POST → submit a new request
+    """
+    permission_classes = [IsTeacherOrAdmin]
+
+    def get(self, request):
+        teacher = get_object_or_404(Teacher, user=request.user)
+        requests = AttendanceRequest.objects.filter(
+            teacher=teacher
+        ).select_related(
+            'student__profile', 'session__subject'
+        ).order_by('-created_at')
+
+        data = [{
+            'id':           req.id,
+            'student_id':   req.student_id,
+            'student_name': getattr(req.student, 'profile', None) and req.student.profile.name,
+            'session_id':   req.session_id,
+            'subject':      req.session.subject.subject_name if req.session else '',
+            'date':         req.session.date.isoformat() if req.session else '',
+            'reason':       req.reason,
+            'status':       req.status,
+            'admin_remark': req.admin_remark,
+            'created_at':   req.created_at.isoformat(),
+            'resolved_at':  req.resolved_at.isoformat() if req.resolved_at else None,
+        } for req in requests]
+
+        return Response({'requests': data})
+
+    def post(self, request):
+        teacher    = get_object_or_404(Teacher, user=request.user)
+        student_id = request.data.get('student_id')
+        session_id = request.data.get('session_id')
+        reason     = request.data.get('reason', '').strip()
+
+        if not student_id or not session_id or not reason:
+            return Response(
+                {'error': 'student_id, session_id, and reason are all required'},
+                status=400
+            )
+
+        from accounts.models import Student
+        student = get_object_or_404(Student, pk=student_id)
+        session = get_object_or_404(AttendanceSession, pk=session_id)
+
+        if AttendanceRequest.objects.filter(session=session, student=student).exists():
+            return Response(
+                {'error': 'A request already exists for this student & session'},
+                status=400
+            )
+
+        req = AttendanceRequest.objects.create(
+            session=session, student=student, teacher=teacher, reason=reason
+        )
+
+        try:
+            from analytics.utils import send_professional_email
+            send_professional_email(
+                to=teacher.email,
+                subject='Attendance Request Submitted — AttendX',
+                heading='Request Submitted Successfully',
+                body=(
+                    f"Your attendance request has been submitted to the administrator.\n\n"
+                    f"Student: {student.profile.name if hasattr(student, 'profile') else student_id}\n"
+                    f"Session: {session.subject.subject_name} | {session.date}\n"
+                    f"Reason: {reason}\n\n"
+                    f"You will be notified once the admin reviews your request."
+                ),
+                footer='AttendX Attendance Management System',
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'message': 'Request submitted. Admin will be notified.',
+            'request_id': req.id,
+        }, status=201)
+
+
+class AdminAttendanceRequestView(APIView):
+    """
+    Admin lists and resolves attendance requests from teachers.
+    GET        → list requests filtered by status (default: pending)
+    PATCH /<pk>→ approve or reject a specific request
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        status_filter = request.query_params.get('status', 'pending')
+        requests = AttendanceRequest.objects.filter(
+            status=status_filter
+        ).select_related(
+            'student__profile', 'session__subject', 'teacher'
+        ).order_by('-created_at')
+
+        data = [{
+            'id':           req.id,
+            'student_id':   req.student_id,
+            'student_name': getattr(req.student, 'profile', None) and req.student.profile.name,
+            'teacher_name': req.teacher.name if req.teacher else '',
+            'teacher_id':   req.teacher.employee_id if req.teacher else '',
+            'session_id':   req.session_id,
+            'subject':      req.session.subject.subject_name if req.session else '',
+            'date':         req.session.date.isoformat() if req.session else '',
+            'reason':       req.reason,
+            'status':       req.status,
+            'admin_remark': req.admin_remark,
+            'created_at':   req.created_at.isoformat(),
+        } for req in requests]
+
+        return Response({'requests': data, 'total': len(data)})
+
+    def patch(self, request, pk):
+        req    = get_object_or_404(AttendanceRequest, pk=pk)
+        action = request.data.get('action')
+        remark = request.data.get('remark', '').strip()
+
+        if action not in ('approved', 'rejected'):
+            return Response({'error': "action must be 'approved' or 'rejected'"}, status=400)
+
+        req.status       = action
+        req.admin_remark = remark
+        req.resolved_at  = timezone.now()
+        req.resolved_by  = request.user
+        req.save()
+
+        if action == 'approved':
+            Attendance.objects.update_or_create(
+                student=req.student,
+                subject=req.session.subject,
+                date=req.session.date,
+                defaults={
+                    'is_present':        True,
+                    'day':               req.session.date.strftime('%A'),
+                    'semester':          req.session.semester,
+                    'academic_year':     req.session.academic_year,
+                    'marked_by':         req.teacher,
+                    'method':            'manual',
+                    'location_verified': False,
+                }
+            )
+
+        try:
+            from analytics.utils import send_professional_email
+            status_word  = 'Approved ✓' if action == 'approved' else 'Rejected ✗'
+            student_name = getattr(req.student, 'profile', None) and req.student.profile.name
+            send_professional_email(
+                to=req.teacher.email,
+                subject=f'Attendance Request {status_word} — AttendX',
+                heading=f'Your Attendance Request Has Been {status_word}',
+                body=(
+                    f"Your attendance request has been reviewed by the administrator.\n\n"
+                    f"Student: {student_name or req.student_id}\n"
+                    f"Subject: {req.session.subject.subject_name}\n"
+                    f"Date: {req.session.date}\n"
+                    f"Decision: {status_word}\n"
+                    f"Admin Remark: {remark or 'No remarks provided.'}\n\n"
+                    + (
+                        "The attendance has been marked as Present in the system."
+                        if action == 'approved' else
+                        "The request was not approved. Please contact the administrator for further details."
+                    )
+                ),
+                footer='AttendX Attendance Management System',
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'message':           f'Request {action} successfully.',
+            'request_id':        req.id,
+            'attendance_marked': action == 'approved',
         })

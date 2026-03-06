@@ -11,6 +11,7 @@ from .views import (
     StudentAttendanceSummaryView,
     LeaveRequestListCreateView, LeaveRequestActionView,
     TeacherDashboardView,
+    TeacherAttendanceRequestView, AdminAttendanceRequestView,
 )
 
 urlpatterns = [
@@ -33,13 +34,18 @@ urlpatterns = [
     path('',                         AttendanceListView.as_view(),        name='attendance_list'),
     path('edit/',                    AttendanceEditView.as_view(),        name='attendance_edit'),
 
-    # Student's own
+    # Student's own summary
     path('my-summary/',              StudentAttendanceSummaryView.as_view(), name='my_attendance'),
 
     # Leave
     path('leaves/',                  LeaveRequestListCreateView.as_view(),   name='leave_list'),
     path('leaves/<int:pk>/action/',  LeaveRequestActionView.as_view(),       name='leave_action'),
 
-    # Dashboard
+    # Teacher Dashboard
     path('dashboard/teacher/',       TeacherDashboardView.as_view(),         name='teacher_dashboard'),
+
+    # Attendance Requests (Teacher → Admin)
+    path('attendance-requests/',          TeacherAttendanceRequestView.as_view(), name='att_requests_teacher'),
+    path('admin/attendance-requests/',    AdminAttendanceRequestView.as_view(),   name='att_requests_admin_list'),
+    path('admin/attendance-requests/<int:pk>/', AdminAttendanceRequestView.as_view(), name='att_requests_admin_detail'),
 ]

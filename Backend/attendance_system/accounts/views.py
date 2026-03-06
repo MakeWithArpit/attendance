@@ -2,6 +2,8 @@
 accounts/views.py
 Authentication + Student/Teacher management endpoints
 """
+import random
+import datetime
 from rest_framework import generics, status, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -10,7 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import User, Student, Teacher, Branch, PasswordResetOTP
+from .models import User, Student, Teacher, Branch, PasswordResetOTP, DeviceToken
 from .serializers import (
     CustomTokenObtainPairSerializer,
     StudentSerializer, StudentCreateSerializer,
@@ -27,16 +29,106 @@ from .permissions import IsAdmin, IsTeacherOrAdmin
 class LoginView(TokenObtainPairView):
     """
     POST /api/auth/login/
-    Body: { "username": "STU001", "password": "xxx" }
+    Body: { "username": "STU001", "password": "xxxx", "device_id": "...", "device_label": "..." }
     Returns: access_token, refresh_token, role, name
+    If a student logs in from a new device: returns { requires_device_otp: True, user_id }
+    and sends a 6-digit OTP to their registered email.
     """
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        from django.utils import timezone as tz
+
+        # Run standard JWT authentication first
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code != 200:
+            return response
+
+        username = request.data.get('username', '')
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return response
+
+        device_id    = request.data.get('device_id', '').strip()
+        device_label = request.data.get(
+            'device_label',
+            request.META.get('HTTP_USER_AGENT', '')[:200]
+        )
+
+        if user.role == 'student' and device_id:
+            try:
+                student  = user.student
+                existing = DeviceToken.objects.filter(student=student)
+
+                if not existing.exists():
+                    # First ever login — register this device automatically
+                    DeviceToken.objects.create(
+                        student=student,
+                        device_id=device_id,
+                        device_label=device_label,
+                        is_primary=True,
+                    )
+
+                elif not existing.filter(device_id=device_id).exists():
+                    # Known student, unknown device — block login and require OTP
+                    otp_code = str(random.randint(100000, 999999))
+
+                    # Expire any previous unused OTPs for this user
+                    PasswordResetOTP.objects.filter(
+                        user=user, is_used=False
+                    ).update(is_used=True)
+
+                    PasswordResetOTP.objects.create(
+                        user=user,
+                        otp=otp_code,
+                        expires_at=tz.now() + datetime.timedelta(minutes=10),
+                    )
+
+                    profile = getattr(student, 'profile', None)
+                    if profile and profile.email:
+                        try:
+                            from analytics.utils import send_professional_email
+                            send_professional_email(
+                                to=profile.email,
+                                subject='New Device Login OTP — AttendX',
+                                heading='New Device Detected',
+                                body=(
+                                    f"Dear {profile.name},\n\n"
+                                    f"A login attempt was detected from a new device. "
+                                    f"To verify that this is you, please enter the following OTP:\n\n"
+                                    f"                {otp_code}\n\n"
+                                    f"This OTP is valid for 10 minutes only.\n\n"
+                                    f"If you did not attempt to log in, please change your password "
+                                    f"immediately and contact your institution."
+                                ),
+                                footer='AttendX Attendance Management System',
+                            )
+                        except Exception:
+                            pass
+
+                    # Return special response — do NOT include JWT tokens yet
+                    return Response({
+                        'requires_device_otp': True,
+                        'user_id': user.id,
+                        'message': 'New device detected. OTP sent to your registered email.',
+                    }, status=200)
+
+                else:
+                    # Known device — update last_login timestamp
+                    existing.filter(device_id=device_id).update(last_login=tz.now())
+
+            except Exception:
+                pass  # Device check failed silently — do not block login
+
+        return response
 
 
 class LogoutView(APIView):
     """
     POST /api/auth/logout/
-    Blacklists the refresh token
+    Blacklists the refresh token.
     """
     permission_classes = [IsAuthenticated]
 
@@ -70,6 +162,76 @@ class ChangePasswordView(APIView):
 
 
 # ─────────────────────────────────────────────
+# Device OTP Verification
+# ─────────────────────────────────────────────
+class VerifyDeviceOTPView(APIView):
+    """
+    POST /api/auth/verify-device-otp/
+    Called after LoginView returns { requires_device_otp: True }.
+    Verifies the OTP, registers the new device, and returns JWT tokens.
+
+    Body: { user_id, otp, device_id, device_label }
+    """
+    permission_classes = []  # AllowAny — called before login
+
+    def post(self, request):
+        from django.utils import timezone as tz
+
+        user_id      = request.data.get('user_id')
+        otp_code     = request.data.get('otp', '').strip()
+        device_id    = request.data.get('device_id', '').strip()
+        device_label = request.data.get('device_label', '')
+
+        if not all([user_id, otp_code, device_id]):
+            return Response(
+                {'error': 'user_id, otp, and device_id are all required'},
+                status=400
+            )
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Invalid user'}, status=400)
+
+        otp = PasswordResetOTP.objects.filter(
+            user=user, otp=otp_code, is_used=False
+        ).order_by('-created_at').first()
+
+        if not otp or not otp.is_valid:
+            return Response({'error': 'Invalid or expired OTP'}, status=400)
+
+        otp.is_used = True
+        otp.save()
+
+        # Register the new device
+        if user.role == 'student':
+            DeviceToken.objects.get_or_create(
+                student=user.student,
+                device_id=device_id,
+                defaults={'device_label': device_label, 'is_primary': False},
+            )
+
+        # Issue JWT tokens
+        refresh = RefreshToken.for_user(user)
+        name = user.username
+        try:
+            if user.role == 'student':
+                name = user.student.profile.name
+            elif user.role == 'teacher':
+                name = user.teacher.name
+        except Exception:
+            pass
+
+        return Response({
+            'access':   str(refresh.access_token),
+            'refresh':  str(refresh),
+            'role':     user.role,
+            'username': user.username,
+            'name':     name,
+        })
+
+
+# ─────────────────────────────────────────────
 # Branch
 # ─────────────────────────────────────────────
 class BranchListCreateView(generics.ListCreateAPIView):
@@ -90,7 +252,7 @@ class BranchDetailView(generics.RetrieveUpdateDestroyAPIView):
 class StudentListView(generics.ListAPIView):
     """
     GET /api/auth/students/
-    Admin & Teacher can list all students with filters
+    Admin & Teacher can list all students with filters.
     """
     serializer_class = StudentSerializer
     permission_classes = [IsTeacherOrAdmin]
@@ -108,14 +270,12 @@ class StudentListView(generics.ListAPIView):
 class StudentCreateView(generics.CreateAPIView):
     """
     POST /api/auth/students/create/
-    ⚠️  ADMIN ONLY — Sirf admin hi student register kar sakta hai.
-    Teacher ya koi bhi aur is endpoint ko access nahi kar sakta.
+    Admin only.
     """
     serializer_class = StudentCreateSerializer
-    permission_classes = [IsAdmin]   # Hard-locked to Admin only
+    permission_classes = [IsAdmin]
 
     def create(self, request, *args, **kwargs):
-        # Double-check: even if permission class bypassed somehow
         if request.user.role != 'admin':
             return Response(
                 {'error': 'Only admin can register new students.'},
@@ -130,7 +290,7 @@ class StudentCreateView(generics.CreateAPIView):
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET/PUT/PATCH/DELETE /api/auth/students/<id>/
-    Admin can edit. Teacher can only read.
+    Admin can write. Teacher can only read.
     """
     queryset = Student.objects.select_related('profile', 'parent_detail').all()
     serializer_class = StudentSerializer
@@ -144,7 +304,7 @@ class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
 class MyProfileView(APIView):
     """
     GET /api/auth/me/
-    Student sees their own profile
+    Returns the authenticated user's own profile.
     """
     permission_classes = [IsAuthenticated]
 
@@ -165,9 +325,7 @@ class MyProfileView(APIView):
 # Teacher Views
 # ─────────────────────────────────────────────
 class TeacherListView(generics.ListAPIView):
-    """
-    GET /api/auth/teachers/
-    """
+    """GET /api/auth/teachers/"""
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
     permission_classes = [IsAdmin]
@@ -176,10 +334,7 @@ class TeacherListView(generics.ListAPIView):
 
 
 class TeacherCreateView(generics.CreateAPIView):
-    """
-    POST /api/auth/teachers/create/
-    Admin only
-    """
+    """POST /api/auth/teachers/create/ — Admin only"""
     serializer_class = TeacherCreateSerializer
     permission_classes = [IsAdmin]
 
@@ -191,91 +346,122 @@ class TeacherCreateView(generics.CreateAPIView):
 
 
 class TeacherDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    GET/PUT/PATCH/DELETE /api/auth/teachers/<id>/
-    Admin only for write operations
-    """
+    """GET/PUT/PATCH/DELETE /api/auth/teachers/<id>/ — Admin only"""
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
     permission_classes = [IsAdmin]
 
 
 # ─────────────────────────────────────────────
-# Forgot Password — Step 1: OTP Send
+# Device Management (Admin)
+# ─────────────────────────────────────────────
+class AdminDeviceResetView(APIView):
+    """
+    POST /api/auth/admin/device-reset/
+    Clears all registered device tokens for a student so they can
+    log in from a new device (OTP will be required on next login).
+
+    GET /api/auth/admin/device-reset/
+    Lists all students and their registered device tokens.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        student_id = request.data.get('student_id', '').strip()
+        if not student_id:
+            return Response({'error': 'student_id is required'}, status=400)
+
+        from django.shortcuts import get_object_or_404
+        student = get_object_or_404(Student, pk=student_id)
+        count   = DeviceToken.objects.filter(student=student).count()
+        DeviceToken.objects.filter(student=student).delete()
+
+        try:
+            profile = student.profile
+            if profile.email:
+                from analytics.utils import send_professional_email
+                send_professional_email(
+                    to=profile.email,
+                    subject='Device Registration Reset — AttendX',
+                    heading='Your Device Registration Has Been Reset',
+                    body=(
+                        f"Dear {profile.name},\n\n"
+                        f"Your registered device has been reset by the administrator. "
+                        f"This is typically done when you have changed or lost your device.\n\n"
+                        f"The next time you log into AttendX from a new device, "
+                        f"that device will be automatically registered.\n\n"
+                        f"If you did not request this reset, please contact your institution immediately."
+                    ),
+                    footer='AttendX Attendance Management System',
+                )
+        except Exception:
+            pass
+
+        return Response({
+            'message':    f'{count} device token(s) cleared for {student_id}.',
+            'student_id': student_id,
+        })
+
+    def get(self, request):
+        tokens = DeviceToken.objects.select_related('student__profile').all()
+        data = [{
+            'student_id':    t.student_id,
+            'student_name':  getattr(t.student, 'profile', None) and t.student.profile.name,
+            'device_id':     t.device_id[:12] + '...',
+            'device_label':  t.device_label[:60],
+            'registered_at': t.registered_at.isoformat(),
+            'last_login':    t.last_login.isoformat(),
+        } for t in tokens]
+        return Response({'devices': data, 'total': len(data)})
+
+
+# ─────────────────────────────────────────────
+# Forgot Password — Step 1: Send OTP
 # ─────────────────────────────────────────────
 class ForgotPasswordView(APIView):
     """
     POST /api/auth/forgot-password/
-    Permission: Koi bhi (login ke bina access hoga — AllowAny)
-
     Body: { "username": "STU2024001" }
-
-    Flow:
-      1. Username se user dhundo
-      2. Us user ki email nikalo (role ke hisab se)
-      3. 6-digit OTP generate karo
-      4. DB mein save karo (10 min expiry)
-      5. Email par OTP bhejo
+    Generates a 6-digit OTP and emails it to the user's registered address.
     """
-    permission_classes = []   # AllowAny — login ke bina access
+    permission_classes = []  # AllowAny
 
     def post(self, request):
         from django.utils import timezone
-        from django.core.mail import send_mail
         from django.conf import settings
-        import random
-        import datetime
 
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         username = serializer.validated_data['username']
         user     = User.objects.get(username=username)
+        email    = self._get_email(user)
 
-        # Role ke hisab se email nikalo
-        email = self._get_email(user)
+        otp_code = str(random.randint(100000, 999999))
 
-        # 6-digit OTP generate karo
-        otp = str(random.randint(100000, 999999))
-
-        # Purane OTPs expire karo (is user ke)
         PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
-
-        # Naya OTP save karo — 10 minute valid
         PasswordResetOTP.objects.create(
             user=user,
-            otp=otp,
-            expires_at=timezone.now() + datetime.timedelta(minutes=10)
+            otp=otp_code,
+            expires_at=timezone.now() + datetime.timedelta(minutes=10),
         )
 
-        # Email bhejo
         try:
-            send_mail(
-                subject="Password Reset OTP — Attendance System",
-                message=(
-                    f"Dear {self._get_name(user)},\n\n"
-                    f"Aapne password reset request kiya hai.\n\n"
-                    f"Aapka OTP hai:  {otp}\n\n"
-                    f"Yeh OTP sirf 10 minute ke liye valid hai.\n"
-                    f"Agar aapne request nahi kiya toh is email ko ignore karein.\n\n"
-                    f"Regards,\nAttendance System"
-                ),
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[email],
-                fail_silently=False,
+            from analytics.utils import send_password_reset_otp_email
+            send_password_reset_otp_email(
+                user_email=email,
+                user_name=self._get_name(user),
+                otp_code=otp_code,
             )
         except Exception as e:
             return Response(
-                {'error': f'Email bhejne mein error aaya: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': f'Email send karne mein error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        # Security: email ka sirf kuch hissa dikhao (abc***@gmail.com)
-        masked = self._mask_email(email)
-
         return Response({
-            'message': f'OTP successfully bhej diya gaya hai {masked} par.',
-            'email':   masked,
+            'message': f'OTP successfully bhej diya gaya hai {self._mask_email(email)} par.',
+            'email':   self._mask_email(email),
         })
 
     def _get_email(self, user):
@@ -283,50 +469,35 @@ class ForgotPasswordView(APIView):
             return user.student.profile.email
         elif user.role == 'teacher':
             return user.teacher.email
-        elif user.role == 'admin':
-            return getattr(user, 'email', '')
-        return ''
+        return getattr(user, 'email', '')
 
     def _get_name(self, user):
-        if user.role == 'student':
-            try: return user.student.profile.name
-            except: return user.username
-        elif user.role == 'teacher':
-            try: return user.teacher.name
-            except: return user.username
-        return 'User'
+        try:
+            if user.role == 'student':
+                return user.student.profile.name
+            elif user.role == 'teacher':
+                return user.teacher.name
+        except Exception:
+            pass
+        return user.username
 
     def _mask_email(self, email):
-        """abc@gmail.com  →  ab***@gmail.com"""
         try:
             local, domain = email.split('@')
-            visible = local[:2]
-            return f"{visible}***@{domain}"
+            return f"{local[:2]}***@{domain}"
         except Exception:
-            return "***"
+            return '***'
 
 
 # ─────────────────────────────────────────────
-# Forgot Password — Step 2: OTP Verify + Reset
+# Forgot Password — Step 2: Verify OTP + Reset
 # ─────────────────────────────────────────────
 class ResetPasswordView(APIView):
     """
     POST /api/auth/reset-password/
-    Permission: Koi bhi (login ke bina access)
-
-    Body: {
-        "username": "STU2024001",
-        "otp": "482910",
-        "new_password": "NewPass@456"
-    }
-
-    Flow:
-      1. Username + OTP match karo DB mein
-      2. OTP expired toh nahi? is_used toh nahi?
-      3. Sab sahi → password change karo
-      4. OTP ko is_used=True mark karo
+    Body: { "username": "STU2024001", "otp": "482910", "new_password": "NewPass@456" }
     """
-    permission_classes = []   # AllowAny
+    permission_classes = []  # AllowAny
 
     def post(self, request):
         from django.utils import timezone
@@ -338,26 +509,21 @@ class ResetPasswordView(APIView):
         otp_entered  = serializer.validated_data['otp']
         new_password = serializer.validated_data['new_password']
 
-        # User dhundo
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({'error': 'Username galat hai.'}, status=400)
 
-        # Latest unused OTP dhundo is user ka
         otp_record = PasswordResetOTP.objects.filter(
-            user=user,
-            is_used=False,
+            user=user, is_used=False
         ).order_by('-created_at').first()
 
-        # OTP exist karta hai?
         if not otp_record:
             return Response(
                 {'error': 'Koi OTP nahi mila. Pehle forgot password request karo.'},
                 status=400
             )
 
-        # OTP expire toh nahi?
         if timezone.now() > otp_record.expires_at:
             otp_record.is_used = True
             otp_record.save()
@@ -366,30 +532,21 @@ class ResetPasswordView(APIView):
                 status=400
             )
 
-        # OTP sahi hai?
         if otp_record.otp != otp_entered:
-            return Response(
-                {'error': 'OTP galat hai. Dobara check karo.'},
-                status=400
-            )
+            return Response({'error': 'OTP galat hai. Dobara check karo.'}, status=400)
 
-        # Sab sahi — password change karo
         user.set_password(new_password)
         user.save()
 
-        # OTP use hua — mark karo
         otp_record.is_used = True
         otp_record.save()
 
-        # Saare active JWT tokens bhi expire kar do (optional but secure)
-        # (SimpleJWT ke saath karne ke liye outstanding tokens delete)
         try:
             from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
-            tokens = OutstandingToken.objects.filter(user=user)
-            for token in tokens:
+            for token in OutstandingToken.objects.filter(user=user):
                 BlacklistedToken.objects.get_or_create(token=token)
         except Exception:
-            pass   # Agar token blacklist app nahi hai toh skip
+            pass
 
         return Response({
             'message': 'Password successfully change ho gaya hai. Ab naye password se login karo.',
