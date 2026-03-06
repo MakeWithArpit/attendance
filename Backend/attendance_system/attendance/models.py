@@ -2,6 +2,7 @@
 attendance/models.py
 Attendance,Leave Requests
 """
+
 from django.db import models
 from django.utils import timezone
 from accounts.models import Student, Teacher, Branch
@@ -81,15 +82,22 @@ class AttendanceSession(models.Model):
     academic_year = models.CharField(max_length=9)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     created_at = models.DateTimeField(auto_now_add=True)
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True) #help_text='Auto-close session after N minutes. 0 = manual close.'
+    expires_at = models.DateTimeField(null=True, blank=True) #help_text='Computed at session start. Students cannot mark after this.'
 
+    @property
+    def is_expired(self):
+        if not self.expires_at:
+            return False
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+    
     # ── Attendance method flags ──────────────────
-    # Teacher session start karte waqt choose karta hai
-    # ki kaunse methods allow hain
     facial_enabled = models.BooleanField(default=False)
 
     # ── Geo-fencing settings ─────────────────────
-    # Geo-fencing enable hai is session ke liye?
     geo_fencing_enabled = models.BooleanField(default=False)
+    
     # College campus ka center point (admin settings se aa sakta hai)
     campus_latitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
