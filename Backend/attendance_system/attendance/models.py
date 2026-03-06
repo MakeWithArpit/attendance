@@ -82,22 +82,27 @@ class AttendanceSession(models.Model):
     academic_year = models.CharField(max_length=9)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
     created_at = models.DateTimeField(auto_now_add=True)
-    duration_minutes = models.PositiveIntegerField(null=True, blank=True) #help_text='Auto-close session after N minutes. 0 = manual close.'
-    expires_at = models.DateTimeField(null=True, blank=True) #help_text='Computed at session start. Students cannot mark after this.'
+    duration_minutes = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # help_text='Auto-close session after N minutes. 0 = manual close.'
+    expires_at = models.DateTimeField(
+        null=True, blank=True
+    )  # help_text='Computed at session start. Students cannot mark after this.'
 
     @property
     def is_expired(self):
         if not self.expires_at:
             return False
         from django.utils import timezone
+
         return timezone.now() > self.expires_at
-    
+
     # ── Attendance method flags ──────────────────
     facial_enabled = models.BooleanField(default=False)
 
     # ── Geo-fencing settings ─────────────────────
     geo_fencing_enabled = models.BooleanField(default=False)
-    
+
     # College campus ka center point (admin settings se aa sakta hai)
     campus_latitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
@@ -151,3 +156,52 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.student.enrollment_number} | {self.from_date} to {self.to_date} | {self.status}"
+
+
+class AttendanceRequest(models.Model):
+    """
+    Teacher requests admin to manually mark attendance for a student
+    who was unable to mark via face/RFID during the session.
+    Flow: Teacher creates → Admin approves/rejects → Teacher sees remark.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    session = models.ForeignKey(
+        "AttendanceSession",
+        on_delete=models.CASCADE,
+        related_name="attendance_requests",
+    )
+    student = models.ForeignKey(
+        "accounts.Student", on_delete=models.CASCADE, related_name="attendance_requests"
+    )
+    teacher = models.ForeignKey(
+        "accounts.Teacher",
+        on_delete=models.CASCADE,
+        related_name="attendance_requests_made",
+    )
+    reason = models.TextField(help_text="Why student could not mark attendance")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    admin_remark = models.TextField(
+        blank=True, help_text="Admin note on approve/reject"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_att_requests",
+    )
+
+    class Meta:
+        db_table = "attendance_requests"
+        unique_together = ("session", "student")
+
+    def __str__(self):
+        return f"Request: {self.student_id} | Session {self.session_id} | {self.status}"
