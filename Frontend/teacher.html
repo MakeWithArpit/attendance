@@ -714,12 +714,13 @@
       <div class="nav-item" onclick="show('timetable')">🗓️ My Timetable</div>
       <div class="nav-sec">Attendance</div>
       <div class="nav-item" onclick="show('session')">▶️ Start Session</div>
-      <div class="nav-item" onclick="show('manual')">✏️ Manual</div>
+      <div class="nav-item" onclick="show('manual')">✏️ Manual Attendance</div>
       <div class="nav-item" onclick="show('rfid')">📡 RFID</div>
       <div class="nav-item" onclick="show('records')">📋 Records</div>
       <div class="nav-sec">Students</div>
       <div class="nav-item" onclick="show('students')">👥 Students</div>
       <div class="nav-item" onclick="show('leaves')">📝 Leave Requests</div>
+      <div class="nav-item" onclick="show('requests');loadMyRequests()">📨 Att. Requests</div>
       <div class="nav-sec">Analytics</div>
       <div class="nav-item" onclick="show('analytics')">📈 Analytics</div>
       <div class="nav-item" onclick="show('notify')">🔔 Notify Parents</div>
@@ -821,65 +822,69 @@
       <div class="section" id="s-session">
         <div class="two-col">
           <div class="box">
-            <div class="box-header"><span class="box-title">Start Attendance Session</span></div>
+            <div class="box-header"><span class="box-title">▶️ Start Attendance Session</span></div>
             <div class="box-body">
-              <div class="hint">
-                <b>subject_id</b> = subject_code (e.g. "CS301") &nbsp;|&nbsp;
-                <b>branch_id</b> = branch_code (e.g. "CSE")
-              </div>
-              <div class="fgrp"><label>Subject Code (subject_id)</label>
+              <div class="hint"><b>subject_id</b> = subject_code (e.g. "CS301") | <b>branch_id</b> = branch_code (e.g. "CSE")</div>
+              <div class="fgrp"><label>Subject Code</label>
                 <input id="sess-subj" placeholder="CS301" list="subj-datalist"><datalist id="subj-datalist"></datalist>
               </div>
               <div class="frow">
-                <div class="fgrp"><label>Branch Code (branch_id)</label><input id="sess-branch" placeholder="CSE"></div>
-                <div class="fgrp"><label>Semester</label><input id="sess-sem" type="number" placeholder="3" min="1"
-                    max="8"></div>
+                <div class="fgrp"><label>Branch Code</label><input id="sess-branch" placeholder="CSE"></div>
+                <div class="fgrp"><label>Semester</label><input id="sess-sem" type="number" placeholder="3" min="1" max="8"></div>
               </div>
               <div class="frow">
-                <div class="fgrp"><label>Section</label><select id="sess-sec">
-                    <option>A</option>
-                    <option>B</option>
-                    <option>C</option>
-                    <option>D</option>
-                  </select></div>
+                <div class="fgrp"><label>Section</label><select id="sess-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
                 <div class="fgrp"><label>Academic Year</label><input id="sess-year" value="2024-2025"></div>
               </div>
-              <div class="fgrp"><label>Date</label><input id="sess-date" type="date"></div>
-              <!-- Method flags -->
-              <div
-                style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
-                <div
-                  style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">
-                  Attendance Methods</div>
-                <label
-                  style="text-transform:none;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px">
-                  <input id="sess-facial" type="checkbox" style="width:auto;margin:0"> Facial Recognition Enabled
+              <div class="frow">
+                <div class="fgrp"><label>Date</label><input id="sess-date" type="date"></div>
+                <div class="fgrp"><label>Duration (minutes) <span style="font-size:9px;color:var(--muted);text-transform:none">0 = no auto-close</span></label>
+                  <input id="sess-duration" type="number" value="60" min="0" max="300"></div>
+              </div>
+
+              <!-- Attendance Methods box -->
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+                <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">Attendance Methods</div>
+                <label style="text-transform:none;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px">
+                  <input id="sess-facial" type="checkbox" style="width:auto;margin:0"> Enable Facial Recognition
                 </label>
-                <!-- Geo-fencing -->
-                <div
-                  style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">
-                  Geo-Fencing (optional)</div>
-                <label
-                  style="text-transform:none;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
+
+                <div style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px">Geo-Fencing</div>
+                <label style="text-transform:none;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer">
                   <input id="sess-geo" type="checkbox" style="width:auto;margin:0"
-                    onchange="document.getElementById('geo-fields').style.display=this.checked?'block':'none'"> Enable
-                  Geo-Fencing
+                    onchange="document.getElementById('geo-fields').style.display=this.checked?'block':'none';if(this.checked)fetchTeacherLocation()">
+                  Enable Geo-Fencing (auto-fetches your location)
                 </label>
-                <div id="geo-fields" style="display:none;margin-top:10px">
-                  <div class="frow">
-                    <div class="fgrp"><label>Campus Latitude</label><input id="sess-lat" placeholder="26.8467"></div>
-                    <div class="fgrp"><label>Campus Longitude</label><input id="sess-lon" placeholder="80.9462"></div>
+                <div id="geo-fields" style="display:none;margin-top:12px">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="fetchTeacherLocation()">📍 Re-fetch Location</button>
+                    <span id="geo-fetch-status" style="font-size:11px;color:var(--muted)">Click to fetch...</span>
                   </div>
-                  <div class="fgrp"><label>Allowed Radius (meters)</label><input id="sess-radius" type="number"
-                      value="200"></div>
+                  <div class="frow">
+                    <div class="fgrp">
+                      <label>Latitude <span style="color:var(--green);font-size:9px;text-transform:none">(read-only)</span></label>
+                      <input id="sess-lat" placeholder="Auto-fetching..." readonly style="color:var(--green);cursor:not-allowed">
+                    </div>
+                    <div class="fgrp">
+                      <label>Longitude <span style="color:var(--green);font-size:9px;text-transform:none">(read-only)</span></label>
+                      <input id="sess-lon" placeholder="Auto-fetching..." readonly style="color:var(--green);cursor:not-allowed">
+                    </div>
+                  </div>
+                  <div class="fgrp"><label>Allowed Radius (meters)</label><input id="sess-radius" type="number" value="200"></div>
                 </div>
               </div>
-              <button class="btn btn-primary" onclick="startSession()">Start Session →</button>
+
+              <button class="btn btn-primary" onclick="startSession()" style="width:100%;padding:10px">▶ Start Session</button>
               <div class="res-box" id="res-session"></div>
             </div>
           </div>
+
+          <!-- Active Session panel -->
           <div class="box">
-            <div class="box-header"><span class="box-title">Active Session</span></div>
+            <div class="box-header">
+              <span class="box-title">Active Session</span>
+              <span id="sess-timer-badge" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700"></span>
+            </div>
             <div class="box-body" id="active-sess-area">
               <div class="empty">Start a session first</div>
             </div>
@@ -887,26 +892,78 @@
         </div>
       </div>
 
-      <!-- MANUAL -->
+      <!-- MANUAL ATTENDANCE -->
       <div class="section" id="s-manual">
         <div class="box">
-          <div class="box-header"><span class="box-title">Manual Attendance (Bulk)</span></div>
+          <div class="box-header">
+            <span class="box-title">✏️ Manual Attendance — Checkbox</span>
+          </div>
           <div class="box-body">
-            <div class="hint">
-              Body: <b>session_id</b> (DB auto-int), <b>academic_year</b>, <b>attendance</b> array where each item has
-              <b>student_id</b> (= student PK e.g. "BCS2024001") and <b>is_present</b> (true/false)
+            <div class="hint">Step 1: Session start karo, Session ID auto-fill ho jaata hai. Step 2: Students load karo, Step 3: Checkboxes se mark karo, Step 4: Submit karo.</div>
+
+            <!-- Step 1: Session + Filters -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px">
+              <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Session & Filter</div>
+              <div class="frow">
+                <div class="fgrp"><label>Session ID</label><input id="man-sess" type="number" placeholder="Auto-filled from session start"></div>
+                <div class="fgrp"><label>Academic Year</label><input id="man-year" value="2024-2025"></div>
+              </div>
+              <div class="frow3">
+                <div class="fgrp"><label>Branch</label><input id="man-branch" placeholder="CSE"></div>
+                <div class="fgrp"><label>Semester</label><input id="man-sem" type="number" placeholder="3"></div>
+                <div class="fgrp"><label>Section</label><select id="man-sec"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost" onclick="loadManualStudents()">👥 Load Students</button>
+                <button class="btn btn-ghost btn-sm" onclick="markAllPresent(true)">✓ All Present</button>
+                <button class="btn btn-ghost btn-sm" onclick="markAllPresent(false)">✗ All Absent</button>
+              </div>
             </div>
-            <div class="frow">
-              <div class="fgrp"><label>Session ID (auto-int DB ID)</label><input id="man-sess" type="number"
-                  placeholder="e.g. 1"></div>
-              <div class="fgrp"><label>Academic Year</label><input id="man-year" value="2024-2025"></div>
+
+            <!-- Student Checkbox Table -->
+            <div id="manual-students-area" style="display:none">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:40px">
+                      <input type="checkbox" id="select-all-chk" style="width:16px;height:16px" onchange="markAllPresent(this.checked)" checked>
+                    </th>
+                    <th>Student ID</th>
+                    <th>Full Name</th>
+                    <th>Father Name</th>
+                    <th style="text-align:center">Present</th>
+                  </tr>
+                </thead>
+                <tbody id="manual-students-tbody">
+                </tbody>
+              </table>
+              <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+                <div id="man-count" style="font-size:12px;color:var(--muted)">0 students loaded</div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-primary" onclick="submitManualAttendance()" style="padding:9px 20px">
+                    📋 Submit Attendance
+                  </button>
+                </div>
+              </div>
+              <div class="res-box" id="res-manual"></div>
             </div>
-            <div class="fgrp"><label>Attendance JSON Array</label>
-              <textarea id="man-att" style="font-family:monospace;font-size:11px;min-height:120px"
-                placeholder='[{"student_id": "BCS2024001", "is_present": true}, {"student_id": "BCS2024002", "is_present": false}]'></textarea>
+
+            <!-- Empty state -->
+            <div id="manual-empty-state" style="text-align:center;padding:24px;color:var(--muted);font-size:13px">
+              Session ID fill karo aur "Load Students" click karo
             </div>
-            <button class="btn btn-primary" onclick="markManual()">Submit Attendance</button>
-            <div class="res-box" id="res-manual"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FACE REGISTER: Moved to Admin Panel -->
+      <div class="section" id="s-face">
+        <div class="box" style="max-width:500px">
+          <div class="box-header"><span class="box-title">Face Register</span></div>
+          <div class="box-body">
+            <div class="hint">Face registration ke liye <b>Admin Panel</b> use karo.<br>Students ke Edit page par face photo upload ka option hai.</div>
+            <div style="text-align:center;padding:24px;font-size:32px">🛡️</div>
+            <div style="text-align:center;font-size:13px;color:var(--muted)">Admin-only feature</div>
           </div>
         </div>
       </div>
@@ -1130,6 +1187,51 @@
         </div>
       </div>
 
+      <!-- ATTENDANCE REQUESTS -->
+      <div class="section" id="s-requests">
+        <div class="two-col">
+          <div class="box">
+            <div class="box-header"><span class="box-title">📨 Request Admin to Mark Attendance</span></div>
+            <div class="box-body">
+              <div class="hint">
+                Jab koi student facial/RFID se attendance mark na kar paya ho tab yahan request bhejo.
+                Admin approve kare toh attendance auto-mark ho jaati hai. <b>Teacher ke paas approve/reject ka remark bhi aayega.</b>
+              </div>
+              <div class="fgrp"><label>Student ID</label><input id="req-sid" placeholder="BCS2024001"></div>
+              <div class="fgrp"><label>Session ID</label><input id="req-sess" type="number" placeholder="Session DB ID"></div>
+              <div class="fgrp"><label>Reason / Explanation</label>
+                <textarea id="req-reason" placeholder="Student ka phone battery dead ho gaya tha / network issue / face recognition failed..."></textarea>
+              </div>
+              <button class="btn btn-primary" onclick="createAttRequest()">📤 Submit Request to Admin</button>
+              <div class="res-box" id="res-req-create"></div>
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">📋 My Submitted Requests</span>
+              <div style="display:flex;gap:6px;align-items:center">
+                <select id="req-filter" onchange="loadMyRequests()" style="padding:4px 8px;font-size:11px;width:auto">
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" onclick="loadMyRequests()">Load</button>
+              </div>
+            </div>
+            <div class="box-body">
+              <table>
+                <thead>
+                  <tr><th>Student</th><th>Subject</th><th>Date</th><th>Status</th><th>Admin Remark</th></tr>
+                </thead>
+                <tbody id="req-tbody">
+                  <tr><td colspan="5" class="empty">Click Load</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
   <script src="api.js"></script>
@@ -1138,7 +1240,7 @@
     document.getElementById('sb-name').textContent = Auth.getName() || 'Teacher';
     document.getElementById('sess-date').value = new Date().toISOString().split('T')[0];
 
-    const titles = { home: 'Dashboard', timetable: 'My Timetable', session: 'Start Session', manual: 'Manual Attendance', rfid: 'RFID', records: 'Attendance Records', students: 'Students', leaves: 'Leave Requests', analytics: 'Analytics', notify: 'Notify Parents' };
+    const titles = { home: 'Dashboard', timetable: 'My Timetable', session: 'Start Session', manual: 'Manual Attendance', face: 'Face Register (Admin Only)', rfid: 'RFID Attendance', records: 'Attendance Records', students: 'Students', leaves: 'Leave Requests', requests: 'Attendance Requests', analytics: 'Analytics', notify: 'Notify Parents' };
     function show(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1179,24 +1281,69 @@
       }
     }
 
-    // SESSION
+    // GEO AUTO-FETCH
+    function fetchTeacherLocation() {
+      const status = document.getElementById('geo-fetch-status');
+      if (!navigator.geolocation) { status.textContent = '✗ Geolocation not supported'; status.style.color = 'var(--red)'; return; }
+      status.textContent = '📍 Fetching...'; status.style.color = 'var(--muted)';
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          document.getElementById('sess-lat').value = pos.coords.latitude.toFixed(6);
+          document.getElementById('sess-lon').value = pos.coords.longitude.toFixed(6);
+          status.textContent = '✓ Location fetched (' + pos.coords.accuracy.toFixed(0) + 'm accuracy)';
+          status.style.color = 'var(--green)';
+        },
+        err => {
+          status.textContent = '✗ Permission denied — allow location access';
+          status.style.color = 'var(--red)';
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
+    // SESSION TIMER
+    var sessionTimerInterval = null;
+    function startSessionTimer(expiresAt) {
+      if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+      const badge = document.getElementById('sess-timer-badge');
+      function update() {
+        const remaining = new Date(expiresAt) - new Date();
+        if (remaining <= 0) {
+          badge.textContent = '🔴 Expired';
+          badge.style.color = 'var(--red)';
+          clearInterval(sessionTimerInterval);
+          return;
+        }
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        badge.textContent = '⏱ ' + mins + ':' + String(secs).padStart(2, '0');
+        badge.style.color = remaining < 120000 ? 'var(--warn)' : 'var(--green)';
+      }
+      update();
+      sessionTimerInterval = setInterval(update, 1000);
+    }
+
+    // SESSION START
     var activeSessionId = null;
     async function startSession() {
       const geo = document.getElementById('sess-geo').checked;
+      const duration = parseInt(document.getElementById('sess-duration').value) || 0;
       const body = {
-        subject_id: document.getElementById('sess-subj').value.trim(),
-        branch_id: document.getElementById('sess-branch').value.trim(),
-        semester: parseInt(document.getElementById('sess-sem').value),
-        section: document.getElementById('sess-sec').value,
+        subject_id:    document.getElementById('sess-subj').value.trim(),
+        branch_id:     document.getElementById('sess-branch').value.trim(),
+        semester:      parseInt(document.getElementById('sess-sem').value),
+        section:       document.getElementById('sess-sec').value,
         academic_year: document.getElementById('sess-year').value,
-        date: document.getElementById('sess-date').value,
-        facial_enabled: document.getElementById('sess-facial').checked,
+        date:          document.getElementById('sess-date').value,
+        facial_enabled:     document.getElementById('sess-facial').checked,
         geo_fencing_enabled: geo,
       };
+      if (duration > 0) body.duration_minutes = duration;
       if (geo) {
-        body.campus_latitude = parseFloat(document.getElementById('sess-lat').value) || null;
-        body.campus_longitude = parseFloat(document.getElementById('sess-lon').value) || null;
+        body.campus_latitude       = parseFloat(document.getElementById('sess-lat').value) || null;
+        body.campus_longitude      = parseFloat(document.getElementById('sess-lon').value) || null;
         body.allowed_radius_meters = parseInt(document.getElementById('sess-radius').value) || 200;
+        if (!body.campus_latitude) return toast('Pehle location fetch karo', 'error');
       }
       const r = await POST('attendance/sessions/start/', body);
       renderResponse('res-session', r);
@@ -1204,45 +1351,176 @@
         const sess = r.data.session;
         activeSessionId = sess.id;
         toast('Session started! ID: ' + sess.id);
-        document.getElementById('active-sess-area').innerHTML = `
-      <div class="active-sess-card">
-        <div class="active-sess-title">🟢 Active Session</div>
-        <div style="font-size:12px;color:var(--muted);line-height:2">
-          <b>Session ID:</b> <span class="tag">${sess.id}</span> (use this in manual/RFID)<br>
-          <b>Subject:</b> ${sess.subject_name || sess.subject}<br>
-          <b>Date:</b> ${sess.date}<br>
-          <b>Students:</b> ${r.data.total_students || 0}<br>
-          <b>Facial:</b> ${sess.facial_enabled ? '✓ Enabled' : '✗ Disabled'}<br>
-          <b>Geo-fence:</b> ${sess.geo_fencing_enabled ? '✓ Enabled' : '✗ Disabled'}
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:7px">
-        <button class="btn btn-ghost btn-sm" onclick="show('manual');document.getElementById('man-sess').value=${sess.id}">✏️ Manual Attendance</button>
-        <button class="btn btn-ghost btn-sm" onclick="show('rfid');document.getElementById('rfid-sess').value=${sess.id}">📡 RFID</button>
-      </div>`;
-        // Pre-fill session IDs
-        document.getElementById('man-sess').value = sess.id;
-        document.getElementById('rfid-sess').value = sess.id;
-        document.getElementById('rfid-bulk-sess').value = sess.id;
-        // Pre-fill attendance JSON template with students
-        if (r.data.students && r.data.students.length) {
-          const template = r.data.students.map(s => ({ student_id: s.student_id, is_present: true }));
-          document.getElementById('man-att').value = JSON.stringify(template, null, 2);
+
+        // Start timer if expires_at present
+        if (r.data.expires_at || sess.expires_at) {
+          startSessionTimer(r.data.expires_at || sess.expires_at);
         }
+
+        const expireInfo = duration > 0
+          ? `<br><b>Auto-close in:</b> <span id="sess-timer-badge-inline" style="color:var(--warn)">${duration} min</span>`
+          : '';
+
+        document.getElementById('active-sess-area').innerHTML = `
+          <div class="active-sess-card">
+            <div class="active-sess-title">🟢 Session Active</div>
+            <div style="font-size:12px;color:var(--muted);line-height:2.2">
+              <b>Session ID:</b> <span class="tag">${sess.id}</span><br>
+              <b>Subject:</b> ${sess.subject_name || sess.subject}<br>
+              <b>Date:</b> ${sess.date}<br>
+              <b>Students:</b> ${r.data.total_students || 0}<br>
+              <b>Facial:</b> ${sess.facial_enabled ? '✓ Enabled' : '✗ Disabled'}<br>
+              <b>Geo-fence:</b> ${sess.geo_fencing_enabled ? '✓ Enabled' : '✗ Disabled'}
+              ${expireInfo}
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <button class="btn btn-ghost btn-sm" onclick="show('manual');document.getElementById('man-sess').value=${sess.id}">✏️ Manual Attendance</button>
+            <button class="btn btn-ghost btn-sm" onclick="show('rfid');document.getElementById('rfid-sess').value=${sess.id}">📡 RFID</button>
+            <button class="btn btn-ghost btn-sm" onclick="show('requests');document.getElementById('req-sess').value=${sess.id}">📨 Request for Student</button>
+          </div>`;
+
+        // Pre-fill fields
+        document.getElementById('man-sess').value      = sess.id;
+        document.getElementById('man-branch').value    = body.branch_id;
+        document.getElementById('man-sem').value       = body.semester;
+        document.getElementById('rfid-sess').value     = sess.id;
+        document.getElementById('rfid-bulk-sess').value = sess.id;
+        document.getElementById('req-sess').value      = sess.id;
+
+        // Auto load students for manual
+        loadManualStudents();
       } else toast('Error starting session', 'error');
     }
 
-    // MANUAL
-    async function markManual() {
-      let att;
-      try { att = JSON.parse(document.getElementById('man-att').value); }
-      catch (e) { return toast('JSON format galat hai', 'error'); }
-      const r = await POST('attendance/mark/manual/', {
-        session_id: parseInt(document.getElementById('man-sess').value),
-        academic_year: document.getElementById('man-year').value,
-        attendance: att
+    // MANUAL ATTENDANCE — CHECKBOX UI
+    var manualStudentList = [];
+    async function loadManualStudents() {
+      const branch = document.getElementById('man-branch').value.trim();
+      const sem    = document.getElementById('man-sem').value;
+      const sec    = document.getElementById('man-sec').value;
+      if (!branch || !sem) { toast('Branch aur Semester fill karo', 'error'); return; }
+
+      toast('Loading students...', 'info');
+      const r = await GET('academics/course-registrations/?branch=' + branch + '&semester=' + sem + '&section=' + sec);
+      const list = r.data.results || r.data || [];
+      if (!list.length) { toast('No students found', 'error'); return; }
+
+      // Fetch detailed student data for each
+      const studentIds = [...new Set(list.map(reg => reg.student || reg.student_id))];
+      manualStudentList = [];
+
+      // Fetch all students
+      const sr = await GET('auth/students/');
+      const allStuds = sr.data.results || sr.data || [];
+      const studMap = {};
+      allStuds.forEach(s => { studMap[s.student_id] = s; });
+
+      studentIds.forEach(sid => {
+        const s = studMap[sid] || {};
+        manualStudentList.push({
+          student_id:  sid,
+          name:        s.profile?.name || '—',
+          father_name: s.parent_detail?.father_name || '—',
+        });
       });
-      renderResponse('res-manual', r); if (r.ok) toast('Attendance marked!'); else toast('Error', 'error');
+
+      renderManualStudents();
+      document.getElementById('manual-students-area').style.display = 'block';
+      document.getElementById('manual-empty-state').style.display = 'none';
+      document.getElementById('man-count').textContent = manualStudentList.length + ' students loaded';
+      toast(manualStudentList.length + ' students loaded', 'info');
+    }
+
+    function renderManualStudents() {
+      document.getElementById('manual-students-tbody').innerHTML = manualStudentList.map((s, i) => `
+        <tr>
+          <td style="text-align:center">
+            <input type="checkbox" class="att-chk" data-sid="${s.student_id}" checked
+              style="width:18px;height:18px;cursor:pointer;accent-color:#8b5cf6"
+              onchange="updateCount()">
+          </td>
+          <td><span class="tag">${s.student_id}</span></td>
+          <td style="font-weight:500">${s.name}</td>
+          <td style="color:var(--muted);font-size:12px">${s.father_name}</td>
+          <td style="text-align:center">
+            <span class="att-present-label" id="lbl-${s.student_id}" style="font-size:11px;color:var(--green);font-weight:600">Present</span>
+          </td>
+        </tr>`).join('');
+      updateCount();
+
+      // Update label when checkbox changes
+      document.querySelectorAll('.att-chk').forEach(chk => {
+        chk.addEventListener('change', function() {
+          const lbl = document.getElementById('lbl-' + this.dataset.sid);
+          lbl.textContent = this.checked ? 'Present' : 'Absent';
+          lbl.style.color = this.checked ? 'var(--green)' : 'var(--red)';
+        });
+      });
+    }
+
+    function updateCount() {
+      const total   = document.querySelectorAll('.att-chk').length;
+      const present = document.querySelectorAll('.att-chk:checked').length;
+      document.getElementById('man-count').textContent =
+        total + ' students | ' + present + ' present, ' + (total - present) + ' absent';
+    }
+
+    function markAllPresent(val) {
+      document.querySelectorAll('.att-chk').forEach(chk => {
+        chk.checked = val;
+        const lbl = document.getElementById('lbl-' + chk.dataset.sid);
+        if (lbl) { lbl.textContent = val ? 'Present' : 'Absent'; lbl.style.color = val ? 'var(--green)' : 'var(--red)'; }
+      });
+      if (document.getElementById('select-all-chk')) document.getElementById('select-all-chk').checked = val;
+      updateCount();
+    }
+
+    async function submitManualAttendance() {
+      const sessId = parseInt(document.getElementById('man-sess').value);
+      const year   = document.getElementById('man-year').value;
+      if (!sessId) return toast('Session ID zaruri hai', 'error');
+      if (!manualStudentList.length) return toast('Pehle students load karo', 'error');
+
+      const attendance = [];
+      document.querySelectorAll('.att-chk').forEach(chk => {
+        attendance.push({ student_id: chk.dataset.sid, is_present: chk.checked });
+      });
+
+      const r = await POST('attendance/mark/manual/', {
+        session_id:    sessId,
+        academic_year: year,
+        attendance:    attendance,
+      });
+      renderResponse('res-manual', r);
+      if (r.ok) toast('✓ Attendance submitted! ' + attendance.length + ' records saved.');
+      else toast('Error: ' + (r.data?.error || r.status), 'error');
+    }
+
+    // ATTENDANCE REQUESTS
+    async function createAttRequest() {
+      const sid    = document.getElementById('req-sid').value.trim();
+      const sessId = document.getElementById('req-sess').value;
+      const reason = document.getElementById('req-reason').value.trim();
+      if (!sid || !sessId || !reason) return toast('Student ID, Session ID, aur Reason zaruri hain', 'error');
+      const r = await POST('attendance/attendance-requests/', { student_id: sid, session_id: parseInt(sessId), reason });
+      renderResponse('res-req-create', r);
+      if (r.ok) { toast('Request submitted to admin!'); loadMyRequests(); }
+      else toast('Error: ' + (r.data?.error || r.status), 'error');
+    }
+
+    async function loadMyRequests() {
+      const filter = document.getElementById('req-filter')?.value || 'pending';
+      const r = await GET('attendance/attendance-requests/?status=' + filter);
+      const list = r.data.requests || [];
+      document.getElementById('req-tbody').innerHTML = list.map(req => `
+        <tr>
+          <td><span class="tag">${req.student_id}</span><div style="font-size:10px;color:var(--muted)">${req.student_name || ''}</div></td>
+          <td style="font-size:12px">${req.subject}</td>
+          <td style="font-size:11px">${req.date}</td>
+          <td><span class="badge ${req.status==='approved'?'bg':req.status==='rejected'?'br':'bw'}">${req.status}</span></td>
+          <td style="font-size:11px;color:var(--muted)">${req.admin_remark || '—'}</td>
+        </tr>`).join('') || '<tr><td colspan="5" class="empty">No requests</td></tr>';
     }
 
     // RFID
@@ -1379,6 +1657,8 @@
     // INIT
     loadDashboard();
     loadTimetable();
+    // Pre-fill today's date
+    document.getElementById('sess-date').value = new Date().toISOString().split('T')[0];
   </script>
 </body>
 

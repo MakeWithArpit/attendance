@@ -725,6 +725,15 @@
       margin-top: 2px
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.esm.js" type="module"></script>
+  <script>
+    // Load face-api as global fallback
+    (function(){
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js';
+      document.head.appendChild(s);
+    })();
+  </script>
 </head>
 
 <body>
@@ -847,34 +856,95 @@
       </div>
 
       <!-- FACE ATTENDANCE -->
+      <!-- FACE ATTENDANCE with Liveness Detection -->
       <div class="section" id="s-face-att">
-        <div class="box" style="max-width:500px">
-          <div class="box-header"><span class="box-title">Face Attendance</span></div>
-          <div class="box-body">
-            <div class="hint">
-              Session mein <b>facial_enabled = true</b> hona chahiye.<br>
-              Session ID "Active Sessions" se milega.
+        <div style="max-width:560px">
+          <div class="box">
+            <div class="box-header">
+              <span class="box-title">😊 Face Attendance — Live Verification</span>
+              <span id="fa-session-badge"></span>
             </div>
-            <div class="fgrp"><label>Session ID (DB auto-int ID)</label><input id="face-sess" type="number"
-                placeholder="e.g. 1"></div>
-            <div class="fgrp"><label>Selfie Photo</label>
-              <div class="upload-area" onclick="document.getElementById('face-selfie').click()">
-                <div style="font-size:28px;margin-bottom:6px">📸</div>
-                <div style="font-size:12px;color:var(--muted)">Click karke selfie select karo</div>
-                <input id="face-selfie" type="file" accept="image/*" capture="user" style="display:none"
-                  onchange="previewSelfie(this)">
+            <div class="box-body">
+
+              <!-- Progress Steps -->
+              <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:11px">
+                <div id="step-1" style="flex:1;padding:8px;text-align:center;background:rgba(59,130,246,.15);color:var(--blue);font-weight:600">1. Setup</div>
+                <div id="step-2" style="flex:1;padding:8px;text-align:center;color:var(--muted)">2. Liveness</div>
+                <div id="step-3" style="flex:1;padding:8px;text-align:center;color:var(--muted)">3. Submit</div>
               </div>
-              <img id="selfie-preview"
-                style="display:none;width:100%;max-height:180px;object-fit:cover;border-radius:7px;margin-bottom:10px">
+
+              <div class="fgrp"><label>Session ID</label>
+                <input id="face-sess" type="number" placeholder="Active Sessions se Session ID lein">
+              </div>
+
+              <!-- Camera + Overlay -->
+              <div id="fa-camera-wrap" style="display:none;margin-bottom:12px">
+                <div style="position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--border);background:#000">
+                  <video id="fa-video" autoplay muted playsinline
+                    style="width:100%;max-height:320px;object-fit:cover;display:block;transform:scaleX(-1)"></video>
+                  <canvas id="fa-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
+
+                  <!-- Phone alert -->
+                  <div id="phone-alert" style="display:none;position:absolute;top:8px;left:8px;right:8px;background:rgba(239,68,68,.9);color:#fff;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:600;text-align:center">
+                    📱 Phone Detected! <span id="phone-warn-txt">Warning 1/3</span>
+                  </div>
+
+                  <!-- Status badge on video -->
+                  <div id="fa-live-status" style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px">
+                    Scanning...
+                  </div>
+                </div>
+
+                <!-- Captured preview (shown after capture) -->
+                <img id="fa-captured-img" style="display:none;width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:2px solid var(--green);margin-top:8px">
+              </div>
+
+              <!-- Liveness Challenge boxes -->
+              <div id="fa-challenges" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
+                <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">
+                  Liveness Verification — Complete both challenges:
+                </div>
+                <div style="display:flex;gap:10px">
+                  <div id="ch-blink" style="flex:1;padding:12px;border:2px solid var(--border);border-radius:8px;text-align:center;transition:all .3s">
+                    <div style="font-size:24px">👁️</div>
+                    <div style="font-size:12px;font-weight:600;margin-top:6px">Blink Twice</div>
+                    <div id="blink-ct" style="font-size:11px;color:var(--muted);margin-top:3px">0 / 2</div>
+                  </div>
+                  <div id="ch-smile" style="flex:1;padding:12px;border:2px solid var(--border);border-radius:8px;text-align:center;transition:all .3s">
+                    <div style="font-size:24px">😄</div>
+                    <div style="font-size:12px;font-weight:600;margin-top:6px">Smile</div>
+                    <div id="smile-st" style="font-size:11px;color:var(--muted);margin-top:3px">Not detected</div>
+                  </div>
+                </div>
+                <div id="fa-challenge-msg" style="margin-top:10px;font-size:12px;text-align:center;color:var(--muted)">
+                  Please complete both challenges above
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div id="fa-btn-start">
+                <button class="btn btn-primary" onclick="startFaceVerification()" style="width:100%;padding:10px">
+                  📷 Start Camera &amp; Verify
+                </button>
+              </div>
+              <div id="fa-btn-loading" style="display:none;text-align:center;padding:12px;color:var(--muted);font-size:12px">
+                ⏳ Loading AI models... first time may take 20-30 seconds
+              </div>
+              <div id="fa-btn-submit" style="display:none">
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-success" onclick="submitFaceAttendance()" style="flex:1;padding:10px">✅ Submit Attendance</button>
+                  <button class="btn btn-ghost" onclick="retakePhoto()" style="padding:10px">🔄 Retake</button>
+                </div>
+                <div id="fa-geo-info" style="margin-top:8px;font-size:11px;color:var(--muted)">📍 Getting location...</div>
+              </div>
+
+              <div class="res-box" id="res-face-att"></div>
             </div>
-            <div id="geo-status" style="font-size:11px;color:var(--muted);margin-bottom:10px;display:none">📍 Location:
-              <span id="geo-txt">Getting...</span></div>
-            <button class="btn btn-primary" onclick="markFaceAtt()">Mark Attendance via Face</button>
-            <div class="res-box" id="res-face-att"></div>
           </div>
         </div>
       </div>
 
+      <!-- LEAVES -->
       <!-- LEAVES -->
       <div class="section" id="s-leaves">
         <div class="two-col">
@@ -1044,52 +1114,385 @@
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;min-width:90px">
-        ${!s.already_marked && s.facial_enabled ? `<button class="btn btn-primary btn-sm" onclick="goFace(${s.session_id})">Face</button>` : ''}
+        ${!s.already_marked && s.facial_enabled ? `<button class="btn btn-primary btn-sm" onclick="goFace(${s.session_id},'${s.subject_name||""}')">😊 Face Att.</button>` : ''}
         ${s.already_marked ? '<span style="font-size:11px;color:var(--green);text-align:center">Done ✓</span>' : ''}
       </div>
     </div>`).join('') : '<div class="empty">Aaj koi active session nahi hai</div>';
       if (forHome) document.getElementById('home-sessions').innerHTML = html;
       else document.getElementById('sessions-list').innerHTML = html;
     }
-    function goFace(sessId) { show('face-att'); document.getElementById('face-sess').value = sessId; toast('Session ID: ' + sessId, 'info'); }
+    function goFace(sessId, subjectName) {
+      show('face-att');
+      document.getElementById('face-sess').value = sessId;
+      const badge = document.getElementById('fa-session-badge');
+      if (badge) badge.innerHTML = '<span class="tag">Session ' + sessId + '</span>';
+      // Reset UI
+      document.getElementById('fa-btn-start').style.display = 'block';
+      document.getElementById('fa-btn-submit').style.display = 'none';
+      document.getElementById('fa-btn-loading').style.display = 'none';
+      document.getElementById('fa-camera-wrap').style.display = 'none';
+      document.getElementById('fa-challenges').style.display = 'none';
+      document.getElementById('res-face-att').classList.remove('show');
+      ['step-1','step-2','step-3'].forEach((id,i) => {
+        document.getElementById(id).style.background = i===0 ? 'rgba(59,130,246,.15)' : '';
+        document.getElementById(id).style.color = i===0 ? 'var(--blue)' : 'var(--muted)';
+      });
+      toast('Session ' + sessId + ' selected', 'info');
+    }
 
-    // FACE ATTENDANCE
-    var userLat = null, userLon = null;
-    async function markFaceAtt() {
+    // ═══════════════════════════════════════════════════
+    // FACE ATTENDANCE — Liveness + Anti-Proxy
+    // Uses face-api.js for blink/smile detection
+    // ═══════════════════════════════════════════════════
+    var faStream        = null;
+    var faDetectLoop    = null;
+    var blinkCount      = 0;
+    var smileDetected   = false;
+    var lastEyeOpen     = true;
+    var phoneWarnings   = 0;
+    var livenessOk      = false;
+    var capturedBlob    = null;
+    var faceApiLoaded   = false;
+    var userLat         = null;
+    var userLon         = null;
+    var deviceId        = getDeviceId();
+
+    // Generate/retrieve persistent device fingerprint
+    function getDeviceId() {
+      try {
+        let id = localStorage.getItem('attendx_device_id');
+        if (!id) {
+          id = 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('attendx_device_id', id);
+        }
+        return id;
+      } catch(e) {
+        return 'dev_' + navigator.userAgent.length + '_' + screen.width;
+      }
+    }
+
+    async function loadFaceApiModels() {
+      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+      faceApiLoaded = true;
+    }
+
+    async function startFaceVerification() {
       const sessId = document.getElementById('face-sess').value;
-      const photo = document.getElementById('face-selfie').files[0];
-      if (!sessId) return toast('Session ID zaruri hai', 'error');
-      if (!photo) return toast('Selfie zaruri hai', 'error');
-      document.getElementById('geo-status').style.display = 'block';
-      document.getElementById('geo-txt').textContent = 'Getting location...';
-      const fd = new FormData();
-      fd.append('session_id', sessId); fd.append('photo', photo);
+      if (!sessId) return toast('Pehle Session ID enter karo', 'error');
+
+      // Reset state
+      blinkCount = 0; smileDetected = false; phoneWarnings = 0;
+      livenessOk = false; capturedBlob = null; lastEyeOpen = true;
+      document.getElementById('blink-ct').textContent = '0 / 2';
+      document.getElementById('smile-st').textContent = 'Not detected';
+      document.getElementById('ch-blink').style.borderColor = 'var(--border)';
+      document.getElementById('ch-smile').style.borderColor = 'var(--border)';
+      document.getElementById('fa-challenge-msg').textContent = 'Please complete both challenges';
+      document.getElementById('fa-challenge-msg').style.color = 'var(--muted)';
+      document.getElementById('fa-captured-img').style.display = 'none';
+      document.getElementById('res-face-att').classList.remove('show');
+
+      // Show loading state
+      document.getElementById('fa-btn-start').style.display = 'none';
+      document.getElementById('fa-btn-loading').style.display = 'block';
+
+      // Load face-api models
+      if (!faceApiLoaded) {
+        try { await loadFaceApiModels(); }
+        catch(e) {
+          console.warn('face-api failed, proceeding without liveness:', e);
+          faceApiLoaded = false;
+        }
+      }
+      document.getElementById('fa-btn-loading').style.display = 'none';
+
+      // Start camera
+      try {
+        faStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 640, height: 480 }
+        });
+        const video = document.getElementById('fa-video');
+        video.srcObject = faStream;
+        await video.play();
+      } catch(e) {
+        document.getElementById('fa-btn-start').style.display = 'block';
+        return toast('Camera permission denied. Allow camera access.', 'error');
+      }
+
+      document.getElementById('fa-camera-wrap').style.display = 'block';
+      document.getElementById('fa-challenges').style.display = 'block';
+      document.getElementById('step-2').style.background = 'rgba(59,130,246,.15)';
+      document.getElementById('step-2').style.color = 'var(--blue)';
+
+      // Get geolocation simultaneously
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          async function (pos) {
-            userLat = pos.coords.latitude; userLon = pos.coords.longitude;
-            document.getElementById('geo-txt').textContent = userLat.toFixed(4) + ', ' + userLon.toFixed(4);
-            fd.append('latitude', userLat); fd.append('longitude', userLon);
-            await submitFace(fd);
+          pos => {
+            userLat = pos.coords.latitude;
+            userLon = pos.coords.longitude;
+            const gi = document.getElementById('fa-geo-info');
+            if (gi) gi.textContent = '📍 Location: ' + userLat.toFixed(4) + ', ' + userLon.toFixed(4);
           },
-          async function () {
-            document.getElementById('geo-txt').textContent = 'Permission denied';
-            await submitFace(fd);
-          }
+          () => { userLat = null; userLon = null; },
+          { enableHighAccuracy: true, timeout: 8000 }
         );
-      } else await submitFace(fd);
+      }
+
+      // Start detection loop (every 300ms)
+      if (faceApiLoaded) {
+        faDetectLoop = setInterval(runFaceDetection, 300);
+      } else {
+        // Fallback: no liveness, just capture after 3s
+        setTimeout(() => {
+          livenessOk = true;
+          captureFrame();
+        }, 3000);
+      }
     }
-    async function submitFace(fd) {
+
+    async function runFaceDetection() {
+      const video = document.getElementById('fa-video');
+      if (!video || video.readyState < 2) return;
+      if (livenessOk) return;
+
+      try {
+        const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+        const result = await faceapi
+          .detectSingleFace(video, opts)
+          .withFaceLandmarks()
+          .withFaceExpressions();
+
+        if (!result) {
+          setLiveStatus('👤 Face not detected. Look at camera.', 'var(--warn)');
+          return;
+        }
+
+        // ─── PHONE SCREEN DETECTION (heuristic: very bright uniform region) ───
+        detectPhoneScreen(video);
+
+        // ─── BLINK DETECTION via EAR (Eye Aspect Ratio) ───
+        const lm = result.landmarks;
+        const leftEye  = lm.getLeftEye();
+        const rightEye = lm.getRightEye();
+        const ear = (eyeAspectRatio(leftEye) + eyeAspectRatio(rightEye)) / 2;
+
+        const EAR_THRESH = 0.22;
+        const eyesClosed = ear < EAR_THRESH;
+        if (lastEyeOpen && eyesClosed) {
+          blinkCount++;
+          document.getElementById('blink-ct').textContent = blinkCount + ' / 2';
+          if (blinkCount >= 2) {
+            document.getElementById('ch-blink').style.borderColor = 'var(--green)';
+            document.getElementById('ch-blink').style.background = 'rgba(16,185,129,.1)';
+          }
+        }
+        lastEyeOpen = !eyesClosed;
+
+        // ─── SMILE DETECTION ───
+        const expressions = result.expressions;
+        if (expressions.happy > 0.7 && !smileDetected) {
+          smileDetected = true;
+          document.getElementById('smile-st').textContent = '✓ Detected!';
+          document.getElementById('smile-st').style.color = 'var(--green)';
+          document.getElementById('ch-smile').style.borderColor = 'var(--green)';
+          document.getElementById('ch-smile').style.background = 'rgba(16,185,129,.1)';
+        }
+
+        // ─── CHECK IF BOTH DONE ───
+        const blinkDone = blinkCount >= 2;
+        const smileDone = smileDetected;
+
+        if (blinkDone && smileDone) {
+          livenessOk = true;
+          clearInterval(faDetectLoop);
+          setLiveStatus('✓ Liveness verified!', 'var(--green)');
+          document.getElementById('fa-challenge-msg').textContent = '✅ Liveness verified! Capturing photo...';
+          document.getElementById('fa-challenge-msg').style.color = 'var(--green)';
+          setTimeout(captureFrame, 800);
+        } else {
+          const remaining = [];
+          if (!blinkDone) remaining.push('Blink ' + (2 - blinkCount) + ' more time(s)');
+          if (!smileDone) remaining.push('Smile');
+          setLiveStatus('👁 ' + remaining.join(' | '), 'var(--blue)');
+        }
+      } catch(e) {
+        // Detection error — continue loop
+      }
+    }
+
+    function eyeAspectRatio(eye) {
+      // EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * dist(eye[0], eye[3]));
+    }
+
+    function detectPhoneScreen(video) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 160; canvas.height = 120;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 160, 120);
+        const data = ctx.getImageData(0, 0, 160, 120).data;
+
+        // Heuristic: check for large bright rectangular region (phone screen glow)
+        let brightPixels = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const brightness = (r + g + b) / 3;
+          if (brightness > 200 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) brightPixels++;
+        }
+        const ratio = brightPixels / (160 * 120);
+        if (ratio > 0.30) { // >30% very bright uniform pixels
+          phoneWarnings++;
+          const alertEl = document.getElementById('phone-alert');
+          alertEl.style.display = 'block';
+          document.getElementById('phone-warn-txt').textContent = 'Warning ' + phoneWarnings + '/3';
+          toast('⚠️ Phone detected! Warning ' + phoneWarnings + '/3', 'error');
+          if (phoneWarnings >= 3) {
+            clearInterval(faDetectLoop);
+            stopCamera();
+            // Mark absent via backend
+            markPhoneAbsent();
+          }
+          setTimeout(() => { alertEl.style.display = 'none'; }, 2500);
+        }
+      } catch(e) {}
+    }
+
+    async function markPhoneAbsent() {
+      const sessId = document.getElementById('face-sess').value;
+      toast('🚫 3 phone detections — Marked absent!', 'error');
+      document.getElementById('fa-camera-wrap').style.display = 'none';
+      document.getElementById('fa-challenges').style.display = 'none';
+      document.getElementById('fa-btn-start').style.display = 'block';
+
+      // Notify backend
+      const r = await POST('attendance/face/phone-violation/', {
+        session_id: parseInt(sessId),
+        device_id: deviceId,
+      });
+      renderResponse('res-face-att', r);
+    }
+
+    function setLiveStatus(txt, color) {
+      const el = document.getElementById('fa-live-status');
+      if (el) { el.textContent = txt; el.style.color = color || '#fff'; }
+    }
+
+    function captureFrame() {
+      const video  = document.getElementById('fa-video');
+      const canvas = document.createElement('canvas');
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+
+      canvas.toBlob(blob => {
+        capturedBlob = blob;
+        // Show preview
+        const img = document.getElementById('fa-captured-img');
+        img.src = URL.createObjectURL(blob);
+        img.style.display = 'block';
+        // Hide live video
+        document.getElementById('fa-video').style.display = 'none';
+
+        // Show submit UI
+        document.getElementById('fa-btn-submit').style.display = 'block';
+        document.getElementById('step-3').style.background = 'rgba(16,185,129,.15)';
+        document.getElementById('step-3').style.color = 'var(--green)';
+        toast('✓ Photo captured! Submit karo.', 'info');
+      }, 'image/jpeg', 0.92);
+    }
+
+    function retakePhoto() {
+      capturedBlob = null; livenessOk = false;
+      blinkCount = 0; smileDetected = false; phoneWarnings = 0; lastEyeOpen = true;
+      document.getElementById('fa-captured-img').style.display = 'none';
+      document.getElementById('fa-video').style.display = 'block';
+      document.getElementById('fa-btn-submit').style.display = 'none';
+      document.getElementById('blink-ct').textContent = '0 / 2';
+      document.getElementById('smile-st').textContent = 'Not detected';
+      document.getElementById('ch-blink').style.borderColor = 'var(--border)';
+      document.getElementById('ch-blink').style.background = '';
+      document.getElementById('ch-smile').style.borderColor = 'var(--border)';
+      document.getElementById('ch-smile').style.background = '';
+      document.getElementById('fa-challenge-msg').textContent = 'Please complete both challenges';
+      document.getElementById('fa-challenge-msg').style.color = 'var(--muted)';
+      // Restart detection
+      if (faceApiLoaded) faDetectLoop = setInterval(runFaceDetection, 300);
+    }
+
+    function stopCamera() {
+      if (faDetectLoop) { clearInterval(faDetectLoop); faDetectLoop = null; }
+      if (faStream) { faStream.getTracks().forEach(t => t.stop()); faStream = null; }
+    }
+
+    async function submitFaceAttendance() {
+      if (!capturedBlob) return toast('Pehle photo capture karo', 'error');
+      const sessId = document.getElementById('face-sess').value;
+      if (!sessId) return toast('Session ID zaruri hai', 'error');
+
+      // Show loading
+      document.getElementById('fa-btn-submit').innerHTML = '<div style="text-align:center;padding:10px;color:var(--muted)">⏳ Submitting...</div>';
+
+      const fd = new FormData();
+      fd.append('photo',      capturedBlob, 'selfie.jpg');
+      fd.append('session_id', sessId);
+      fd.append('device_id',  deviceId);
+      if (userLat) fd.append('latitude',  userLat);
+      if (userLon) fd.append('longitude', userLon);
+
       const r = await FORM('attendance/face/mark/', fd);
       renderResponse('res-face-att', r);
-      if (r.ok) { toast('Attendance marked via Face!'); loadSessions(); }
-      else toast(r.data?.error || 'Face match nahi hua', 'error');
+
+      if (r.ok) {
+        stopCamera();
+        document.getElementById('fa-camera-wrap').style.display = 'none';
+        document.getElementById('fa-challenges').style.display = 'none';
+        document.getElementById('fa-btn-start').style.display = 'block';
+        document.getElementById('fa-btn-submit').style.display = 'none';
+        document.getElementById('step-1').style.background = '';
+        document.getElementById('step-2').style.background = '';
+        document.getElementById('step-3').style.background = '';
+
+        // Success popup
+        showSuccessPopup(r.data);
+        loadSessions();
+      } else {
+        toast('Error: ' + (r.data?.error || 'Face match nahi hua'), 'error');
+        document.getElementById('fa-btn-submit').innerHTML = `
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-success" onclick="submitFaceAttendance()" style="flex:1;padding:10px">✅ Submit Attendance</button>
+            <button class="btn btn-ghost" onclick="retakePhoto()" style="padding:10px">🔄 Retake</button>
+          </div>
+          <div id="fa-geo-info" style="margin-top:8px;font-size:11px;color:var(--muted)">📍 ` + (userLat ? userLat.toFixed(4)+', '+userLon.toFixed(4) : 'Location not available') + `</div>`;
+      }
     }
-    function previewSelfie(inp) {
-      const f = inp.files[0]; if (!f) return;
-      const reader = new FileReader();
-      reader.onload = function (e) { const img = document.getElementById('selfie-preview'); img.src = e.target.result; img.style.display = 'block'; };
-      reader.readAsDataURL(f);
+
+    function showSuccessPopup(data) {
+      const popup = document.createElement('div');
+      popup.innerHTML = `
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center">
+          <div style="background:var(--panel);border:1px solid var(--green);border-radius:14px;padding:32px 28px;max-width:360px;text-align:center;animation:fadeIn .3s ease">
+            <div style="font-size:48px;margin-bottom:12px">✅</div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--green);margin-bottom:8px">Attendance Marked!</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.8">
+              Subject: <b style="color:var(--text)">${data.subject_name || data.subject || '—'}</b><br>
+              Date: <b style="color:var(--text)">${data.date || new Date().toLocaleDateString()}</b><br>
+              Method: <b style="color:var(--text)">Face Recognition</b><br>
+              Status: <b style="color:var(--green)">Present ✓</b>
+            </div>
+            <button onclick="this.closest('.popup-wrap').remove()" 
+              style="margin-top:20px;padding:9px 28px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:13px">
+              OK
+            </button>
+          </div>
+        </div>`;
+      popup.className = 'popup-wrap';
+      document.body.appendChild(popup);
+      setTimeout(() => { if(popup.parentNode) popup.remove(); }, 6000);
     }
 
     // LEAVES

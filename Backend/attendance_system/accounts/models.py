@@ -223,3 +223,25 @@ class PasswordResetOTP(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.username} | Valid: {self.is_valid}"
+
+
+class DeviceToken(models.Model):
+    """
+    Stores the browser fingerprint (device_id) for each student.
+    First login from a device registers it automatically.
+    New device requires OTP verification before login.
+    Admin can reset (clear) device tokens.
+    """
+    student        = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='device_tokens')
+    device_id      = models.CharField(max_length=100)
+    device_label   = models.CharField(max_length=200, blank=True, help_text='User-Agent snippet')
+    is_primary     = models.BooleanField(default=True)
+    registered_at  = models.DateTimeField(auto_now_add=True)
+    last_login     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'device_tokens'
+        unique_together = ('student', 'device_id')
+
+    def __str__(self):
+        return f"{self.student_id} — {self.device_id[:12]}"
