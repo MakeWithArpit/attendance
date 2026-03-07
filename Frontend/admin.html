@@ -683,7 +683,8 @@
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Student ID</label><input type="text" id="face-sid" placeholder="Student ID"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-image"></i> Face Photo</label><input type="file" id="face-photo" accept="image/*"></div>
           </div>
-          <button class="btn btn-navy" onclick="registerFace()"><i class="fa-solid fa-upload"></i> Upload & Register Face</button>
+          <button class="btn btn-navy" id="face-reg-btn" onclick="registerFace()"><i class="fa-solid fa-upload"></i> Upload &amp; Register Face</button>
+          <div id="face-reg-loading" style="display:none;margin-top:12px;" class="info-box blue"><i class="fa-solid fa-spinner fa-spin"></i><span>Uploading photo and registering face… please wait.</span></div>
         </div>
       </div>
     </div>
@@ -1018,44 +1019,85 @@
     <div id="sec-notify" class="section">
       <div class="page-header">
         <h1 class="page-title">Notify Parents <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Send attendance alert email to student's parent/guardian</p>
-      </div>
-      <div class="card card-accent">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-bell"></i> Send Attendance Alert</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/notify-parent/</span></div>
-        <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's email address registered in the student's family details. Make sure parent email is added before sending.</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
-            <input type="text" id="np-student" placeholder="e.g. BCS2024001">
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-book"></i> Subject Code <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
-            <input type="text" id="np-subject" placeholder="Leave empty for overall">
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-layer-group"></i> Semester <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
-            <select id="np-semester">
-              <option value="">Select</option>
-              <option value="1">Semester 1</option><option value="2">Semester 2</option>
-              <option value="3">Semester 3</option><option value="4">Semester 4</option>
-              <option value="5">Semester 5</option><option value="6">Semester 6</option>
-              <option value="7">Semester 7</option><option value="8">Semester 8</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-calendar-days"></i> Academic Year <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
-            <input type="text" id="np-year" placeholder="e.g. 2024-2025">
-          </div>
-          <div class="form-group" style="margin:0;grid-column:1/-1;">
-            <label><i class="fa-solid fa-message"></i> Custom Message <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
-            <textarea id="np-message" rows="2" placeholder="Add a personal note from faculty (optional)…"></textarea>
-          </div>
-        </div>
-        <button class="btn btn-navy" onclick="sendParentNotify()"><i class="fa-solid fa-paper-plane"></i> Send Notification</button>
+        <p class="page-sub">Send attendance alert to student's parent via Email or WhatsApp</p>
       </div>
 
-      <div id="np-result" style="display:none;margin-top:16px;"></div>
+      <!-- Channel tabs -->
+      <div class="tab-bar" style="margin-bottom:0;">
+        <button class="tab-btn active" onclick="switchTab('notify','email',this)"><i class="fa-solid fa-envelope"></i> Email Alert</button>
+        <button class="tab-btn" onclick="switchTab('notify','whatsapp',this)"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+      </div>
+
+      <!-- Email Tab -->
+      <div id="notify-tab-email" class="tab-content active">
+        <div class="card card-accent">
+          <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-envelope"></i> Send Email Alert</div></div>
+          <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/notify-parent/</span></div>
+          <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's registered email. Make sure parent email is added in student details.</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
+              <input type="text" id="np-student" placeholder="e.g. BCS2024001">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-book"></i> Subject Code <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
+              <input type="text" id="np-subject" placeholder="Leave empty for overall">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-layer-group"></i> Semester <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
+              <select id="np-semester">
+                <option value="">Select</option>
+                <option value="1">Semester 1</option><option value="2">Semester 2</option>
+                <option value="3">Semester 3</option><option value="4">Semester 4</option>
+                <option value="5">Semester 5</option><option value="6">Semester 6</option>
+                <option value="7">Semester 7</option><option value="8">Semester 8</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-calendar-days"></i> Academic Year <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
+              <input type="text" id="np-year" placeholder="e.g. 2024-2025">
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1;">
+              <label><i class="fa-solid fa-message"></i> Custom Message <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
+              <textarea id="np-message" rows="2" placeholder="Add a personal note from faculty (optional)…"></textarea>
+            </div>
+          </div>
+          <button class="btn btn-navy" onclick="sendParentNotify()"><i class="fa-solid fa-paper-plane"></i> Send Email</button>
+        </div>
+        <div id="np-result" style="display:none;margin-top:16px;"></div>
+      </div>
+
+      <!-- WhatsApp Tab -->
+      <div id="notify-tab-whatsapp" class="tab-content">
+        <div class="card card-accent">
+          <div class="card-title"><div class="card-title-left"><i class="fa-brands fa-whatsapp" style="color:#25D366;"></i> WhatsApp Parent</div></div>
+          <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Enter Student ID to load parent's mobile number, then compose a message. Clicking Send will open WhatsApp Web / App with the message pre-filled.</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="wa-student" placeholder="e.g. BCS2024001" style="flex:1;">
+                <button class="btn btn-outline btn-sm" onclick="loadWAParent()" style="white-space:nowrap;"><i class="fa-solid fa-magnifying-glass"></i> Find</button>
+              </div>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-phone"></i> Parent Mobile</label>
+              <input type="text" id="wa-mobile" placeholder="Will auto-fill after search" readonly style="background:#F1F5F9;color:#64748B;">
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1;">
+              <label><i class="fa-solid fa-message"></i> Message *</label>
+              <textarea id="wa-message" rows="4" placeholder="Type your message here…
+e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regular attendance."></textarea>
+            </div>
+          </div>
+          <div id="wa-student-info" style="display:none;margin-bottom:14px;" class="info-box" style="background:#F0FDF4;border-color:#BBF7D0;"></div>
+          <button class="btn" style="background:#25D366;color:#fff;font-weight:700;" onclick="sendWhatsApp()">
+            <i class="fa-brands fa-whatsapp"></i> Open WhatsApp
+          </button>
+          <span style="font-size:11px;color:#8A95A3;margin-left:12px;">WhatsApp Web ya App mein khulega — manually send karna hoga</span>
+        </div>
+      </div>
+
     </div>
 
   </main>
@@ -1159,32 +1201,39 @@
     }));
   }
   async function addStudent(){
+    const _semVal = document.getElementById('ns-semester').value;
     const body={
       student_id:        document.getElementById('ns-id').value,
       password:          document.getElementById('ns-pass').value,
       enrollment_number: document.getElementById('ns-enroll').value,
       roll_number:       document.getElementById('ns-roll').value,
       profile:{
-        name:              document.getElementById('ns-name').value,
-        dob:               document.getElementById('ns-dob').value,
-        gender:            document.getElementById('ns-gender').value,
-        mobile_number:     document.getElementById('ns-mobile').value,
-        email:             document.getElementById('ns-email').value,
-        domicile_state:    document.getElementById('ns-state').value,
-        address:           document.getElementById('ns-address').value,
-        academic_year:     document.getElementById('ns-year').value,
-        branch:            document.getElementById('ns-branch').value,
-        section:           document.getElementById('ns-section').value,
-        current_semester:  document.getElementById('ns-semester').value,
-        date_of_joining:   document.getElementById('ns-doj').value,
+        name:             document.getElementById('ns-name').value,
+        dob:              document.getElementById('ns-dob').value,
+        gender:           document.getElementById('ns-gender').value,
+        mobile_number:    document.getElementById('ns-mobile').value,
+        email:            document.getElementById('ns-email').value,
+        domicile_state:   document.getElementById('ns-state').value,
+        academic_year:    document.getElementById('ns-year').value,
+        branch:           document.getElementById('ns-branch').value,
+        section:          document.getElementById('ns-section').value,
+        current_semester: _semVal ? parseInt(_semVal) : null,
+        date_of_joining:  document.getElementById('ns-doj').value,
+      },
+      parent_detail:{
         father_name:       document.getElementById('ns-father-name').value,
         father_mobile:     document.getElementById('ns-father-mobile').value,
         mother_name:       document.getElementById('ns-mother-name').value,
         mother_mobile:     document.getElementById('ns-mother-mobile').value,
         father_occupation: document.getElementById('ns-father-occupation').value,
-        parent_email:      document.getElementById('ns-parent-email').value,
-        permanent_address: document.getElementById('ns-permanent-address').value,
-      }
+        father_email:      document.getElementById('ns-parent-email').value,
+      },
+      permanent_address:{
+        address_line1: document.getElementById('ns-permanent-address').value ||
+                       document.getElementById('ns-address').value,
+        state: document.getElementById('ns-state').value,
+        place: '', pincode: '',
+      },
     };
     const r=await POST('auth/students/create/',body);
     if(!r||!r.ok){toast(JSON.stringify(r?.data||'Failed'),'error');return;}
@@ -1202,10 +1251,25 @@
     const sid=document.getElementById('face-sid').value;
     const photo=document.getElementById('face-photo').files[0];
     if(!sid||!photo){toast('Student ID and photo are required','error');return;}
+
+    // Show loading
+    const btn = document.getElementById('face-reg-btn');
+    const loading = document.getElementById('face-reg-loading');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading…';
+    loading.style.display = 'flex';
+
     const fd=new FormData();fd.append('student_id',sid);fd.append('photo',photo);
     const r=await FORM('attendance/face/register/',fd);
+
+    // Hide loading
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-upload"></i> Upload & Register Face';
+    loading.style.display = 'none';
+
     if(!r||!r.ok){toast(r?.data?.error||'Registration failed','error');return;}
-    toast('Face registered successfully','success');
+    toast('Face registered successfully ✓','success');
+    document.getElementById('face-photo').value='';
   }
 
   async function loadTeachers(){
@@ -1976,6 +2040,63 @@
   }
 
   /* ═══════════ NOTIFY PARENTS (ADMIN) ═══════════ */
+
+  /* ════════════════════════════════════════
+     WHATSAPP PARENT NOTIFY
+  ════════════════════════════════════════ */
+  async function loadWAParent() {
+    const sid = document.getElementById('wa-student').value.trim();
+    if (!sid) { toast('Student ID daalo', 'error'); return; }
+
+    const r = await GET(`auth/students/${sid}/`);
+    if (!r || !r.ok) { toast('Student nahi mila: ' + sid, 'error'); return; }
+
+    const s  = r.data;
+    const p  = s.profile || {};
+    const pd = s.parent_detail || {};
+
+    const mobile = pd.father_mobile || '';
+    document.getElementById('wa-mobile').value = mobile;
+
+    // Show student info
+    const info = document.getElementById('wa-student-info');
+    if (p.name || pd.father_name) {
+      info.style.display = 'flex';
+      info.style.background = '#F0FDF4';
+      info.style.borderColor = '#BBF7D0';
+      info.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--green);"></i>'
+        + `<span><strong>${p.name || sid}</strong> — Father: ${pd.father_name || '—'} `
+        + `&nbsp;·&nbsp; Mobile: <strong>${mobile || 'Not registered'}</strong></span>`;
+    }
+
+    // Pre-fill a default message
+    const pct = '';
+    document.getElementById('wa-message').value =
+      `Respected ${pd.father_name || 'Parent/Guardian'},\n\n`
+      + `Aapke ward ${p.name || sid} (ID: ${sid}) ki attendance Prahari Attendance System mein ` 
+      + `record ki gayi hai.\n\n`
+      + `Kripya unki regular attendance sunishchit karein.\n\n`
+      + `— Invertis University, Bareilly`;
+
+    if (!mobile) toast('Warning: Father mobile number registered nahi hai', 'error');
+    else toast('Parent info loaded', 'success');
+  }
+
+  function sendWhatsApp() {
+    const mobile  = document.getElementById('wa-mobile').value.trim().replace(/[^0-9+]/g, '');
+    const message = document.getElementById('wa-message').value.trim();
+
+    if (!mobile) { toast('Parent ka mobile number nahi mila — pehle student ID se find karein', 'error'); return; }
+    if (!message) { toast('Message likhna zaroori hai', 'error'); return; }
+
+    // Normalize Indian number: add 91 if needed
+    let phone = mobile.startsWith('+') ? mobile.replace('+', '') : mobile;
+    if (phone.length === 10) phone = '91' + phone;
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  }
+
   async function sendParentNotify() {
     const student_id     = document.getElementById('np-student').value.trim();
     const subject_code   = document.getElementById('np-subject').value.trim();
