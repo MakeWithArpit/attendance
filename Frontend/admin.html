@@ -49,6 +49,37 @@
 /* Delete confirm modal */
 .del-ico{width:52px;height:52px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;font-size:22px;color:#C53030;margin:0 auto 14px;}
 </style>
+
+<style>
+/* Teacher picker dropdown */
+.teacher-picker-wrap { position:relative; }
+.teacher-picker-wrap input { width:100%; }
+.teacher-dropdown {
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999;
+  background:#fff; border:1.5px solid #1A56DB; border-radius:10px;
+  box-shadow:0 8px 32px rgba(15,37,87,.18); max-height:240px;
+  overflow-y:auto; display:none;
+}
+.teacher-dropdown.open { display:block; }
+.teacher-dd-item {
+  padding:10px 14px; cursor:pointer; display:flex; align-items:center;
+  gap:10px; border-bottom:1px solid #F1F5F9; transition:background .12s;
+}
+.teacher-dd-item:last-child { border-bottom:none; }
+.teacher-dd-item:hover { background:#EFF6FF; }
+.teacher-dd-emp { font-size:10.5px; font-weight:700; color:#1A56DB;
+  background:#EFF6FF; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+.teacher-dd-name { font-size:13px; font-weight:600; color:#0C1B33; }
+.teacher-dd-dept { font-size:11px; color:#8A95A3; margin-top:1px; }
+.teacher-dd-empty { padding:14px; text-align:center; font-size:12px; color:#8A95A3; }
+.teacher-dd-search {
+  padding:8px 12px; border-bottom:1.5px solid #E2E8F0; position:sticky; top:0; background:#fff;
+}
+.teacher-dd-search input {
+  width:100%; padding:6px 10px; border:1.5px solid #E2E8F0; border-radius:6px;
+  font-size:12px; outline:none; font-family:'Sora',sans-serif;
+}
+</style>
 </head>
 <body>
 <div id="toast-container"></div>
@@ -353,24 +384,57 @@
 
 <!-- Subject Edit Modal -->
 <div class="modal-overlay" id="m-subject-edit">
-  <div class="modal">
+  <div class="modal" style="max-width:520px;">
     <div class="modal-head">
-      <div class="modal-title" style="color:#166534;"><i class="fa-solid fa-pen-to-square"></i> Edit Subject</div>
+      <div class="modal-title" style="color:#166534;">
+        <i class="fa-solid fa-pen-to-square"></i> Edit Subject
+        <span id="sube-code-disp" style="font-family:'Sora',sans-serif;font-size:12px;font-weight:700;color:#fff;background:#166534;padding:2px 9px;border-radius:20px;margin-left:4px;"></span>
+      </div>
       <button class="modal-close" onclick="closeModal('m-subject-edit')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="sube-code">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group" style="margin:0;grid-column:1/-1;"><label><i class="fa-solid fa-book"></i> Subject Name</label><input type="text" id="sube-name"></div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-tag"></i> Subject Type</label>
-          <select id="sube-type"><option value="Theory">Theory</option><option value="Practical">Practical</option><option value="Project">Project</option></select>
-        </div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-layer-group"></i> Classification</label>
-          <select id="sube-class"><option value="Core">Core</option><option value="Elective">Elective</option><option value="Open Elective">Open Elective</option></select>
-        </div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-star"></i> Credits</label><input type="number" id="sube-credit" min="1" max="10"></div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-chalkboard-user"></i> Assigned Teacher (ID)</label><input type="text" id="sube-teacher" placeholder="Employee ID"></div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-book"></i> Subject Name</label>
+        <input type="text" id="sube-name" placeholder="e.g. Data Structures">
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:13px;">
+        <div class="form-group" style="margin:0;">
+          <label><i class="fa-solid fa-tag"></i> Subject Type</label>
+          <select id="sube-type">
+            <option value="Theory">Theory</option>
+            <option value="Practical">Practical</option>
+            <option value="Project">Project</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label><i class="fa-solid fa-layer-group"></i> Classification</label>
+          <select id="sube-class">
+            <option value="Core">Core</option>
+            <option value="Elective">Elective</option>
+            <option value="Open Elective">Open Elective</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-star"></i> Credits</label>
+        <input type="number" id="sube-credit" min="1" max="10" placeholder="e.g. 4" style="max-width:140px;">
+      </div>
+
+      <div class="form-group" style="margin-bottom:4px;">
+        <label><i class="fa-solid fa-chalkboard-user"></i> Assigned Teacher</label>
+        <div class="teacher-picker-wrap" id="sube-teacher-wrap">
+          <input type="text" id="sube-teacher" placeholder="Click to select teacher…"
+            readonly style="cursor:pointer;background:#FAFBFF;border-color:#C7D7FD;"
+            onclick="openTeacherPicker('sube-teacher','sube-teacher-dd')"
+            title="Click to choose teacher from list">
+          <div class="teacher-dropdown" id="sube-teacher-dd"></div>
+        </div>
+      </div>
+
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline btn-sm" onclick="closeModal('m-subject-edit')"><i class="fa-solid fa-xmark"></i> Cancel</button>
@@ -690,8 +754,14 @@
               </select>
             </div>
             <div class="form-group" style="margin:0;grid-column:1/-1;">
-              <label><i class="fa-solid fa-chalkboard-user"></i> Assign Teacher <span style="color:#8A95A3;font-size:10px;">(Employee ID — optional)</span></label>
-              <input type="text" id="nsub-teacher" placeholder="e.g. T-CS001">
+              <label><i class="fa-solid fa-chalkboard-user"></i> Assign Teacher <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
+              <div class="teacher-picker-wrap" id="nsub-teacher-wrap">
+                <input type="text" id="nsub-teacher" placeholder="Click to select teacher…"
+                  readonly style="cursor:pointer;background:#fff;"
+                  onclick="openTeacherPicker('nsub-teacher','nsub-teacher-dd')"
+                  title="Click to choose teacher from list">
+                <div class="teacher-dropdown" id="nsub-teacher-dd"></div>
+              </div>
             </div>
           </div>
           <button class="btn btn-navy" onclick="addSubject()"><i class="fa-solid fa-plus"></i> Add Subject</button>
@@ -1082,6 +1152,7 @@
     document.getElementById('teachers-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
     const r=await GET('auth/teachers/');
     const list=r?.data?.results||r?.data||[];
+    window._allTeachers = list; // global cache for teacher picker
     if(!list.length){document.getElementById('teachers-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No faculty found.</p></div>';return;}
     let html='<table><thead><tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Email</th><th>Mobile</th><th>Actions</th></tr></thead><tbody>';
     list.forEach(t=>{html+=`<tr>
@@ -1175,6 +1246,137 @@
     // Switch to list tab and reload
     document.querySelectorAll('#sec-subjects .tab-btn')[0].click();
     loadSubjects();
+  }
+
+
+  /* ════════════════════════════════════════
+     TEACHER PICKER DROPDOWN
+  ════════════════════════════════════════ */
+  async function openTeacherPicker(inputId, dropdownId) {
+    const dd = document.getElementById(dropdownId);
+    // Toggle
+    if (dd.classList.contains('open')) { dd.classList.remove('open'); return; }
+
+    // Clear previous state so search box starts fresh
+    dd.innerHTML = '';
+
+    // Load teachers if not cached
+    if (!window._allTeachers || !window._allTeachers.length) {
+      dd.innerHTML = '<div class="teacher-dd-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+      dd.classList.add('open');
+      const r = await GET('auth/teachers/');
+      window._allTeachers = r?.data?.results || r?.data || [];
+      dd.innerHTML = '';
+    }
+
+    // Position dropdown using fixed coords to escape modal overflow clipping
+    const inputEl = document.getElementById(inputId);
+    const rect = inputEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < 260 && rect.top > 260;
+
+    dd.style.cssText = [
+      'position:fixed',
+      'left:' + rect.left + 'px',
+      'width:' + rect.width + 'px',
+      'z-index:99999',
+      openUpward
+        ? 'bottom:' + (window.innerHeight - rect.top + 4) + 'px; top:auto;'
+        : 'top:' + (rect.bottom + 4) + 'px; bottom:auto;',
+    ].join(';');
+
+    renderTeacherDropdown(inputId, dropdownId, '');
+    dd.classList.add('open');
+
+    // Close on outside click or scroll
+    setTimeout(() => {
+      function outsideClick(e) {
+        const wrap = document.getElementById(inputId).closest('.teacher-picker-wrap');
+        if (!wrap.contains(e.target) && !dd.contains(e.target)) {
+          dd.classList.remove('open');
+          document.removeEventListener('click', outsideClick);
+          document.removeEventListener('scroll', outsideClick, true);
+        }
+      }
+      document.addEventListener('click', outsideClick);
+      document.addEventListener('scroll', outsideClick, true);
+    }, 0);
+  }
+
+  function renderTeacherDropdown(inputId, dropdownId, query) {
+    const dd = document.getElementById(dropdownId);
+    const teachers = window._allTeachers || [];
+    const q = (query||'').toLowerCase();
+    const filtered = q
+      ? teachers.filter(t =>
+          (t.name||'').toLowerCase().includes(q) ||
+          (t.employee_id||'').toLowerCase().includes(q) ||
+          (t.department||'').toLowerCase().includes(q)
+        )
+      : teachers;
+
+    // ── Search box: create only once, never replace ──
+    let searchBox = dd.querySelector('.teacher-dd-search input');
+    if (!searchBox) {
+      const searchWrap = document.createElement('div');
+      searchWrap.className = 'teacher-dd-search';
+      searchWrap.innerHTML = '<input type="text" placeholder="Search by name or ID…">';
+      dd.appendChild(searchWrap);
+      searchBox = searchWrap.querySelector('input');
+      searchBox.addEventListener('click', e => e.stopPropagation());
+      searchBox.addEventListener('input', function() {
+        renderTeacherDropdown(inputId, dropdownId, this.value);
+      });
+      setTimeout(() => searchBox.focus(), 50);
+    }
+
+    // ── Items list: update only the list div ──
+    let itemsEl = dd.querySelector('.teacher-dd-items');
+    if (!itemsEl) {
+      itemsEl = document.createElement('div');
+      itemsEl.className = 'teacher-dd-items';
+      dd.appendChild(itemsEl);
+    }
+
+    if (!filtered.length) {
+      itemsEl.innerHTML = '<div class="teacher-dd-empty">Koi teacher nahi mila</div>';
+    } else {
+      itemsEl.innerHTML = filtered.map(t => `<div class="teacher-dd-item"
+        onclick="selectTeacher('${inputId}','${dropdownId}','${t.employee_id}','${(t.name||'').replace(/'/g,"\'")}')">
+        <div class="teacher-dd-emp">${t.employee_id}</div>
+        <div>
+          <div class="teacher-dd-name">${t.name||'—'}</div>
+          <div class="teacher-dd-dept">${t.department||''}${t.designation?' · '+t.designation:''}</div>
+        </div>
+      </div>`).join('');
+    }
+  }
+
+  function selectTeacher(inputId, dropdownId, empId, name) {
+    const input = document.getElementById(inputId);
+    input.value = empId;
+    input.title = empId + ' — ' + name;
+    // Show name next to field
+    const wrap = input.closest('.teacher-picker-wrap');
+    let badge = wrap.querySelector('.selected-teacher-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'selected-teacher-badge';
+      badge.style.cssText = 'font-size:11.5px;color:#1A56DB;margin-top:5px;display:flex;align-items:center;gap:5px;';
+      wrap.appendChild(badge);
+    }
+    badge.innerHTML = `<i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+      <strong>${empId}</strong> — ${name}
+      <span onclick="clearTeacher('${inputId}','${dropdownId}')"
+        style="color:#DC2626;cursor:pointer;margin-left:4px;" title="Remove">✕</span>`;
+    document.getElementById(dropdownId).classList.remove('open');
+  }
+
+  function clearTeacher(inputId, dropdownId) {
+    document.getElementById(inputId).value = '';
+    const wrap = document.getElementById(inputId).closest('.teacher-picker-wrap');
+    const badge = wrap.querySelector('.selected-teacher-badge');
+    if (badge) badge.remove();
   }
 
   async function loadBranches(){
@@ -1576,6 +1778,7 @@
   function editSubject(btn) {
     const s = JSON.parse(btn.closest('tr').dataset.obj);
     document.getElementById('sube-code').value    = s.subject_code;
+    const dispEl = document.getElementById('sube-code-disp'); if(dispEl) dispEl.textContent = s.subject_code;
     document.getElementById('sube-name').value    = s.subject_name||'';
     document.getElementById('sube-type').value    = s.subject_type||'Theory';
     document.getElementById('sube-class').value   = s.subject_classification||'Core';
