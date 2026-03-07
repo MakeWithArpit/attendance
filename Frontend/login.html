@@ -169,6 +169,18 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .otp-input { letter-spacing: 10px; font-size: 22px; font-weight: 700; text-align: center; }
 
 @media (max-width: 760px) { .login-left { display: none; } }
+
+/* ── Password show/hide ── */
+.pw-wrap { position:relative; display:flex; align-items:center; }
+.pw-wrap input { flex:1; padding-right:40px !important; }
+.pw-toggle {
+  position:absolute; right:0; top:0; bottom:0;
+  width:38px; border:none; background:transparent;
+  cursor:pointer; color:#8A95A3; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  transition:color .15s; border-radius:0 7px 7px 0;
+}
+.pw-toggle:hover { color:#1A56DB; }
 </style>
 </head>
 <body>
@@ -308,7 +320,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
         </div>
         <div class="form-group">
           <label><i class="fa-solid fa-lock"></i> New Password</label>
-          <div class="input-wrap"><i class="fa-solid fa-lock i-left"></i><input class="input-icon" type="password" id="new-pass" placeholder="Minimum 8 characters"></div>
+          <div class="input-wrap" style="position:relative;"><i class="fa-solid fa-lock i-left"></i><input class="input-icon" type="password" id="new-pass" placeholder="Minimum 8 characters" style="padding-right:40px;"><button type="button" class="pw-toggle" onclick="togglePw('new-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-new-pass"></i></button></div>
         </div>
         <button type="button" class="btn btn-navy" style="width:100%;" onclick="doReset()"><i class="fa-solid fa-rotate-right"></i> Reset Password</button>
         <div class="msg hidden" id="reset-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
@@ -491,6 +503,15 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     if (reset.classList.contains('show'))  { doReset();  return; }
     doLogin();
   });
+  function togglePw(id) {
+    const inp = document.getElementById(id);
+    const ico = document.getElementById('pwi-' + id);
+    if (!inp) return;
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    ico.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  }
+
 </script>
 </body>
 </html>

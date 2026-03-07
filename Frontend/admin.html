@@ -120,7 +120,7 @@
         </div>
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-key"></i> New Password <span style="color:#8A95A3;font-size:10px;">(leave blank to keep)</span></label>
-          <input type="password" id="se-password" placeholder="Enter new password to change">
+          <div class="pw-wrap" id="pww-se-password"><input type="password" id="se-password" placeholder="Enter new password to change"><button type="button" class="pw-toggle" onclick="togglePw('se-password')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-se-password"></i></button></div>
         </div>
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-hashtag"></i> Enrollment Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label>
@@ -592,7 +592,7 @@
           <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-lock" style="color:var(--blue);"></i> Account Credentials</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Student ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-id" placeholder="Branch & year select karein" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><input type="password" id="ns-pass" placeholder="Min 8 characters"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><div class="pw-wrap" id="pww-ns-pass"><input type="password" id="ns-pass" placeholder="Min 8 characters"><button type="button" class="pw-toggle" onclick="togglePw('ns-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-ns-pass"></i></button></div></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-hashtag"></i> Enrollment No. <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-enroll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-list-ol"></i> Roll Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-roll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
           </div>
@@ -709,7 +709,7 @@
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-user-plus"></i> Add Faculty Member</div></div>
           <div class="form-row">
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Employee ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="nt-id" placeholder="Department type karein" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><input type="password" id="nt-pass"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><div class="pw-wrap" id="pww-nt-pass"><input type="password" id="nt-pass" placeholder="Min 8 characters"><button type="button" class="pw-toggle" onclick="togglePw('nt-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-nt-pass"></i></button></div></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-user"></i> Full Name *</label><input type="text" id="nt-name"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-envelope"></i> Email *</label><input type="email" id="nt-email"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-phone"></i> Mobile *</label><input type="text" id="nt-mobile"></div>
@@ -2124,6 +2124,15 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     toast('Parent notification sent successfully', 'success');
   }
 
+
+  function togglePw(id) {
+    const inp = document.getElementById(id);
+    const ico = document.getElementById('pwi-' + id);
+    if (!inp) return;
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    ico.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  }
 
 </script>
 </body>
