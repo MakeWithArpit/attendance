@@ -124,8 +124,10 @@ class StudentProfile(models.Model):
     marital_status  = models.CharField(max_length=10, choices=MARITAL_CHOICES, default='single')
     domicile_state  = models.CharField(max_length=50)
     date_of_joining = models.DateField()
-    academic_year   = models.CharField(max_length=9)
-    branch          = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True)
+    academic_year    = models.CharField(max_length=9)
+    section          = models.CharField(max_length=10, blank=True, null=True)
+    current_semester = models.IntegerField(blank=True, null=True)
+    branch           = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True)
     photo           = models.ImageField(upload_to='students/photos/', blank=True, null=True)
 
     class Meta:

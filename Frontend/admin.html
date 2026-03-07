@@ -1676,6 +1676,10 @@
     // ── Academic (from profile) ───────────────────────────────
     document.getElementById('se-year').value = p.academic_year   || '';
     document.getElementById('se-doj').value  = p.date_of_joining || '';
+    const secSel = document.getElementById('se-section');
+    if (secSel) secSel.value = p.section || '';
+    const semSel = document.getElementById('se-semester');
+    if (semSel) semSel.value = p.current_semester ? String(p.current_semester) : '';
 
     // ── Address (from permanent_address) ─────────────────────
     document.getElementById('se-address').value = pa.address_line1 || '';
@@ -1712,15 +1716,18 @@
 
       // ── StudentProfile fields ────────────────────────────────
       profile: {
-        name:            document.getElementById('se-name').value,
-        dob:             document.getElementById('se-dob').value,
-        gender:          document.getElementById('se-gender').value,
-        mobile_number:   document.getElementById('se-mobile').value,
-        email:           document.getElementById('se-email').value,
-        domicile_state:  document.getElementById('se-state').value,
-        academic_year:   document.getElementById('se-year').value,
-        branch:          document.getElementById('se-branch').value,
-        date_of_joining: document.getElementById('se-doj').value,
+        name:             document.getElementById('se-name').value,
+        dob:              document.getElementById('se-dob').value,
+        gender:           document.getElementById('se-gender').value,
+        mobile_number:    document.getElementById('se-mobile').value,
+        email:            document.getElementById('se-email').value,
+        domicile_state:   document.getElementById('se-state').value,
+        academic_year:    document.getElementById('se-year').value,
+        branch:           document.getElementById('se-branch').value,
+        date_of_joining:  document.getElementById('se-doj').value,
+        section:          document.getElementById('se-section').value,
+        current_semester: document.getElementById('se-semester').value
+                            ? parseInt(document.getElementById('se-semester').value) : null,
       },
 
       // ── ParentDetail fields ──────────────────────────────────

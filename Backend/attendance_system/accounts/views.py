@@ -384,7 +384,8 @@ class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
             profile, _ = StudentProfile.objects.get_or_create(student=student)
             for field in ('name', 'dob', 'gender', 'mobile_number', 'email',
                           'domicile_state', 'academic_year', 'date_of_joining',
-                          'nationality', 'marital_status'):
+                          'nationality', 'marital_status',
+                          'section', 'current_semester'):
                 if field in profile_data:
                     setattr(profile, field, profile_data[field])
             # branch is a FK — accept branch_code string
