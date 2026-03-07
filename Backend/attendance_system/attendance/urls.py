@@ -3,6 +3,7 @@ attendance/urls.py
 """
 from django.urls import path
 from .views import (
+    SendParentNotificationView,
     StartAttendanceSessionView,
     BulkManualAttendanceView,
     RegisterFaceView, FacialAttendanceView, ActiveSessionsForStudentView,
@@ -48,4 +49,7 @@ urlpatterns = [
     path('attendance-requests/',          TeacherAttendanceRequestView.as_view(), name='att_requests_teacher'),
     path('admin/attendance-requests/',    AdminAttendanceRequestView.as_view(),   name='att_requests_admin_list'),
     path('admin/attendance-requests/<int:pk>/', AdminAttendanceRequestView.as_view(), name='att_requests_admin_detail'),
+
+    # Parent Notification
+    path('notify-parent/', SendParentNotificationView.as_view(), name='notify_parent'),
 ]

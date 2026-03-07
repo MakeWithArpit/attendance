@@ -1,1549 +1,381 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Portal — AttendX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@300;400;500&display=swap"
-    rel="stylesheet">
-  <style>
-    /* Shared CSS for all dashboards */
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0
-    }
-
-    :root {
-      --bg: #070b14;
-      --sidebar: #0d1321;
-      --panel: #111827;
-      --border: #1e2d45;
-      --blue: #3b82f6;
-      --cyan: #06b6d4;
-      --green: #10b981;
-      --red: #ef4444;
-      --warn: #f59e0b;
-      --purple: #8b5cf6;
-      --text: #e2e8f0;
-      --muted: #64748b;
-      --muted2: #94a3b8;
-      --sw: 220px
-    }
-
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      min-height: 100vh
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-      width: var(--sw);
-      background: var(--sidebar);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      z-index: 10;
-      overflow-y: auto
-    }
-
-    .sb-logo {
-      padding: 18px 16px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0
-    }
-
-    .sb-logo-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0
-    }
-
-    .sb-logo-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 15px
-    }
-
-    .sb-logo-role {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .08em;
-      text-transform: uppercase
-    }
-
-    .nav {
-      flex: 1;
-      padding: 10px 8px
-    }
-
-    .nav-sec {
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      padding: 10px 8px 5px
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 11px;
-      border-radius: 7px;
-      cursor: pointer;
-      color: var(--muted2);
-      font-size: 13px;
-      transition: all .15s;
-      margin-bottom: 2px;
-      user-select: none
-    }
-
-    .nav-item:hover {
-      background: rgba(255, 255, 255, .05);
-      color: var(--text)
-    }
-
-    .sb-footer {
-      padding: 12px 8px;
-      border-top: 1px solid var(--border);
-      flex-shrink: 0
-    }
-
-    .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, .03);
-      margin-bottom: 8px
-    }
-
-    .avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      font-family: 'Syne', sans-serif;
-      flex-shrink: 0
-    }
-
-    .user-name {
-      font-size: 13px;
-      font-weight: 500
-    }
-
-    .user-role-label {
-      font-size: 10px;
-      color: var(--muted)
-    }
-
-    .logout-btn {
-      width: 100%;
-      padding: 7px;
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      color: var(--red);
-      font-size: 12px;
-      cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-      transition: all .2s
-    }
-
-    .logout-btn:hover {
-      background: rgba(239, 68, 68, .08);
-      border-color: var(--red)
-    }
-
-    /* MAIN */
-    .main {
-      margin-left: var(--sw);
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0
-    }
-
-    .topbar {
-      padding: 14px 22px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--sidebar);
-      position: sticky;
-      top: 0;
-      z-index: 5
-    }
-
-    .page-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 17px
-    }
-
-    .page-sub {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px
-    }
-
-    .content {
-      padding: 22px;
-      flex: 1
-    }
-
-    /* SECTIONS */
-    .section {
-      display: none
-    }
-
-    .section.active {
-      display: block;
-      animation: fadeIn .2s ease
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(5px)
-      }
-
-      to {
-        opacity: 1;
-        transform: none
-      }
-    }
-
-    /* STAT CARDS */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      margin-bottom: 20px
-    }
-
-    .stat-card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 11px;
-      padding: 18px;
-      transition: border-color .2s
-    }
-
-    .stat-val {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 26px;
-      margin: 6px 0 3px
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: var(--muted)
-    }
-
-    /* BOX */
-    .box {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 11px;
-      overflow: hidden;
-      margin-bottom: 18px
-    }
-
-    .box-header {
-      padding: 13px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px
-    }
-
-    .box-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 13px
-    }
-
-    .box-body {
-      padding: 18px
-    }
-
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px
-    }
-
-    /* FORMS */
-    .fgrp {
-      margin-bottom: 12px
-    }
-
-    .frow {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px
-    }
-
-    .frow3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px
-    }
-
-    label,
-    lbl {
-      display: block;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--muted);
-      margin-bottom: 5px;
-      letter-spacing: .05em;
-      text-transform: uppercase
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      padding: 8px 11px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      outline: none;
-      transition: border-color .2s;
-      margin-bottom: 0
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: var(--blue)
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 70px
-    }
-
-    select option {
-      background: var(--panel)
-    }
-
-    /* BUTTONS */
-    .btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 7px;
-      font-family: 'Syne', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all .2s;
-      letter-spacing: .03em;
-      white-space: nowrap
-    }
-
-    .btn-primary {
-      background: var(--blue);
-      color: #fff
-    }
-
-    .btn-primary:hover {
-      background: #2563eb
-    }
-
-    .btn-success {
-      background: var(--green);
-      color: #fff
-    }
-
-    .btn-success:hover {
-      background: #059669
-    }
-
-    .btn-danger {
-      background: var(--red);
-      color: #fff
-    }
-
-    .btn-danger:hover {
-      background: #dc2626
-    }
-
-    .btn-warn {
-      background: var(--warn);
-      color: #000
-    }
-
-    .btn-warn:hover {
-      background: #d97706
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted2)
-    }
-
-    .btn-ghost:hover {
-      border-color: var(--blue);
-      color: var(--blue)
-    }
-
-    .btn-sm {
-      padding: 5px 10px;
-      font-size: 10px
-    }
-
-    .btn:disabled {
-      opacity: .5;
-      cursor: not-allowed
-    }
-
-    /* TABLE */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px
-    }
-
-    th {
-      padding: 8px 12px;
-      text-align: left;
-      font-size: 10px;
-      color: var(--muted);
-      font-weight: 600;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--border)
-    }
-
-    td {
-      padding: 9px 12px;
-      border-bottom: 1px solid rgba(30, 45, 69, .5)
-    }
-
-    tr:last-child td {
-      border-bottom: none
-    }
-
-    tr:hover td {
-      background: rgba(255, 255, 255, .02)
-    }
-
-    /* BADGES */
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600
-    }
-
-    .bg {
-      background: rgba(16, 185, 129, .15);
-      color: var(--green)
-    }
-
-    .br {
-      background: rgba(239, 68, 68, .15);
-      color: var(--red)
-    }
-
-    .bw {
-      background: rgba(245, 158, 11, .15);
-      color: var(--warn)
-    }
-
-    .bb {
-      background: rgba(59, 130, 246, .15);
-      color: var(--blue)
-    }
-
-    .bp {
-      background: rgba(139, 92, 246, .15);
-      color: #8b5cf6
-    }
-
-    .bx {
-      background: rgba(100, 116, 139, .15);
-      color: var(--muted2)
-    }
-
-    /* RESPONSE BOX */
-    .res-box {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 10px;
-      font-size: 11px;
-      display: none
-    }
-
-    .res-box.show {
-      display: block
-    }
-
-    .res-box pre {
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: var(--muted2);
-      max-height: 200px;
-      overflow-y: auto
-    }
-
-    .res-header {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      margin-bottom: 6px;
-      font-size: 12px
-    }
-
-    /* MISC */
-    .tag {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-size: 11px;
-      background: rgba(59, 130, 246, .1);
-      color: var(--blue);
-      margin: 1px
-    }
-
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      padding: 24px;
-      font-size: 13px
-    }
-
-    .hint {
-      background: rgba(59, 130, 246, .07);
-      border: 1px solid rgba(59, 130, 246, .15);
-      border-radius: 7px;
-      padding: 9px 12px;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 14px;
-      line-height: 1.6
-    }
-
-    .hint b {
-      color: var(--blue)
-    }
-
-    /* TOAST */
-    #toast-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      z-index: 9999
-    }
-
-    .toast {
-      padding: 9px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
-      opacity: 0;
-      transform: translateX(20px);
-      transition: all .3s;
-      max-width: 260px
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(0)
-    }
-
-    .toast-success {
-      border-color: var(--green)
-    }
-
-    .toast-success span {
-      color: var(--green)
-    }
-
-    .toast-error {
-      border-color: var(--red)
-    }
-
-    .toast-error span {
-      color: var(--red)
-    }
-
-    .toast-info {
-      border-color: var(--blue)
-    }
-
-    .toast-info span {
-      color: var(--blue)
-    }
-
-    .nav-item.active {
-      background: rgba(16, 185, 129, .15);
-      color: var(--green)
-    }
-
-    .sb-logo-icon {
-      background: linear-gradient(135deg, #10b981, #06b6d4)
-    }
-
-    .sb-logo-role {
-      color: var(--green)
-    }
-
-    .avatar {
-      background: var(--green)
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: var(--green)
-    }
-
-    .btn-primary {
-      background: var(--green)
-    }
-
-    .btn-primary:hover {
-      background: #059669
-    }
-
-    /* attendance bar */
-    .att-bar {
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      margin-top: 5px;
-      overflow: hidden
-    }
-
-    .att-fill {
-      height: 100%;
-      border-radius: 3px
-    }
-
-    /* upload area */
-    .upload-area {
-      border: 2px dashed var(--border);
-      border-radius: 9px;
-      padding: 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s;
-      margin-bottom: 10px
-    }
-
-    .upload-area:hover {
-      border-color: var(--green)
-    }
-
-    /* pw strength */
-    .pw-bar {
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin: 0 0 10px;
-      overflow: hidden
-    }
-
-    .pw-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: all .3s;
-      width: 0
-    }
-
-    /* session pill */
-    .sess-pill {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      padding: 13px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px
-    }
-
-    .sess-pill-info {
-      flex: 1
-    }
-
-    .sess-pill-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 13px
-    }
-
-    .sess-pill-meta {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.esm.js" type="module"></script>
-  <script>
-    // Load face-api as global fallback
-    (function(){
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js';
-      document.head.appendChild(s);
-    })();
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student — Prahari | Invertis University</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-
 <body>
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
+
+<div class="app">
+  <!-- Sidebar -->
   <aside class="sidebar">
-    <div class="sb-logo">
-      <div class="sb-logo-icon">👨‍🎓</div>
-      <div>
-        <div class="sb-logo-name">AttendX</div>
-        <div class="sb-logo-role">Student Portal</div>
+    <div class="sb-head">
+      <div class="sb-brand">
+        <svg class="iu-globe" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs><clipPath id="g"><circle cx="50" cy="50" r="44"/></clipPath></defs>
+          <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.15"/>
+          <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#g)"/>
+          <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#fff" stroke-width="7" opacity="0.5" stroke-linecap="round" clip-path="url(#g)"/>
+          <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#g)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+        </svg>
+        <div><div class="sb-brand-name">Prahari</div><div class="sb-brand-sub">Invertis University</div></div>
       </div>
     </div>
-    <nav class="nav">
-      <div class="nav-sec">Overview</div>
-      <div class="nav-item active" onclick="show('home')">🏠 Home</div>
-      <div class="nav-item" onclick="show('attendance')">📊 My Attendance</div>
-      <div class="nav-sec">Mark Attendance</div>
-      <div class="nav-item" onclick="show('sessions');loadSessions()">📋 Active Sessions</div>
-      <div class="nav-item" onclick="show('face-att')">😊 Face Attendance</div>
-      <div class="nav-sec">My Records</div>
-      <div class="nav-item" onclick="show('leaves')">📝 Leave Requests</div>
-      <div class="nav-item" onclick="show('profile')">👤 Profile</div>
-      <div class="nav-item" onclick="show('change-pass')">🔐 Change Password</div>
+    <div class="sb-user">
+      <div class="sb-user-name" id="sb-name">—</div>
+      <div class="sb-user-role"><i class="fa-solid fa-circle" style="color:#4ADE80;"></i> Student Portal</div>
+    </div>
+    <nav style="flex:1;">
+      <div class="nav-section">Navigation</div>
+      <button class="nav-item active" onclick="go('dashboard',this)"><i class="fa-solid fa-chart-pie"></i> My Attendance</button>
+      <button class="nav-item" onclick="go('sessions',this)"><i class="fa-solid fa-location-dot"></i> Active Sessions</button>
+      <button class="nav-item" onclick="go('leaves',this)"><i class="fa-solid fa-file-signature"></i> Leave Requests</button>
+      <button class="nav-item" onclick="go('profile',this)"><i class="fa-solid fa-circle-user"></i> My Profile</button>
     </nav>
     <div class="sb-footer">
-      <div class="user-pill">
-        <div class="avatar">S</div>
-        <div>
-          <div class="user-name" id="sb-name">Student</div>
-          <div class="user-role-label">Student</div>
-        </div>
-      </div>
-      <button class="logout-btn" onclick="doLogout()">⎋ Logout</button>
+      <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
     </div>
   </aside>
 
+  <!-- Main -->
   <main class="main">
-    <div class="topbar">
-      <div>
-        <div class="page-title" id="pg-title">Home</div>
-        <div class="page-sub">Student dashboard</div>
+
+    <!-- Attendance Dashboard -->
+    <div id="sec-dashboard" class="section active">
+      <div class="page-header">
+        <h1 class="page-title">My Attendance <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Subject-wise attendance summary for your enrolled courses</p>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="show('sessions');loadSessions()">View Sessions</button>
+
+      <div class="card card-accent">
+        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/my-summary/</span></div>
+        <div class="filters">
+          <div class="filter-group">
+            <label><i class="fa-solid fa-layer-group"></i> Semester</label>
+            <select id="f-sem" style="width:130px;"><option value="">Select</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label><i class="fa-solid fa-calendar-days"></i> Academic Year</label>
+            <select id="f-year" style="width:150px;"><option value="">Select</option>
+              <option>2025-2026</option><option>2024-2025</option><option>2023-2024</option>
+            </select>
+          </div>
+          <div class="filter-group"><label style="visibility:hidden;">x</label>
+            <button class="btn btn-navy btn-sm" onclick="loadSummary()"><i class="fa-solid fa-magnifying-glass"></i> Load</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-row" style="display:none;">
+        <div class="stat-card" style="--stat-bg:#EBF0FD;--stat-color:var(--blue);">
+          <div class="stat-icon"><i class="fa-solid fa-chalkboard"></i></div>
+          <div class="stat-val" id="st-total">—</div><div class="stat-lbl">Total Classes</div>
+        </div>
+        <div class="stat-card" style="--stat-bg:var(--green-dim);--stat-color:var(--green);">
+          <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="stat-val" id="st-attended">—</div><div class="stat-lbl">Classes Attended</div>
+        </div>
+        <div class="stat-card" style="--stat-bg:var(--gold-dim);--stat-color:var(--gold);">
+          <div class="stat-icon"><i class="fa-solid fa-percent"></i></div>
+          <div class="stat-val" id="st-pct">—</div><div class="stat-lbl">Overall %</div>
+        </div>
+        <div class="stat-card" style="--stat-bg:#F5F3FF;--stat-color:#7C3AED;">
+          <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
+          <div class="stat-val" id="st-subjects">—</div><div class="stat-lbl">Subjects</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-table-list"></i> Subject-wise Breakdown</div></div>
+        <div id="summary-body">
+          <div class="empty"><i class="fa-solid fa-chart-bar"></i><p>Select semester and year to view your attendance.</p></div>
+        </div>
+      </div>
     </div>
-    <div class="content">
 
-      <!-- HOME -->
-      <div class="section active" id="s-home">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div>📚</div>
-            <div class="stat-val" id="st-subs">—</div>
-            <div class="stat-label">Subjects</div>
-          </div>
-          <div class="stat-card">
-            <div>✅</div>
-            <div class="stat-val" id="st-avg">—</div>
-            <div class="stat-label">Avg Attendance</div>
-          </div>
-          <div class="stat-card">
-            <div>⚠️</div>
-            <div class="stat-val" id="st-low">—</div>
-            <div class="stat-label">Below 75%</div>
-          </div>
-          <div class="stat-card">
-            <div>📝</div>
-            <div class="stat-val" id="st-leaves">—</div>
-            <div class="stat-label">Leaves Applied</div>
-          </div>
-        </div>
-        <div class="two-col">
-          <div class="box">
-            <div class="box-header"><span class="box-title">Today's Active Sessions</span><button
-                class="btn btn-ghost btn-sm" onclick="loadSessions()">Refresh</button></div>
-            <div class="box-body" id="home-sessions">
-              <div class="empty">Click Refresh to load</div>
-            </div>
-          </div>
-          <div class="box">
-            <div class="box-header"><span class="box-title">Attendance Overview</span><button
-                class="btn btn-ghost btn-sm" onclick="loadAttendanceOverview()">Refresh</button></div>
-            <div class="box-body" id="home-att-overview">
-              <div class="empty">Click Refresh to load</div>
-            </div>
-          </div>
-        </div>
+    <!-- Active Sessions -->
+    <div id="sec-sessions" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Active Sessions <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Today's live attendance sessions for your enrolled subjects</p>
       </div>
+      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/sessions/active/</span></div>
+      <div id="sessions-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading active sessions…</div></div>
 
-      <!-- ATTENDANCE -->
-      <div class="section" id="s-attendance">
-        <div class="box">
-          <div class="box-header"><span class="box-title">Subject-wise Attendance</span><button
-              class="btn btn-ghost btn-sm" onclick="loadAttendance()">Load</button></div>
-          <div class="box-body">
-            <div class="hint">GET /api/attendance/my-summary/?semester=3&amp;academic_year=2024-2025</div>
-            <div class="frow" style="margin-bottom:12px">
-              <div class="fgrp"><label>Semester</label><input id="att-sem" type="number" value="3" min="1" max="8">
-              </div>
-              <div class="fgrp"><label>Academic Year</label><input id="att-year" value="2024-2025"></div>
-            </div>
-            <div id="att-cards">
-              <div class="empty">Click Load</div>
-            </div>
-          </div>
+      <div id="face-card" class="card card-accent" style="display:none;margin-top:18px;">
+        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-camera"></i> Mark via Face Recognition</div></div>
+        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/face/mark/</span></div>
+        <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Take a clear selfie in good lighting. Ensure your full face is visible and not obstructed.</span></div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-image"></i> Capture / Upload Photo</label>
+          <input type="file" id="face-photo" accept="image/*" capture="user">
         </div>
+        <input type="hidden" id="face-session-id">
+        <button class="btn btn-navy" onclick="markFace()"><i class="fa-solid fa-camera"></i> Submit Selfie</button>
       </div>
-
-      <!-- ACTIVE SESSIONS -->
-      <div class="section" id="s-sessions">
-        <div class="box">
-          <div class="box-header"><span class="box-title">Active Sessions Today</span><button
-              class="btn btn-ghost btn-sm" onclick="loadSessions()">Refresh</button></div>
-          <div class="box-body">
-            <div class="hint">Yahan sirf aaj ki sessions dikhengi jo aapke enrolled subjects mein hain.</div>
-            <div id="sessions-list">
-              <div class="empty">Click Refresh</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- FACE ATTENDANCE -->
-      <!-- FACE ATTENDANCE with Liveness Detection -->
-      <div class="section" id="s-face-att">
-        <div style="max-width:560px">
-          <div class="box">
-            <div class="box-header">
-              <span class="box-title">😊 Face Attendance — Live Verification</span>
-              <span id="fa-session-badge"></span>
-            </div>
-            <div class="box-body">
-
-              <!-- Progress Steps -->
-              <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:11px">
-                <div id="step-1" style="flex:1;padding:8px;text-align:center;background:rgba(59,130,246,.15);color:var(--blue);font-weight:600">1. Setup</div>
-                <div id="step-2" style="flex:1;padding:8px;text-align:center;color:var(--muted)">2. Liveness</div>
-                <div id="step-3" style="flex:1;padding:8px;text-align:center;color:var(--muted)">3. Submit</div>
-              </div>
-
-              <div class="fgrp"><label>Session ID</label>
-                <input id="face-sess" type="number" placeholder="Active Sessions se Session ID lein">
-              </div>
-
-              <!-- Camera + Overlay -->
-              <div id="fa-camera-wrap" style="display:none;margin-bottom:12px">
-                <div style="position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--border);background:#000">
-                  <video id="fa-video" autoplay muted playsinline
-                    style="width:100%;max-height:320px;object-fit:cover;display:block;transform:scaleX(-1)"></video>
-                  <canvas id="fa-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)"></canvas>
-
-                  <!-- Phone alert -->
-                  <div id="phone-alert" style="display:none;position:absolute;top:8px;left:8px;right:8px;background:rgba(239,68,68,.9);color:#fff;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:600;text-align:center">
-                    📱 Phone Detected! <span id="phone-warn-txt">Warning 1/3</span>
-                  </div>
-
-                  <!-- Status badge on video -->
-                  <div id="fa-live-status" style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.7);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px">
-                    Scanning...
-                  </div>
-                </div>
-
-                <!-- Captured preview (shown after capture) -->
-                <img id="fa-captured-img" style="display:none;width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:2px solid var(--green);margin-top:8px">
-              </div>
-
-              <!-- Liveness Challenge boxes -->
-              <div id="fa-challenges" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
-                <div style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">
-                  Liveness Verification — Complete both challenges:
-                </div>
-                <div style="display:flex;gap:10px">
-                  <div id="ch-blink" style="flex:1;padding:12px;border:2px solid var(--border);border-radius:8px;text-align:center;transition:all .3s">
-                    <div style="font-size:24px">👁️</div>
-                    <div style="font-size:12px;font-weight:600;margin-top:6px">Blink Twice</div>
-                    <div id="blink-ct" style="font-size:11px;color:var(--muted);margin-top:3px">0 / 2</div>
-                  </div>
-                  <div id="ch-smile" style="flex:1;padding:12px;border:2px solid var(--border);border-radius:8px;text-align:center;transition:all .3s">
-                    <div style="font-size:24px">😄</div>
-                    <div style="font-size:12px;font-weight:600;margin-top:6px">Smile</div>
-                    <div id="smile-st" style="font-size:11px;color:var(--muted);margin-top:3px">Not detected</div>
-                  </div>
-                </div>
-                <div id="fa-challenge-msg" style="margin-top:10px;font-size:12px;text-align:center;color:var(--muted)">
-                  Please complete both challenges above
-                </div>
-              </div>
-
-              <!-- Action buttons -->
-              <div id="fa-btn-start">
-                <button class="btn btn-primary" onclick="startFaceVerification()" style="width:100%;padding:10px">
-                  📷 Start Camera &amp; Verify
-                </button>
-              </div>
-              <div id="fa-btn-loading" style="display:none;text-align:center;padding:12px;color:var(--muted);font-size:12px">
-                ⏳ Loading AI models... first time may take 20-30 seconds
-              </div>
-              <div id="fa-btn-submit" style="display:none">
-                <div style="display:flex;gap:8px">
-                  <button class="btn btn-success" onclick="submitFaceAttendance()" style="flex:1;padding:10px">✅ Submit Attendance</button>
-                  <button class="btn btn-ghost" onclick="retakePhoto()" style="padding:10px">🔄 Retake</button>
-                </div>
-                <div id="fa-geo-info" style="margin-top:8px;font-size:11px;color:var(--muted)">📍 Getting location...</div>
-              </div>
-
-              <div class="res-box" id="res-face-att"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- LEAVES -->
-      <!-- LEAVES -->
-      <div class="section" id="s-leaves">
-        <div class="two-col">
-          <div class="box">
-            <div class="box-header"><span class="box-title">Apply for Leave</span></div>
-            <div class="box-body">
-              <div class="fgrp"><label>Reason</label><textarea id="lv-reason"
-                  placeholder="Medical emergency, family function..."></textarea></div>
-              <div class="frow">
-                <div class="fgrp"><label>From Date</label><input id="lv-from" type="date"></div>
-                <div class="fgrp"><label>To Date</label><input id="lv-to" type="date"></div>
-              </div>
-              <button class="btn btn-primary" onclick="applyLeave()">Apply Leave</button>
-              <div class="res-box" id="res-leave"></div>
-            </div>
-          </div>
-          <div class="box">
-            <div class="box-header"><span class="box-title">My Leave Requests</span><button class="btn btn-ghost btn-sm"
-                onclick="loadLeaves()">Load</button></div>
-            <div class="box-body">
-              <table>
-                <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Reason</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="leaves-tbody">
-                  <tr>
-                    <td colspan="4" class="empty">Click Load</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PROFILE -->
-      <div class="section" id="s-profile">
-        <div class="box">
-          <div class="box-header"><span class="box-title">My Profile</span><button class="btn btn-ghost btn-sm"
-              onclick="loadProfile()">Load</button></div>
-          <div class="box-body">
-            <pre id="profile-out"
-              style="font-size:11px;color:var(--muted2);max-height:450px;overflow-y:auto">Click Load...</pre>
-          </div>
-        </div>
-      </div>
-
-      <!-- CHANGE PASSWORD -->
-      <div class="section" id="s-change-pass">
-        <div class="box" style="max-width:420px">
-          <div class="box-header"><span class="box-title">Change Password</span></div>
-          <div class="box-body">
-            <div class="fgrp"><label>Old Password</label><input id="cp-old" type="password"></div>
-            <div class="fgrp"><label>New Password</label><input id="cp-new" type="password"
-                oninput="pwStrength(this.value)"></div>
-            <div class="pw-bar">
-              <div class="pw-fill" id="pw-fill"></div>
-            </div>
-            <div class="fgrp"><label>Confirm New Password</label><input id="cp-confirm" type="password"></div>
-            <button class="btn btn-primary" onclick="changePass()">Change Password</button>
-            <div class="res-box" id="res-cp"></div>
-          </div>
-        </div>
-      </div>
-
     </div>
+
+    <!-- Leave Requests -->
+    <div id="sec-leaves" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Leave Requests <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Apply for leave and track your applications</p>
+      </div>
+
+      <div class="card card-accent">
+        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-file-signature"></i> New Leave Application</div></div>
+        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/leaves/</span></div>
+        <div class="form-row-2">
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-regular fa-calendar"></i> From Date</label>
+            <input type="date" id="l-from">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-regular fa-calendar"></i> To Date</label>
+            <input type="date" id="l-to">
+          </div>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-pen-to-square"></i> Reason</label>
+          <textarea id="l-reason" placeholder="Describe the reason for your leave request…"></textarea>
+        </div>
+        <button class="btn btn-navy" onclick="applyLeave()"><i class="fa-solid fa-paper-plane"></i> Submit Application</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> Leave History</div>
+          <button class="btn btn-outline btn-sm" onclick="loadLeaves()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+        </div>
+        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/leaves/</span></div>
+        <div id="leaves-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- Profile -->
+    <div id="sec-profile" class="section">
+      <div class="page-header">
+        <h1 class="page-title">My Profile <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Your personal and academic details</p>
+      </div>
+      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/me/</span></div>
+      <div class="card"><div id="profile-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
+    </div>
+
   </main>
-  <script src="api.js"></script>
-  <script>
-    if (!Auth.isLoggedIn() || Auth.getRole() !== 'student') { window.location.href = 'login.html'; }
-    document.getElementById('sb-name').textContent = Auth.getName() || 'Student';
+</div>
 
-    const titles = { home: 'Home', attendance: 'My Attendance', sessions: 'Active Sessions', 'face-att': 'Face Attendance', leaves: 'Leave Requests', profile: 'My Profile', 'change-pass': 'Change Password' };
-    function show(id) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.getElementById('s-' + id).classList.add('active');
-      document.querySelectorAll('.nav-item').forEach(n => { if (n.onclick && n.onclick.toString().includes("'" + id + "'")) n.classList.add('active'); });
-      document.getElementById('pg-title').textContent = titles[id] || id;
+<script src="api.js"></script>
+<script>
+  if (!Auth.isLoggedIn()||Auth.getRole()!=='student') window.location.href='login.html';
+  document.getElementById('sb-name').textContent=Auth.getName()||Auth.getUsername();
+
+  function go(id,el){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    document.getElementById('sec-'+id).classList.add('active');
+    el.classList.add('active');
+    if(id==='sessions')loadSessions();
+    if(id==='leaves')  loadLeaves();
+    if(id==='profile') loadProfile();
+  }
+
+  async function loadSummary(){
+    const sem=document.getElementById('f-sem').value;
+    const year=document.getElementById('f-year').value;
+    if(!sem||!year){toast('Select semester and year','error');return;}
+    document.getElementById('summary-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+    const r=await GET(`attendance/my-summary/?semester=${sem}&academic_year=${encodeURIComponent(year)}`);
+    if(!r||!r.ok){document.getElementById('summary-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load data.</p></div>';return;}
+    const summary=r.data.summary||[];
+    document.getElementById('stats-row').style.display='grid';
+    const total=summary.reduce((a,s)=>a+s.total_classes,0);
+    const attended=summary.reduce((a,s)=>a+s.attended,0);
+    const pct=total?((attended/total)*100).toFixed(1):'0.0';
+    document.getElementById('st-total').textContent=total;
+    document.getElementById('st-attended').textContent=attended;
+    document.getElementById('st-pct').textContent=pct+'%';
+    document.getElementById('st-subjects').textContent=summary.length;
+    if(!summary.length){document.getElementById('summary-body').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No data found for this semester.</p></div>';return;}
+    let html='<div class="table-wrap"><table><thead><tr><th>Subject</th><th>Code</th><th>Classes</th><th>Attended</th><th>Percentage</th><th>Status</th></tr></thead><tbody>';
+    summary.forEach(s=>{
+      const cls=s.percentage>=75?'safe':s.percentage>=60?'warn':'crit';
+      const pColor=s.percentage>=75?'var(--green)':s.percentage>=60?'var(--gold)':'var(--red)';
+      const ico=cls==='safe'?'fa-circle-check':cls==='warn'?'fa-triangle-exclamation':'fa-circle-xmark';
+      html+=`<tr>
+        <td><strong>${s.subject_name}</strong><div class="prog-wrap" style="width:100px;"><div class="prog-bar" style="width:${s.percentage}%;background:${pColor};"></div></div></td>
+        <td><code>${s.subject_code}</code></td>
+        <td>${s.total_classes}</td><td>${s.attended}</td>
+        <td><span class="badge badge-${cls}">${s.percentage.toFixed(1)}%</span></td>
+        <td><span style="color:${pColor};font-size:12px;display:flex;align-items:center;gap:5px;"><i class="fa-solid ${ico}" style="font-size:11px;"></i>${cls==='safe'?'Safe':cls==='warn'?'At Risk':'Critical'}</span></td>
+      </tr>`;
+    });
+    document.getElementById('summary-body').innerHTML=html+'</tbody></table></div>';
+  }
+
+  async function loadSessions(){
+    document.getElementById('sessions-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading sessions…</div>';
+    const r=await GET('attendance/sessions/active/');
+    if(!r||!r.ok){document.getElementById('sessions-list').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load.</p></div>';return;}
+    const sessions=r.data.active_sessions||[];
+    if(!sessions.length){document.getElementById('sessions-list').innerHTML='<div class="empty"><i class="fa-regular fa-clock"></i><p>No active sessions right now. Check back later.</p></div>';return;}
+    document.getElementById('sessions-list').innerHTML=sessions.map(s=>`
+      <div class="session-card ${s.already_marked?'marked':''}">
+        <div class="session-info">
+          <h4>${s.subject_name} <code>${s.subject_code}</code></h4>
+          <p><i class="fa-solid fa-chalkboard-user"></i>${s.teacher_name}
+             <i class="fa-regular fa-calendar"></i>${s.date}
+             ${s.facial_enabled?'<span class="badge badge-blue" style="font-size:10px;"><i class="fa-solid fa-camera" style="font-size:9px;"></i>Face</span>':''}
+          </p>
+        </div>
+        ${s.already_marked
+          ?'<span class="btn-marked"><i class="fa-solid fa-circle-check"></i> Marked</span>'
+          :s.facial_enabled
+            ?`<button class="btn btn-blue btn-sm" onclick="selectSession(${s.session_id},'${s.subject_name}')"><i class="fa-solid fa-camera"></i> Face Mark</button>`
+            :'<span class="badge badge-neutral"><i class="fa-solid fa-hand-pointer"></i> Manual only</span>'
+        }
+      </div>`).join('');
+  }
+
+  function selectSession(id,name){
+    document.getElementById('face-session-id').value=id;
+    document.getElementById('face-card').style.display='block';
+    document.getElementById('face-card').scrollIntoView({behavior:'smooth'});
+    toast('Session selected: '+name,'info');
+  }
+  async function markFace(){
+    const sid=document.getElementById('face-session-id').value;
+    const photo=document.getElementById('face-photo').files[0];
+    if(!sid){toast('Select a session first','error');return;}
+    if(!photo){toast('Please capture or upload your photo','error');return;}
+    const fd=new FormData();fd.append('session_id',sid);fd.append('photo',photo);fd.append('device_id',getDeviceId());
+    const r=await FORM('attendance/face/mark/',fd);
+    if(!r||!r.ok){toast(r?.data?.error||'Face match failed. Try again.','error');return;}
+    toast('Attendance marked via Face Recognition','success');
+    document.getElementById('face-card').style.display='none';
+    loadSessions();
+  }
+
+  async function applyLeave(){
+    const from=document.getElementById('l-from').value;
+    const to=document.getElementById('l-to').value;
+    const reason=document.getElementById('l-reason').value.trim();
+    if(!from||!to||!reason){toast('Please fill all fields','error');return;}
+    const r=await POST('attendance/leaves/',{from_date:from,to_date:to,reason});
+    if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
+    toast('Leave application submitted','success');
+    document.getElementById('l-from').value='';document.getElementById('l-to').value='';document.getElementById('l-reason').value='';
+    loadLeaves();
+  }
+  async function loadLeaves(){
+    document.getElementById('leaves-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+    const r=await GET('attendance/leaves/');
+    if(!r||!r.ok){document.getElementById('leaves-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed.</p></div>';return;}
+    const leaves=r.data.results||r.data||[];
+    if(!leaves.length){document.getElementById('leaves-body').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No leave requests found.</p></div>';return;}
+    const bMap={pending:'badge-warn',approved:'badge-safe',rejected:'badge-crit'};
+    const iMap={pending:'fa-clock',approved:'fa-circle-check',rejected:'fa-circle-xmark'};
+    let html='<div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Applied On</th></tr></thead><tbody>';
+    leaves.forEach(l=>{html+=`<tr><td>${formatDate(l.from_date)}</td><td>${formatDate(l.to_date)}</td><td style="max-width:200px;font-size:12px;">${l.reason}</td><td><span class="badge ${bMap[l.status]||'badge-neutral'}"><i class="fa-solid ${iMap[l.status]||'fa-circle'}" style="font-size:10px;"></i>${l.status}</span></td><td>${formatDate(l.applied_on)}</td></tr>`;});
+    document.getElementById('leaves-body').innerHTML=html+'</tbody></table></div>';
+  }
+  async function loadProfile(){
+    document.getElementById('profile-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading profile…</div>';
+    const r=await GET('auth/me/');
+    if(!r||!r.ok){document.getElementById('profile-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load profile.</p></div>';return;}
+    const d=r.data, p=d.profile||{}, par=d.parent_detail||{}, perm=d.permanent_address||{}, pres=d.present_address||{};
+    const faceColor=d.has_face_registered?'var(--green)':'var(--red)';
+    const faceIcon=d.has_face_registered?'fa-circle-check':'fa-circle-xmark';
+    const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name||'—') : (p.branch||'—');
+
+    function sec(icon,title,color='var(--blue)'){
+      return `<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin:20px 0 10px;padding-bottom:7px;border-bottom:1px solid #F1F5F9;display:flex;align-items:center;gap:7px;"><i class="fa-solid ${icon}" style="color:${color};"></i>${title}</div>`;
     }
-    async function doLogout() { await POST('auth/logout/', { refresh: Auth.getRefresh() }); Auth.clear(); window.location.href = 'login.html'; }
-
-    // HOME
-    async function initHome() {
-      loadAttendanceOverview();
-      loadSessions(true);
-      // load leave count
-      const lr = await GET('attendance/leaves/');
-      const leaves = lr.data.results || lr.data || [];
-      document.getElementById('st-leaves').textContent = leaves.length;
+    function row(icon,label,val){
+      return `<div class="profile-field"><strong><i class="fa-solid ${icon}"></i> ${label}</strong><span>${val||'—'}</span></div>`;
     }
 
-    async function loadAttendanceOverview() {
-      const sem = document.getElementById('att-sem')?.value || 3;
-      const year = document.getElementById('att-year')?.value || '2024-2025';
-      const r = await GET('attendance/my-summary/?semester=' + sem + '&academic_year=' + year);
-      if (!r.ok) { document.getElementById('home-att-overview').innerHTML = '<div class="empty">Error: ' + JSON.stringify(r.data) + '</div>'; return; }
-      const list = r.data.summary || [];
-      if (!list.length) { document.getElementById('home-att-overview').innerHTML = '<div class="empty">No attendance data for semester ' + sem + '</div>'; return; }
-      const avg = (list.reduce((a, b) => a + (b.percentage || 0), 0) / list.length).toFixed(1);
-      const low = list.filter(s => (s.percentage || 0) < 75).length;
-      document.getElementById('st-subs').textContent = list.length;
-      document.getElementById('st-avg').textContent = avg + '%';
-      document.getElementById('st-low').textContent = low;
-      document.getElementById('home-att-overview').innerHTML = list.map(s => {
-        const pct = s.percentage || 0;
-        const color = pct >= 75 ? 'var(--green)' : pct >= 60 ? 'var(--warn)' : 'var(--red)';
-        return `<div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span>${s.subject_name || s.subject_code}</span>
-        <span style="font-weight:600;color:${color}">${pct}%</span>
+    let html = `<div style="padding:4px 0;">`;
+
+    // Account
+    html += sec('lock','Account & Identity');
+    html += `<div class="profile-grid">
+      ${row('id-badge','Student ID', d.student_id)}
+      ${row('hashtag','Enrollment No.', d.enrollment_number)}
+      ${row('list-ol','Roll Number', d.roll_number)}
+      <div class="profile-field"><strong><i class="fa-solid fa-camera-retro"></i> Face Recognition</strong>
+        <span style="color:${faceColor};font-weight:600;"><i class="fa-solid ${faceIcon}"></i> ${d.has_face_registered?'Registered':'Not Registered'}</span>
       </div>
-      <div class="att-bar"><div class="att-fill" style="width:${pct}%;background:${color}"></div></div>
     </div>`;
-      }).join('');
-    }
 
-    async function loadAttendance() {
-      const sem = document.getElementById('att-sem').value;
-      const year = document.getElementById('att-year').value;
-      if (!sem || !year) return toast('Semester aur year zaruri hain', 'error');
-      const r = await GET('attendance/my-summary/?semester=' + sem + '&academic_year=' + year);
-      if (!r.ok) { document.getElementById('att-cards').innerHTML = '<div class="empty">Error: ' + JSON.stringify(r.data) + '</div>'; return; }
-      const list = r.data.summary || [];
-      if (!list.length) { document.getElementById('att-cards').innerHTML = '<div class="empty">No data for this semester</div>'; return; }
-      document.getElementById('att-cards').innerHTML = list.map(s => {
-        const pct = s.percentage || 0;
-        const color = pct >= 75 ? 'var(--green)' : pct >= 60 ? 'var(--warn)' : 'var(--red)';
-        const badge = pct >= 75 ? 'bg' : pct >= 60 ? 'bw' : 'br';
-        const status = pct >= 75 ? 'Safe' : pct >= 60 ? 'Warning' : 'Critical';
-        return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:14px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">${s.subject_name || '—'}</div>
-          <div style="font-size:11px;color:var(--muted)">${s.subject_code || ''} • ${s.total_classes || 0} classes</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:${color}">${pct}%</div>
-          <span class="badge ${badge}">${status}</span>
-        </div>
-      </div>
-      <div class="att-bar"><div class="att-fill" style="width:${pct}%;background:${color}"></div></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">${s.attended || 0} attended / ${s.total_classes || 0} total</div>
+    // Personal
+    html += sec('user','Personal Information');
+    html += `<div class="profile-grid">
+      ${row('user','Full Name', p.name)}
+      ${row('cake-candles','Date of Birth', p.dob)}
+      ${row('venus-mars','Gender', p.gender==='M'?'Male':p.gender==='F'?'Female':p.gender||'—')}
+      ${row('phone','Mobile Number', p.mobile_number)}
+      ${row('envelope','Email Address', p.email)}
+      ${row('map-location-dot','Domicile State', p.domicile_state)}
+      ${row('flag','Nationality', p.nationality)}
+      ${row('heart','Marital Status', p.marital_status)}
     </div>`;
-      }).join('');
+
+    // Academic
+    html += sec('graduation-cap','Academic Information');
+    html += `<div class="profile-grid">
+      ${row('building-columns','Branch', branchName)}
+      ${row('calendar-days','Academic Year', p.academic_year)}
+      ${row('calendar-check','Date of Joining', p.date_of_joining)}
+    </div>`;
+
+    // Parent / Family
+    if(par.father_name||par.mother_name){
+      html += sec('house-user','Parent & Family Details','#7C3AED');
+      html += `<div class="profile-grid">
+        ${row('person',"Father's Name", par.father_name)}
+        ${row('phone',"Father's Mobile", par.father_mobile)}
+        ${par.father_occupation?row('briefcase',"Father's Occupation", par.father_occupation):''}
+        ${par.father_email?row('envelope',"Father's Email", par.father_email):''}
+        ${row('person-dress',"Mother's Name", par.mother_name)}
+        ${row('phone',"Mother's Mobile", par.mother_mobile)}
+        ${par.mother_occupation?row('briefcase',"Mother's Occupation", par.mother_occupation):''}
+      </div>`;
     }
 
-    // SESSIONS
-    async function loadSessions(forHome) {
-      forHome = forHome || false;
-      const r = await GET('attendance/sessions/active/');
-      const list = r.data.active_sessions || [];
-      const html = list.length ? list.map(s => `
-    <div class="sess-pill">
-      <div class="sess-pill-info">
-        <div class="sess-pill-title">${s.subject_name}</div>
-        <div class="sess-pill-meta">${s.subject_code} | ${s.teacher_name} | ${s.date}</div>
-        <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">
-          ${s.facial_enabled ? '<span class="badge bg">Face ✓</span>' : ''}
-          ${s.geo_fencing_enabled ? '<span class="badge bw">Geo 📍</span>' : ''}
-          ${s.already_marked ? '<span class="badge bx">Already Marked ✓</span>' : ''}
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:5px;min-width:90px">
-        ${!s.already_marked && s.facial_enabled ? `<button class="btn btn-primary btn-sm" onclick="goFace(${s.session_id},'${s.subject_name||""}')">😊 Face Att.</button>` : ''}
-        ${s.already_marked ? '<span style="font-size:11px;color:var(--green);text-align:center">Done ✓</span>' : ''}
-      </div>
-    </div>`).join('') : '<div class="empty">Aaj koi active session nahi hai</div>';
-      if (forHome) document.getElementById('home-sessions').innerHTML = html;
-      else document.getElementById('sessions-list').innerHTML = html;
-    }
-    function goFace(sessId, subjectName) {
-      show('face-att');
-      document.getElementById('face-sess').value = sessId;
-      const badge = document.getElementById('fa-session-badge');
-      if (badge) badge.innerHTML = '<span class="tag">Session ' + sessId + '</span>';
-      // Reset UI
-      document.getElementById('fa-btn-start').style.display = 'block';
-      document.getElementById('fa-btn-submit').style.display = 'none';
-      document.getElementById('fa-btn-loading').style.display = 'none';
-      document.getElementById('fa-camera-wrap').style.display = 'none';
-      document.getElementById('fa-challenges').style.display = 'none';
-      document.getElementById('res-face-att').classList.remove('show');
-      ['step-1','step-2','step-3'].forEach((id,i) => {
-        document.getElementById(id).style.background = i===0 ? 'rgba(59,130,246,.15)' : '';
-        document.getElementById(id).style.color = i===0 ? 'var(--blue)' : 'var(--muted)';
-      });
-      toast('Session ' + sessId + ' selected', 'info');
+    // Permanent Address
+    if(perm.address_line1){
+      html += sec('location-dot','Permanent Address','#D97706');
+      html += `<div class="profile-grid">
+        ${row('road','Address', [perm.address_line1,perm.address_line2,perm.address_line3].filter(Boolean).join(', '))}
+        ${row('city','Place', perm.place)}
+        ${row('map','State', perm.state)}
+        ${row('signs-post','Pincode', perm.pincode)}
+      </div>`;
     }
 
-    // ═══════════════════════════════════════════════════
-    // FACE ATTENDANCE — Liveness + Anti-Proxy
-    // Uses face-api.js for blink/smile detection
-    // ═══════════════════════════════════════════════════
-    var faStream        = null;
-    var faDetectLoop    = null;
-    var blinkCount      = 0;
-    var smileDetected   = false;
-    var lastEyeOpen     = true;
-    var phoneWarnings   = 0;
-    var livenessOk      = false;
-    var capturedBlob    = null;
-    var faceApiLoaded   = false;
-    var userLat         = null;
-    var userLon         = null;
-    var deviceId        = getDeviceId();
-
-    // Generate/retrieve persistent device fingerprint
-    function getDeviceId() {
-      try {
-        let id = localStorage.getItem('attendx_device_id');
-        if (!id) {
-          id = 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-          localStorage.setItem('attendx_device_id', id);
-        }
-        return id;
-      } catch(e) {
-        return 'dev_' + navigator.userAgent.length + '_' + screen.width;
-      }
+    // Present Address
+    if(pres.address_line1){
+      html += sec('house','Present / Hostel Address','#16A34A');
+      html += `<div class="profile-grid">
+        ${row('road','Address', [pres.address_line1,pres.address_line2,pres.address_line3].filter(Boolean).join(', '))}
+        ${row('city','Place', pres.place)}
+        ${row('map','State', pres.state)}
+        ${row('signs-post','Pincode', pres.pincode)}
+      </div>`;
     }
 
-    async function loadFaceApiModels() {
-      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-      faceApiLoaded = true;
-    }
-
-    async function startFaceVerification() {
-      const sessId = document.getElementById('face-sess').value;
-      if (!sessId) return toast('Pehle Session ID enter karo', 'error');
-
-      // Reset state
-      blinkCount = 0; smileDetected = false; phoneWarnings = 0;
-      livenessOk = false; capturedBlob = null; lastEyeOpen = true;
-      document.getElementById('blink-ct').textContent = '0 / 2';
-      document.getElementById('smile-st').textContent = 'Not detected';
-      document.getElementById('ch-blink').style.borderColor = 'var(--border)';
-      document.getElementById('ch-smile').style.borderColor = 'var(--border)';
-      document.getElementById('fa-challenge-msg').textContent = 'Please complete both challenges';
-      document.getElementById('fa-challenge-msg').style.color = 'var(--muted)';
-      document.getElementById('fa-captured-img').style.display = 'none';
-      document.getElementById('res-face-att').classList.remove('show');
-
-      // Show loading state
-      document.getElementById('fa-btn-start').style.display = 'none';
-      document.getElementById('fa-btn-loading').style.display = 'block';
-
-      // Load face-api models
-      if (!faceApiLoaded) {
-        try { await loadFaceApiModels(); }
-        catch(e) {
-          console.warn('face-api failed, proceeding without liveness:', e);
-          faceApiLoaded = false;
-        }
-      }
-      document.getElementById('fa-btn-loading').style.display = 'none';
-
-      // Start camera
-      try {
-        faStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: 640, height: 480 }
-        });
-        const video = document.getElementById('fa-video');
-        video.srcObject = faStream;
-        await video.play();
-      } catch(e) {
-        document.getElementById('fa-btn-start').style.display = 'block';
-        return toast('Camera permission denied. Allow camera access.', 'error');
-      }
-
-      document.getElementById('fa-camera-wrap').style.display = 'block';
-      document.getElementById('fa-challenges').style.display = 'block';
-      document.getElementById('step-2').style.background = 'rgba(59,130,246,.15)';
-      document.getElementById('step-2').style.color = 'var(--blue)';
-
-      // Get geolocation simultaneously
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            userLat = pos.coords.latitude;
-            userLon = pos.coords.longitude;
-            const gi = document.getElementById('fa-geo-info');
-            if (gi) gi.textContent = '📍 Location: ' + userLat.toFixed(4) + ', ' + userLon.toFixed(4);
-          },
-          () => { userLat = null; userLon = null; },
-          { enableHighAccuracy: true, timeout: 8000 }
-        );
-      }
-
-      // Start detection loop (every 300ms)
-      if (faceApiLoaded) {
-        faDetectLoop = setInterval(runFaceDetection, 300);
-      } else {
-        // Fallback: no liveness, just capture after 3s
-        setTimeout(() => {
-          livenessOk = true;
-          captureFrame();
-        }, 3000);
-      }
-    }
-
-    async function runFaceDetection() {
-      const video = document.getElementById('fa-video');
-      if (!video || video.readyState < 2) return;
-      if (livenessOk) return;
-
-      try {
-        const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
-        const result = await faceapi
-          .detectSingleFace(video, opts)
-          .withFaceLandmarks()
-          .withFaceExpressions();
-
-        if (!result) {
-          setLiveStatus('👤 Face not detected. Look at camera.', 'var(--warn)');
-          return;
-        }
-
-        // ─── PHONE SCREEN DETECTION (heuristic: very bright uniform region) ───
-        detectPhoneScreen(video);
-
-        // ─── BLINK DETECTION via EAR (Eye Aspect Ratio) ───
-        const lm = result.landmarks;
-        const leftEye  = lm.getLeftEye();
-        const rightEye = lm.getRightEye();
-        const ear = (eyeAspectRatio(leftEye) + eyeAspectRatio(rightEye)) / 2;
-
-        const EAR_THRESH = 0.22;
-        const eyesClosed = ear < EAR_THRESH;
-        if (lastEyeOpen && eyesClosed) {
-          blinkCount++;
-          document.getElementById('blink-ct').textContent = blinkCount + ' / 2';
-          if (blinkCount >= 2) {
-            document.getElementById('ch-blink').style.borderColor = 'var(--green)';
-            document.getElementById('ch-blink').style.background = 'rgba(16,185,129,.1)';
-          }
-        }
-        lastEyeOpen = !eyesClosed;
-
-        // ─── SMILE DETECTION ───
-        const expressions = result.expressions;
-        if (expressions.happy > 0.7 && !smileDetected) {
-          smileDetected = true;
-          document.getElementById('smile-st').textContent = '✓ Detected!';
-          document.getElementById('smile-st').style.color = 'var(--green)';
-          document.getElementById('ch-smile').style.borderColor = 'var(--green)';
-          document.getElementById('ch-smile').style.background = 'rgba(16,185,129,.1)';
-        }
-
-        // ─── CHECK IF BOTH DONE ───
-        const blinkDone = blinkCount >= 2;
-        const smileDone = smileDetected;
-
-        if (blinkDone && smileDone) {
-          livenessOk = true;
-          clearInterval(faDetectLoop);
-          setLiveStatus('✓ Liveness verified!', 'var(--green)');
-          document.getElementById('fa-challenge-msg').textContent = '✅ Liveness verified! Capturing photo...';
-          document.getElementById('fa-challenge-msg').style.color = 'var(--green)';
-          setTimeout(captureFrame, 800);
-        } else {
-          const remaining = [];
-          if (!blinkDone) remaining.push('Blink ' + (2 - blinkCount) + ' more time(s)');
-          if (!smileDone) remaining.push('Smile');
-          setLiveStatus('👁 ' + remaining.join(' | '), 'var(--blue)');
-        }
-      } catch(e) {
-        // Detection error — continue loop
-      }
-    }
-
-    function eyeAspectRatio(eye) {
-      // EAR = (||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)
-      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-      return (dist(eye[1], eye[5]) + dist(eye[2], eye[4])) / (2 * dist(eye[0], eye[3]));
-    }
-
-    function detectPhoneScreen(video) {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 160; canvas.height = 120;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, 160, 120);
-        const data = ctx.getImageData(0, 0, 160, 120).data;
-
-        // Heuristic: check for large bright rectangular region (phone screen glow)
-        let brightPixels = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i+1], b = data[i+2];
-          const brightness = (r + g + b) / 3;
-          if (brightness > 200 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) brightPixels++;
-        }
-        const ratio = brightPixels / (160 * 120);
-        if (ratio > 0.30) { // >30% very bright uniform pixels
-          phoneWarnings++;
-          const alertEl = document.getElementById('phone-alert');
-          alertEl.style.display = 'block';
-          document.getElementById('phone-warn-txt').textContent = 'Warning ' + phoneWarnings + '/3';
-          toast('⚠️ Phone detected! Warning ' + phoneWarnings + '/3', 'error');
-          if (phoneWarnings >= 3) {
-            clearInterval(faDetectLoop);
-            stopCamera();
-            // Mark absent via backend
-            markPhoneAbsent();
-          }
-          setTimeout(() => { alertEl.style.display = 'none'; }, 2500);
-        }
-      } catch(e) {}
-    }
-
-    async function markPhoneAbsent() {
-      const sessId = document.getElementById('face-sess').value;
-      toast('🚫 3 phone detections — Marked absent!', 'error');
-      document.getElementById('fa-camera-wrap').style.display = 'none';
-      document.getElementById('fa-challenges').style.display = 'none';
-      document.getElementById('fa-btn-start').style.display = 'block';
-
-      // Notify backend
-      const r = await POST('attendance/face/phone-violation/', {
-        session_id: parseInt(sessId),
-        device_id: deviceId,
-      });
-      renderResponse('res-face-att', r);
-    }
-
-    function setLiveStatus(txt, color) {
-      const el = document.getElementById('fa-live-status');
-      if (el) { el.textContent = txt; el.style.color = color || '#fff'; }
-    }
-
-    function captureFrame() {
-      const video  = document.getElementById('fa-video');
-      const canvas = document.createElement('canvas');
-      canvas.width  = video.videoWidth  || 640;
-      canvas.height = video.videoHeight || 480;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-
-      canvas.toBlob(blob => {
-        capturedBlob = blob;
-        // Show preview
-        const img = document.getElementById('fa-captured-img');
-        img.src = URL.createObjectURL(blob);
-        img.style.display = 'block';
-        // Hide live video
-        document.getElementById('fa-video').style.display = 'none';
-
-        // Show submit UI
-        document.getElementById('fa-btn-submit').style.display = 'block';
-        document.getElementById('step-3').style.background = 'rgba(16,185,129,.15)';
-        document.getElementById('step-3').style.color = 'var(--green)';
-        toast('✓ Photo captured! Submit karo.', 'info');
-      }, 'image/jpeg', 0.92);
-    }
-
-    function retakePhoto() {
-      capturedBlob = null; livenessOk = false;
-      blinkCount = 0; smileDetected = false; phoneWarnings = 0; lastEyeOpen = true;
-      document.getElementById('fa-captured-img').style.display = 'none';
-      document.getElementById('fa-video').style.display = 'block';
-      document.getElementById('fa-btn-submit').style.display = 'none';
-      document.getElementById('blink-ct').textContent = '0 / 2';
-      document.getElementById('smile-st').textContent = 'Not detected';
-      document.getElementById('ch-blink').style.borderColor = 'var(--border)';
-      document.getElementById('ch-blink').style.background = '';
-      document.getElementById('ch-smile').style.borderColor = 'var(--border)';
-      document.getElementById('ch-smile').style.background = '';
-      document.getElementById('fa-challenge-msg').textContent = 'Please complete both challenges';
-      document.getElementById('fa-challenge-msg').style.color = 'var(--muted)';
-      // Restart detection
-      if (faceApiLoaded) faDetectLoop = setInterval(runFaceDetection, 300);
-    }
-
-    function stopCamera() {
-      if (faDetectLoop) { clearInterval(faDetectLoop); faDetectLoop = null; }
-      if (faStream) { faStream.getTracks().forEach(t => t.stop()); faStream = null; }
-    }
-
-    async function submitFaceAttendance() {
-      if (!capturedBlob) return toast('Pehle photo capture karo', 'error');
-      const sessId = document.getElementById('face-sess').value;
-      if (!sessId) return toast('Session ID zaruri hai', 'error');
-
-      // Show loading
-      document.getElementById('fa-btn-submit').innerHTML = '<div style="text-align:center;padding:10px;color:var(--muted)">⏳ Submitting...</div>';
-
-      const fd = new FormData();
-      fd.append('photo',      capturedBlob, 'selfie.jpg');
-      fd.append('session_id', sessId);
-      fd.append('device_id',  deviceId);
-      if (userLat) fd.append('latitude',  userLat);
-      if (userLon) fd.append('longitude', userLon);
-
-      const r = await FORM('attendance/face/mark/', fd);
-      renderResponse('res-face-att', r);
-
-      if (r.ok) {
-        stopCamera();
-        document.getElementById('fa-camera-wrap').style.display = 'none';
-        document.getElementById('fa-challenges').style.display = 'none';
-        document.getElementById('fa-btn-start').style.display = 'block';
-        document.getElementById('fa-btn-submit').style.display = 'none';
-        document.getElementById('step-1').style.background = '';
-        document.getElementById('step-2').style.background = '';
-        document.getElementById('step-3').style.background = '';
-
-        // Success popup
-        showSuccessPopup(r.data);
-        loadSessions();
-      } else {
-        toast('Error: ' + (r.data?.error || 'Face match nahi hua'), 'error');
-        document.getElementById('fa-btn-submit').innerHTML = `
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-success" onclick="submitFaceAttendance()" style="flex:1;padding:10px">✅ Submit Attendance</button>
-            <button class="btn btn-ghost" onclick="retakePhoto()" style="padding:10px">🔄 Retake</button>
-          </div>
-          <div id="fa-geo-info" style="margin-top:8px;font-size:11px;color:var(--muted)">📍 ` + (userLat ? userLat.toFixed(4)+', '+userLon.toFixed(4) : 'Location not available') + `</div>`;
-      }
-    }
-
-    function showSuccessPopup(data) {
-      const popup = document.createElement('div');
-      popup.innerHTML = `
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center">
-          <div style="background:var(--panel);border:1px solid var(--green);border-radius:14px;padding:32px 28px;max-width:360px;text-align:center;animation:fadeIn .3s ease">
-            <div style="font-size:48px;margin-bottom:12px">✅</div>
-            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--green);margin-bottom:8px">Attendance Marked!</div>
-            <div style="font-size:13px;color:var(--muted);line-height:1.8">
-              Subject: <b style="color:var(--text)">${data.subject_name || data.subject || '—'}</b><br>
-              Date: <b style="color:var(--text)">${data.date || new Date().toLocaleDateString()}</b><br>
-              Method: <b style="color:var(--text)">Face Recognition</b><br>
-              Status: <b style="color:var(--green)">Present ✓</b>
-            </div>
-            <button onclick="this.closest('.popup-wrap').remove()" 
-              style="margin-top:20px;padding:9px 28px;background:var(--green);color:#fff;border:none;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:13px">
-              OK
-            </button>
-          </div>
-        </div>`;
-      popup.className = 'popup-wrap';
-      document.body.appendChild(popup);
-      setTimeout(() => { if(popup.parentNode) popup.remove(); }, 6000);
-    }
-
-    // LEAVES
-    async function applyLeave() {
-      const r = await POST('attendance/leaves/', {
-        reason: document.getElementById('lv-reason').value,
-        from_date: document.getElementById('lv-from').value,
-        to_date: document.getElementById('lv-to').value,
-      });
-      renderResponse('res-leave', r);
-      if (r.ok) { toast('Leave applied!'); loadLeaves(); document.getElementById('st-leaves').textContent = parseInt(document.getElementById('st-leaves').textContent || 0) + 1; }
-      else toast('Error', 'error');
-    }
-    async function loadLeaves() {
-      const r = await GET('attendance/leaves/');
-      const list = r.data.results || r.data || [];
-      document.getElementById('st-leaves').textContent = list.length;
-      document.getElementById('leaves-tbody').innerHTML = list.map(l => `
-    <tr><td>${l.from_date}</td><td>${l.to_date}</td>
-    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.reason}</td>
-    <td><span class="badge ${l.status === 'approved' ? 'bg' : l.status === 'rejected' ? 'br' : 'bw'}">${l.status}</span></td></tr>`
-      ).join('') || '<tr><td colspan="4" class="empty">No leaves applied</td></tr>';
-    }
-
-    // PROFILE
-    async function loadProfile() {
-      const r = await GET('auth/me/');
-      document.getElementById('profile-out').textContent = JSON.stringify(r.data, null, 2);
-    }
-
-    // CHANGE PASSWORD
-    function pwStrength(v) {
-      let s = 0;
-      if (v.length >= 8) s++; if (/[A-Z]/.test(v)) s++; if (/[0-9]/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
-      const colors = ['var(--red)', 'var(--warn)', 'var(--blue)', 'var(--green)'];
-      const f = document.getElementById('pw-fill');
-      f.style.width = (s * 25) + '%'; f.style.background = colors[s - 1] || 'var(--red)';
-    }
-    async function changePass() {
-      const old_p = document.getElementById('cp-old').value;
-      const new_p = document.getElementById('cp-new').value;
-      const conf = document.getElementById('cp-confirm').value;
-      if (new_p !== conf) return toast('Passwords match nahi karte', 'error');
-      if (new_p.length < 8) return toast('Min 8 characters chahiye', 'error');
-      const r = await POST('auth/change-password/', { old_password: old_p, new_password: new_p });
-      renderResponse('res-cp', r); if (r.ok) toast('Password changed!'); else toast(r.data?.error || 'Error', 'error');
-    }
-
-    // INIT
-    initHome();
-  </script>
+    html += `</div>`;
+    document.getElementById('profile-body').innerHTML = html;
+  }
+</script>
 </body>
-
 </html>

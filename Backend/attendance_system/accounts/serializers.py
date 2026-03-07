@@ -95,8 +95,8 @@ class StudentCreateSerializer(serializers.Serializer):
     # Student basic info
     enrollment_number = serializers.CharField()
     roll_number       = serializers.CharField()
-    rfid_number       = serializers.CharField(required=False, allow_blank=True)
-    aadhar_number     = serializers.CharField(required=False, allow_blank=True)
+    rfid_number       = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    aadhar_number     = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     # Face recognition photo (optional at registration — can be uploaded later too)
     registered_photo  = serializers.ImageField(
@@ -131,8 +131,8 @@ class StudentCreateSerializer(serializers.Serializer):
             user=user,
             enrollment_number=validated_data['enrollment_number'],
             roll_number=validated_data['roll_number'],
-            rfid_number=validated_data.get('rfid_number'),
-            aadhar_number=validated_data.get('aadhar_number'),
+            rfid_number=validated_data.get('rfid_number') or None,
+            aadhar_number=validated_data.get('aadhar_number') or None,
         )
 
         # Save face photo if provided

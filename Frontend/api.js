@@ -1,10 +1,6 @@
 /**
- * api.js — Shared utilities
- * Backend PK mapping:
- *  Branch  PK = branch_code  (e.g. "CSE")
- *  Student PK = student_id   (e.g. "BCS2024001")
- *  Teacher PK = employee_id  (e.g. "T001")
- *  Subject PK = subject_code (e.g. "CS301")
+ * api.js — AttendX Shared Utilities
+ * Invertis University, Bareilly — Attendance Management System
  */
 const API_BASE = 'http://127.0.0.1:8000/api/';
 
@@ -18,14 +14,31 @@ const Auth = {
     if (d.role === 'student') localStorage.setItem('student_id', d.username || '');
     if (d.role === 'teacher') localStorage.setItem('employee_id', d.employee_id || d.username || '');
   },
-  getAccess() { return localStorage.getItem('access'); },
-  getRefresh() { return localStorage.getItem('refresh'); },
-  getRole() { return localStorage.getItem('role'); },
-  getName() { return localStorage.getItem('name'); },
+  getAccess()   { return localStorage.getItem('access'); },
+  getRefresh()  { return localStorage.getItem('refresh'); },
+  getRole()     { return localStorage.getItem('role'); },
+  getName()     { return localStorage.getItem('name'); },
   getUsername() { return localStorage.getItem('username'); },
-  isLoggedIn() { return !!localStorage.getItem('access'); },
+  isLoggedIn() {
+    const token = localStorage.getItem('access');
+    if (!token) return false;
+    // JWT expiry check — bina server call ke
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        // Token expire ho gaya — clear karo
+        this.clear();
+        return false;
+      }
+    } catch(e) {
+      // Token malformed — clear karo
+      this.clear();
+      return false;
+    }
+    return true;
+  },
   clear() {
-    ['access', 'refresh', 'role', 'name', 'username', 'student_id', 'employee_id']
+    ['access','refresh','role','name','username','student_id','employee_id']
       .forEach(k => localStorage.removeItem(k));
   },
   redirectByRole() {
@@ -33,178 +46,154 @@ const Auth = {
     if (r === 'admin')   { window.location.href = 'admin.html';   return; }
     if (r === 'teacher') { window.location.href = 'teacher.html'; return; }
     if (r === 'student') { window.location.href = 'student.html'; return; }
-    // Role missing or unknown — clear corrupted auth and stay on login
     this.clear();
   }
 };
 
 async function _fetch(url, opts = {}) {
   opts.headers = opts.headers || {};
-  if (!(opts.body instanceof FormData))
-    opts.headers['Content-Type'] = 'application/json';
-  if (Auth.getAccess())
-    opts.headers['Authorization'] = 'Bearer ' + Auth.getAccess();
+  if (!(opts.body instanceof FormData)) opts.headers['Content-Type'] = 'application/json';
+  if (Auth.getAccess()) opts.headers['Authorization'] = 'Bearer ' + Auth.getAccess();
 
-  let res = await fetch(API_BASE + url, opts);
+  let res;
+  try {
+    res = await fetch(API_BASE + url, opts);
+  } catch (networkErr) {
+    // Network error (server down, connection reset, CORS, etc.)
+    console.error('[_fetch] Network error:', url, networkErr.message);
+    return { ok: false, status: 0, data: { error: 'Network error. Please check your connection and try again.' } };
+  }
 
   if (res.status === 401 && Auth.getRefresh()) {
-    const rr = await fetch(API_BASE + 'auth/token/refresh/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh: Auth.getRefresh() })
-    });
-    if (rr.ok) {
-      const rd = await rr.json();
-      localStorage.setItem('access', rd.access);
-      opts.headers['Authorization'] = 'Bearer ' + rd.access;
-      res = await fetch(API_BASE + url, opts);
-    } else {
-      Auth.clear();
-      // Sirf tab redirect karo jab already login page pe na hon
-      if (!window.location.pathname.endsWith('login.html') &&
-          !window.location.pathname.endsWith('/') &&
-          window.location.pathname !== '') {
-        window.location.href = 'login.html';
+    try {
+      const rr = await fetch(API_BASE + 'auth/token/refresh/', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ refresh: Auth.getRefresh() })
+      });
+      if (rr.ok) {
+        const rd = await rr.json();
+        localStorage.setItem('access', rd.access);
+        opts.headers['Authorization'] = 'Bearer ' + rd.access;
+        try {
+          res = await fetch(API_BASE + url, opts);
+        } catch (retryErr) {
+          return { ok: false, status: 0, data: { error: 'Network error on retry.' } };
+        }
+      } else {
+        Auth.clear();
+        if (!window.location.pathname.endsWith('login.html')) window.location.href = 'login.html';
+        return { ok: false, status: 401, data: { error: 'Session expired. Please login again.' } };
       }
-      return;
+    } catch (refreshErr) {
+      Auth.clear();
+      return { ok: false, status: 401, data: { error: 'Session expired. Please login again.' } };
     }
   }
 
   let data;
-  try { data = await res.json(); } catch (e) { data = {}; }
+  try { data = await res.json(); } catch(e) { data = {}; }
   return { ok: res.ok, status: res.status, data };
 }
 
-const GET = (url) => _fetch(url, { method: 'GET' });
-const POST = (url, body) => _fetch(url, { method: 'POST', body: JSON.stringify(body) });
-const PATCH = (url, body) => _fetch(url, { method: 'PATCH', body: JSON.stringify(body) });
-const PUT = (url, body) => _fetch(url, { method: 'PUT', body: JSON.stringify(body) });
-const DEL = (url) => _fetch(url, { method: 'DELETE' });
-const FORM = (url, fd) => _fetch(url, { method: 'POST', body: fd });
+const GET  = url       => _fetch(url, {method:'GET'});
+const POST = (url,b)   => _fetch(url, {method:'POST',  body:JSON.stringify(b)});
+const PATCH= (url,b)   => _fetch(url, {method:'PATCH', body:JSON.stringify(b)});
+const PUT  = (url,b)   => _fetch(url, {method:'PUT',   body:JSON.stringify(b)});
+const DEL  = url       => _fetch(url, {method:'DELETE'});
+const FORM = (url,fd)  => _fetch(url, {method:'POST',  body:fd});
 
-function toast(msg, type) {
-  type = type || 'success';
-  var icons = { success: '✓', error: '✗', info: 'ℹ' };
-  var c = document.getElementById('toast-container');
-  if (!c) return;
-  var t = document.createElement('div');
-  t.className = 'toast toast-' + type;
-  t.innerHTML = '<span>' + (icons[type] || '•') + '</span> ' + msg;
-  c.appendChild(t);
-  requestAnimationFrame(function () { t.classList.add('show'); });
-  setTimeout(function () {
-    t.classList.remove('show');
-    setTimeout(function () { t.remove(); }, 400);
-  }, 3500);
-}
-
-function renderResponse(boxId, r) {
-  var box = document.getElementById(boxId);
-  if (!box) return;
-  box.classList.add('show');
-  var color = r.ok ? '#10b981' : '#ef4444';
-  var label = r.ok ? ('✓ ' + r.status + ' OK') : ('✗ ' + r.status + ' Error');
-  box.innerHTML = '<div class="res-header" style="color:' + color + '">' + label + '</div><pre>' + JSON.stringify(r.data, null, 2) + '</pre>';
+// Public POST — Authorization header bilkul nahi bhejta
+// Forgot-password aur reset-password ke liye — expired token se 401 avoid karta hai
+async function POST_PUBLIC(url, body) {
+  try {
+    const res = await fetch(API_BASE + url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    let data;
+    try { data = await res.json(); } catch(e) { data = {}; }
+    return { ok: res.ok, status: res.status, data };
+  } catch(e) {
+    return { ok: false, status: 0, data: { error: 'Network error. Please check your connection.' } };
+  }
 }
 
 async function DOWNLOAD(url) {
-  const res = await fetch(API_BASE + url, {
-    headers: { 'Authorization': 'Bearer ' + Auth.getAccess() }
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    return { ok: false, status: res.status, data };
-  }
+  const res = await fetch(API_BASE + url, { headers: {'Authorization':'Bearer '+Auth.getAccess()} });
+  if (!res.ok) { const d = await res.json().catch(()=>({})); return {ok:false,data:d}; }
   const blob = await res.blob();
-  const disposition = res.headers.get('Content-Disposition') || '';
-  const match = disposition.match(/filename="?([^"]+)"?/);
-  const filename = match ? match[1] : 'download';
+  const m = (res.headers.get('Content-Disposition')||'').match(/filename="?([^"]+)"?/);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
+  a.href = URL.createObjectURL(blob); a.download = m?m[1]:'download'; a.click();
   URL.revokeObjectURL(a.href);
-  return { ok: true, status: res.status, data: { message: 'Downloaded: ' + filename } };
+  return {ok:true, data:{message:'Downloaded'}};
 }
 
-// ─────────────────────────────────────────────
-// Device fingerprint helper
-// Generates a stable browser fingerprint used as device_id
-// ─────────────────────────────────────────────
+function toast(msg, type='success') {
+  const icons = {success:'✓',error:'✗',info:'ℹ',warning:'⚠'};
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = 'toast toast-'+type;
+  t.innerHTML = `<span>${icons[type]||'•'}</span> ${msg}`;
+  c.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),400); }, 3500);
+}
+
 function getDeviceId() {
   let id = localStorage.getItem('_device_id');
   if (!id) {
-    // Build a fingerprint from stable browser properties
-    const fp = [
-      navigator.userAgent,
-      navigator.language,
-      screen.width + 'x' + screen.height,
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
-    ].join('|');
-    // Simple hash
-    let hash = 0;
-    for (let i = 0; i < fp.length; i++) {
-      hash = ((hash << 5) - hash) + fp.charCodeAt(i);
-      hash |= 0;
-    }
-    id = 'dev_' + Math.abs(hash).toString(16) + '_' + Date.now().toString(36);
-    localStorage.setItem('_device_id', id);
+    const fp = [navigator.userAgent,navigator.language,screen.width+'x'+screen.height].join('|');
+    let hash=0; for(let i=0;i<fp.length;i++){hash=((hash<<5)-hash)+fp.charCodeAt(i);hash|=0;}
+    id='dev_'+Math.abs(hash).toString(16)+'_'+Date.now().toString(36);
+    localStorage.setItem('_device_id',id);
   }
   return id;
 }
+function getDeviceLabel() { return navigator.userAgent.substring(0,200); }
 
-function getDeviceLabel() {
-  return navigator.userAgent.substring(0, 200);
-}
-
-// ─────────────────────────────────────────────
-// Device OTP login flow
-// Call this instead of raw POST to login when
-// the server returns { requires_device_otp: true }
-// ─────────────────────────────────────────────
 async function loginWithDeviceCheck(username, password) {
-  const r = await POST('auth/login/', {
-    username,
-    password,
-    device_id:    getDeviceId(),
-    device_label: getDeviceLabel(),
-  });
-
-  if (!r.ok) return r;   // wrong credentials or other error
-
+  const r = await POST('auth/login/',{username,password,device_id:getDeviceId(),device_label:getDeviceLabel()});
+  if (!r.ok) return r;
   if (r.data.requires_device_otp) {
-    // New device detected — store pending state and show OTP screen
-    sessionStorage.setItem('_pending_user_id',  r.data.user_id);
+    sessionStorage.setItem('_pending_user_id', r.data.user_id);
     sessionStorage.setItem('_pending_device_id', getDeviceId());
     sessionStorage.setItem('_pending_device_label', getDeviceLabel());
-    return { ok: 'otp_required', data: r.data };
+    return {ok:'otp_required', data:r.data};
   }
-
-  // Normal login — save tokens
-  Auth.save(r.data);
-  return r;
+  Auth.save(r.data); return r;
 }
 
 async function verifyDeviceOTP(otp) {
-  const user_id      = sessionStorage.getItem('_pending_user_id');
-  const device_id    = sessionStorage.getItem('_pending_device_id');
-  const device_label = sessionStorage.getItem('_pending_device_label');
-
-  if (!user_id || !device_id) {
-    return { ok: false, data: { error: 'Session expired. Please log in again.' } };
-  }
-
-  const r = await POST('auth/verify-device-otp/', {
-    user_id, otp, device_id, device_label
-  });
-
+  const user_id=sessionStorage.getItem('_pending_user_id');
+  const device_id=sessionStorage.getItem('_pending_device_id');
+  const device_label=sessionStorage.getItem('_pending_device_label');
+  if (!user_id||!device_id) return {ok:false,data:{error:'Session expired.'}};
+  const r = await POST('auth/verify-device-otp/',{user_id,otp,device_id,device_label});
   if (r.ok) {
     Auth.save(r.data);
-    // Clear pending state
-    sessionStorage.removeItem('_pending_user_id');
-    sessionStorage.removeItem('_pending_device_id');
-    sessionStorage.removeItem('_pending_device_label');
+    ['_pending_user_id','_pending_device_id','_pending_device_label'].forEach(k=>sessionStorage.removeItem(k));
   }
-
   return r;
+}
+
+async function logout() {
+  try { await POST('auth/logout/',{refresh:Auth.getRefresh()}); } catch(e){}
+  Auth.clear(); window.location.href='login.html';
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+function pctClass(p) { return p>=75?'safe':p>=60?'warn':'crit'; }
+function pctBadge(p) {
+  const cls=pctClass(p);
+  return `<span class="pct-badge pct-${cls}">${typeof p==='number'?p.toFixed(1):p}%</span>`;
+}
+function apiTag(method,endpoint) {
+  const mc={GET:'#2563eb',POST:'#16a34a',PATCH:'#d97706',DELETE:'#dc2626'};
+  return `<div class="api-tag"><span class="api-method" style="background:${mc[method]||'#6b7280'}">${method}</span><code class="api-ep">/api/${endpoint}</code></div>`;
 }

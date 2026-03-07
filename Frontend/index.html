@@ -1,91 +1,455 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Attendance Analysis Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prahari — Invertis University Attendance System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+  --navy:#0C1B33; --navy-2:#162847; --blue:#1A56DB; --gold:#B8962E;
+  --bg:#F5F1EA; --surface:#FFFFFF; --border:#E2DDD4;
+  --text:#0C1B33; --text-2:#4A5568; --text-3:#8A95A3;
+  --green:#166534; --red:#C53030;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
 
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #121212;
-            color: #ffffff;
-            text-align: center;
-        }
+/* noise grain */
+body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:.35;}
 
-        header {
-            padding: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            background: #1e1e1e;
-            border-bottom: 1px solid #333;
-        }
+/* topbar */
+.topbar{background:var(--navy);color:rgba(255,255,255,.5);text-align:center;padding:7px 20px;font-size:11.5px;letter-spacing:.35px;border-bottom:1px solid rgba(184,150,46,.3);}
+.topbar strong{color:rgba(255,255,255,.85);}
 
-        .container {
-            margin-top: 80px;
-        }
+/* nav */
+.site-nav{position:sticky;top:0;z-index:100;background:rgba(245,241,234,.9);backdrop-filter:blur(18px) saturate(180%);border-bottom:1px solid var(--border);padding:0 56px;display:flex;align-items:center;justify-content:space-between;height:62px;transition:box-shadow .3s ease;}
+.site-nav.scrolled{box-shadow:0 4px 24px rgba(12,27,51,.09);}
+.nav-brand{display:flex;align-items:center;gap:12px;text-decoration:none;}
+.nav-brand svg{width:34px;height:34px;}
+.nav-brand-name{font-family:'Fraunces',serif;font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.3px;line-height:1.1;}
+.nav-brand-sub{font-size:10px;color:var(--text-3);margin-top:1px;}
+.nav-btns{display:flex;gap:10px;align-items:center;}
+.btn-n{padding:8px 18px;border-radius:7px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .18s ease;display:inline-flex;align-items:center;gap:7px;border:none;}
+.btn-n-out{background:transparent;border:1.5px solid var(--border);color:var(--text-2);}
+.btn-n-out:hover{border-color:var(--navy);color:var(--navy);}
+.btn-n-fill{background:var(--navy);color:#fff;box-shadow:0 2px 8px rgba(12,27,51,.2);}
+.btn-n-fill:hover{background:var(--navy-2);transform:translateY(-1px);box-shadow:0 4px 14px rgba(12,27,51,.28);}
 
-        .btn {
-            display: block;
-            width: 220px;
-            margin: 15px auto;
-            padding: 12px;
-            font-size: 16px;
-            background-color: #1f1f1f;
-            color: #ffffff;
-            border: 1px solid #333;
-            border-radius: 6px;
-            cursor: pointer;
-            text-decoration: none;
-            transition: 0.3s;
-        }
+/* hero */
+.hero{min-height:calc(100vh - 93px);display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:0 56px 0 64px;position:relative;overflow:hidden;gap:40px;}
+.hero-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.geo-c{position:absolute;border-radius:50%;border:1px solid rgba(26,86,219,.09);animation:geo-spin linear infinite;}
+.c1{width:440px;height:440px;top:-60px;right:60px;animation-duration:30s;}
+.c2{width:290px;height:290px;top:40px;right:155px;border-color:rgba(184,150,46,.11);animation-duration:22s;animation-direction:reverse;}
+.c3{width:640px;height:640px;bottom:-200px;right:-120px;animation-duration:40s;}
+@keyframes geo-spin{to{transform:rotate(360deg);}}
+.geo-dot{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--blue);opacity:0;animation:dot-fade .6s ease forwards;}
+@keyframes dot-fade{to{opacity:.16;}}
 
-        .btn:hover {
-            background-color: #333;
-            transform: scale(1.05);
-        }
+/* hero left animations */
+.h-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 14px 5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:11px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:22px;opacity:0;transform:translateY(14px);animation:up .7s var(--ease) .1s forwards;}
+.ey-dot{width:20px;height:20px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;}
+.ey-dot i{font-size:9px;color:#fff;}
+.h1{font-family:'Fraunces',serif;font-size:clamp(36px,4.2vw,56px);font-weight:700;line-height:1.08;letter-spacing:-1.5px;color:var(--navy);margin-bottom:18px;opacity:0;transform:translateY(20px);animation:up .8s var(--ease) .22s forwards;}
+.h1 em{font-style:italic;font-weight:300;color:var(--blue);}
+.h1 .gw{color:var(--gold);}
+.h-sub{font-size:15px;color:var(--text-2);line-height:1.75;max-width:440px;margin-bottom:34px;opacity:0;transform:translateY(16px);animation:up .8s var(--ease) .34s forwards;}
+.h-cta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:44px;opacity:0;transform:translateY(14px);animation:up .8s var(--ease) .45s forwards;}
+.cta-a{display:inline-flex;align-items:center;gap:10px;padding:13px 26px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-shadow:0 4px 18px rgba(12,27,51,.22);transition:all .22s var(--ease);}
+.cta-a:hover{background:var(--navy-2);transform:translateY(-2px);box-shadow:0 8px 28px rgba(12,27,51,.3);}
+.arrow-c{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:10px;transition:transform .2s ease;}
+.cta-a:hover .arrow-c{transform:translateX(3px);}
+.cta-b{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;text-decoration:none;transition:all .18s ease;}
+.cta-b:hover{border-color:var(--text-3);color:var(--text);background:var(--surface);}
+.trust{display:flex;align-items:center;gap:18px;flex-wrap:wrap;opacity:0;animation:up .8s var(--ease) .56s forwards;}
+.trust-i{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:500;}
+.trust-i i{color:var(--blue);font-size:11px;}
+.trust-sep{width:3px;height:3px;border-radius:50%;background:var(--border);}
+@keyframes up{to{opacity:1;transform:translateY(0);}}
 
-        footer {
-            position: fixed;
-            bottom: 10px;
-            width: 100%;
-            font-size: 14px;
-            color: #aaa;
-        }
-    </style>
+/* hero right */
+.hero-right{display:flex;align-items:center;justify-content:center;position:relative;z-index:2;opacity:0;transform:scale(.92) translateX(20px);animation:hero-r 1s var(--ease) .3s forwards;}
+@keyframes hero-r{to{opacity:1;transform:scale(1) translateX(0);}}
+.globe-wrap{position:relative;width:400px;height:400px;}
+.g-ring{position:absolute;border-radius:50%;border:1px solid rgba(26,86,219,.1);animation:pulse-r 3.5s ease-in-out infinite;}
+.r1{inset:-28px;animation-delay:0s;}
+.r2{inset:-58px;animation-delay:.8s;animation-duration:4.2s;border-color:rgba(184,150,46,.08);}
+.r3{inset:-94px;animation-delay:1.5s;animation-duration:5s;}
+@keyframes pulse-r{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.025);opacity:.55;}}
+.globe-disc{width:400px;height:400px;background:var(--surface);border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;box-shadow:0 24px 80px rgba(12,27,51,.11),0 4px 16px rgba(12,27,51,.06);position:relative;overflow:hidden;animation:float 6s ease-in-out infinite;}
+.globe-disc::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(26,86,219,.04),transparent 60%);}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.globe-svg{width:190px;height:190px;animation:gspin 22s linear infinite;}
+@keyframes gspin{to{transform:rotate(360deg);}}
+
+/* floating chips */
+.chip{position:absolute;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;box-shadow:0 8px 24px rgba(12,27,51,.10);display:flex;align-items:center;gap:9px;white-space:nowrap;animation:cf ease-in-out infinite;}
+.chip-a{top:32px;right:-28px;animation-duration:4s;}
+.chip-b{bottom:56px;left:-38px;animation-duration:5.2s;animation-delay:1s;}
+.chip-c{top:50%;left:-30px;animation-duration:4.7s;animation-delay:.5s;animation-name:cfc;}
+@keyframes cf{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+@keyframes cfc{0%,100%{transform:translateY(-50%);}50%{transform:translateY(calc(-50% - 8px));}}
+.chip-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.chip-lbl{font-size:10px;color:var(--text-3);font-weight:500;}
+.chip-val{font-family:'Fraunces',serif;font-size:14px;font-weight:600;color:var(--text);line-height:1;}
+
+/* stats row */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.stat-cell{background:var(--bg);padding:44px 32px;text-align:center;opacity:0;transform:translateY(14px);transition:all .55s var(--ease);}
+.stat-cell.revealed{opacity:1;transform:translateY(0);}
+.stat-num{font-family:'Fraunces',serif;font-size:46px;font-weight:700;letter-spacing:-2px;color:var(--navy);line-height:1;margin-bottom:6px;display:block;}
+.stat-num span{color:var(--blue);}
+.stat-lbl{font-size:12.5px;color:var(--text-3);font-weight:500;}
+
+/* portals section */
+.portals-sec{padding:96px 64px;position:relative;}
+.portals-sec::before{content:'';position:absolute;top:0;left:64px;right:64px;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);}
+.sec-ey{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+.sec-ey-line{width:26px;height:2px;background:var(--blue);border-radius:2px;}
+.sec-ey-txt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--blue);}
+.sec-title{font-family:'Fraunces',serif;font-size:clamp(26px,3vw,38px);font-weight:600;letter-spacing:-.8px;color:var(--text);margin-bottom:8px;line-height:1.15;}
+.sec-sub{font-size:13.5px;color:var(--text-2);margin-bottom:48px;}
+
+.portals-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.p-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 26px;text-decoration:none;color:inherit;cursor:pointer;position:relative;overflow:hidden;transition:all .32s var(--ease);display:block;opacity:0;transform:translateY(26px);}
+.p-card.revealed{opacity:1;transform:translateY(0);}
+.p-card:hover{transform:translateY(-6px);box-shadow:0 20px 50px rgba(12,27,51,.12);border-color:var(--cc);}
+.p-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--cc);border-radius:3px 3px 0 0;transform:scaleX(0);transition:transform .32s var(--ease);transform-origin:left;}
+.p-card:hover::before{transform:scaleX(1);}
+.p-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,var(--cc),transparent 70%);opacity:0;transition:opacity .3s ease;}
+.p-card:hover::after{opacity:.04;}
+.p-card.adm{--cc:var(--navy);}
+.p-card.tch{--cc:var(--blue);}
+.p-card.stu{--cc:var(--green);}
+.p-ico{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:18px;background:color-mix(in srgb,var(--cc) 10%,white);color:var(--cc);transition:all .25s ease;position:relative;z-index:1;}
+.p-card:hover .p-ico{transform:scale(1.08) rotate(-4deg);background:color-mix(in srgb,var(--cc) 16%,white);}
+.p-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--text);letter-spacing:-.3px;margin-bottom:7px;position:relative;z-index:1;}
+.p-desc{font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:20px;position:relative;z-index:1;}
+.p-feats{display:flex;flex-direction:column;gap:6px;margin-bottom:22px;position:relative;z-index:1;}
+.p-feat{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:500;}
+.p-feat i{font-size:10px;color:var(--cc);opacity:.7;width:12px;text-align:center;}
+.p-lnk{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--cc);position:relative;z-index:1;transition:gap .2s ease;}
+.p-card:hover .p-lnk{gap:10px;}
+.p-lnk i{font-size:11px;transition:transform .2s ease;}
+.p-card:hover .p-lnk i{transform:translateX(2px);}
+
+/* features dark strip */
+.feats-strip{background:var(--navy);padding:72px 64px;position:relative;overflow:hidden;}
+.feats-strip::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.025) 1px,transparent 1px);background-size:22px 22px;}
+.feats-strip::after{content:'';position:absolute;top:-120px;right:-120px;width:420px;height:420px;background:radial-gradient(circle,rgba(26,86,219,.14),transparent 65%);border-radius:50%;pointer-events:none;}
+.feats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:42px;position:relative;z-index:2;}
+.feat-item{opacity:0;transform:translateY(18px);transition:all .6s var(--ease);}
+.feat-item.revealed{opacity:1;transform:translateY(0);}
+.feat-ico{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:14px;}
+.feat-name{font-family:'Fraunces',serif;font-size:16px;font-weight:600;color:#fff;margin-bottom:7px;letter-spacing:-.2px;}
+.feat-desc{font-size:13px;color:rgba(255,255,255,.48);line-height:1.65;}
+
+/* footer */
+footer{background:var(--navy);padding:32px 64px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.f-brand{display:flex;align-items:center;gap:10px;}
+.f-brand svg{width:28px;height:28px;}
+.f-name{font-family:'Fraunces',serif;font-size:13px;color:#fff;font-weight:600;letter-spacing:-.2px;}
+.f-sub{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px;}
+.f-links{display:flex;gap:20px;}
+.f-link{font-size:12px;color:rgba(255,255,255,.38);text-decoration:none;transition:color .15s;}
+.f-link:hover{color:rgba(255,255,255,.8);}
+.f-copy{font-size:11px;color:rgba(255,255,255,.25);}
+
+/* responsive */
+@media(max-width:960px){
+  .hero{grid-template-columns:1fr;padding:60px 28px;}
+  .hero-right{display:none;}
+  .portals-sec{padding:64px 28px;}
+  .portals-grid{grid-template-columns:1fr;}
+  .feats-strip{padding:48px 28px;}
+  .feats-grid{grid-template-columns:1fr;gap:28px;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .site-nav{padding:0 24px;}
+  footer{padding:28px 28px;flex-direction:column;align-items:flex-start;gap:14px;}
+}
+</style>
 </head>
-
 <body>
 
-<header>
-    Attendance Analysis Dashboard
-</header>
-
-<div class="container">
-    <a href="login.html" class="btn">Login</a>
-    <a href="student.html" class="btn">Student Panel</a>
-    <a href="teacher.html" class="btn">Teacher Panel</a>
-    <a href="admin.html" class="btn">Admin Panel</a>
+<div class="topbar">
+  <i class="fa-solid fa-building-columns" style="opacity:.55;margin-right:6px;"></i>
+  <strong>Invertis University</strong>, Bareilly, U.P. &nbsp;·&nbsp; NH-530 Lucknow Road &nbsp;·&nbsp; Est. 2004 &nbsp;·&nbsp; NAAC Accredited
 </div>
 
+<nav class="site-nav" id="site-nav">
+  <a href="#" class="nav-brand">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="nc"><circle cx="50" cy="50" r="44"/></clipPath></defs>
+      <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.1"/>
+      <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="7" stroke-linecap="round" clip-path="url(#nc)"/>
+      <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#1A56DB" stroke-width="7" stroke-linecap="round" clip-path="url(#nc)"/>
+      <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="7" stroke-linecap="round" clip-path="url(#nc)"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#1A56DB" stroke-width="2"/>
+    </svg>
+    <div><div class="nav-brand-name">Prahari</div><div class="nav-brand-sub">Invertis University</div></div>
+  </a>
+  <div class="nav-btns">
+    <a href="login.html" class="btn-n btn-n-out"><i class="fa-solid fa-right-to-bracket"></i> Sign In</a>
+    <a href="login.html?role=student" class="btn-n btn-n-fill"><i class="fa-solid fa-graduation-cap"></i> Student Portal</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg">
+    <div class="geo-c c1"></div>
+    <div class="geo-c c2"></div>
+    <div class="geo-c c3"></div>
+  </div>
+
+  <div class="hero-left" style="position:relative;z-index:2;">
+    <div class="h-eyebrow">
+      <div class="ey-dot"><i class="fa-solid fa-shield-halved"></i></div>
+      Attendance Management System
+    </div>
+    <h1 class="h1">
+      Smarter<br>attendance <em>for</em><br><span class="gw">Invertis.</span>
+    </h1>
+    <p class="h-sub">Prahari is Invertis University's intelligent attendance platform — combining face recognition, geo-fencing, and live analytics in one unified system.</p>
+    <div class="h-cta">
+      <a href="login.html" class="cta-a">
+        Get Started
+        <span class="arrow-c"><i class="fa-solid fa-arrow-right"></i></span>
+      </a>
+      <a href="#portals" class="cta-b"><i class="fa-solid fa-grid-2" style="font-size:12px;"></i> View Portals</a>
+    </div>
+    <div class="trust">
+      <div class="trust-i"><i class="fa-solid fa-lock"></i> JWT Secured</div>
+      <div class="trust-sep"></div>
+      <div class="trust-i"><i class="fa-solid fa-camera"></i> Face AI</div>
+      <div class="trust-sep"></div>
+      <div class="trust-i"><i class="fa-solid fa-location-dot"></i> Geo-Fenced</div>
+      <div class="trust-sep"></div>
+      <div class="trust-i"><i class="fa-solid fa-file-export"></i> PDF &amp; CSV</div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="globe-wrap">
+      <div class="g-ring r1"></div>
+      <div class="g-ring r2"></div>
+      <div class="g-ring r3"></div>
+      <div class="globe-disc">
+        <svg class="globe-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs><clipPath id="gc2"><circle cx="50" cy="50" r="44"/></clipPath></defs>
+          <circle cx="50" cy="50" r="44" fill="#EBF0FD"/>
+          <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="5.5" stroke-linecap="round" clip-path="url(#gc2)"/>
+          <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#1A56DB" stroke-width="5.5" stroke-linecap="round" clip-path="url(#gc2)"/>
+          <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="5.5" stroke-linecap="round" clip-path="url(#gc2)"/>
+          <ellipse cx="50" cy="50" rx="18" ry="44" fill="none" stroke="#1A56DB" stroke-width="1" opacity="0.25" clip-path="url(#gc2)"/>
+          <line x1="6" y1="50" x2="94" y2="50" stroke="#1A56DB" stroke-width="1" opacity="0.2" clip-path="url(#gc2)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#1A56DB" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="chip chip-a">
+        <div class="chip-ico" style="background:#DCFCE7;color:#166534;"><i class="fa-solid fa-circle-check"></i></div>
+        <div><div class="chip-val">98.2%</div><div class="chip-lbl">Accuracy</div></div>
+      </div>
+      <div class="chip chip-b">
+        <div class="chip-ico" style="background:#EBF0FD;color:#1A56DB;"><i class="fa-solid fa-users"></i></div>
+        <div><div class="chip-val">5,000+</div><div class="chip-lbl">Students</div></div>
+      </div>
+      <div class="chip chip-c">
+        <div class="chip-ico" style="background:#FBF4DF;color:#B8962E;"><i class="fa-solid fa-bolt"></i></div>
+        <div><div class="chip-val">Live</div><div class="chip-lbl">Real-time</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-row" id="stats-row">
+  <div class="stat-cell"><span class="stat-num" data-target="5000">0<span>+</span></span><div class="stat-lbl">Enrolled Students</div></div>
+  <div class="stat-cell"><span class="stat-num" data-target="300">0<span>+</span></span><div class="stat-lbl">Faculty Members</div></div>
+  <div class="stat-cell"><span class="stat-num" data-target="98">0<span>%</span></span><div class="stat-lbl">Face Recognition Accuracy</div></div>
+  <div class="stat-cell"><span class="stat-num" data-target="25">0<span>+</span></span><div class="stat-lbl">Academic Departments</div></div>
+</div>
+
+<!-- Portals -->
+<section class="portals-sec" id="portals">
+  <div class="sec-ey"><div class="sec-ey-line"></div><div class="sec-ey-txt">Access Portals</div></div>
+  <h2 class="sec-title">Choose your portal</h2>
+  <p class="sec-sub">Each portal is tailored to your role — with exactly the tools you need.</p>
+  <div class="portals-grid">
+    <a href="login.html?role=admin" class="p-card adm">
+      <div class="p-ico"><i class="fa-solid fa-user-shield"></i></div>
+      <div class="p-title">Admin</div>
+      <div class="p-desc">Full system control — manage students, faculty, subjects, and system-wide analytics.</div>
+      <div class="p-feats">
+        <div class="p-feat"><i class="fa-solid fa-graduation-cap"></i> Student &amp; Faculty management</div>
+        <div class="p-feat"><i class="fa-solid fa-chart-bar"></i> Analytics &amp; reports</div>
+        <div class="p-feat"><i class="fa-solid fa-mobile-screen"></i> Device management</div>
+        <div class="p-feat"><i class="fa-solid fa-camera"></i> Face registration</div>
+      </div>
+      <div class="p-lnk">Enter Admin Portal <i class="fa-solid fa-arrow-right"></i></div>
+    </a>
+    <a href="login.html?role=teacher" class="p-card tch">
+      <div class="p-ico"><i class="fa-solid fa-chalkboard-user"></i></div>
+      <div class="p-title">Faculty</div>
+      <div class="p-desc">Start sessions, mark attendance, review leave requests, and view your timetable.</div>
+      <div class="p-feats">
+        <div class="p-feat"><i class="fa-solid fa-circle-play"></i> Start attendance sessions</div>
+        <div class="p-feat"><i class="fa-solid fa-pencil"></i> Manual &amp; face marking</div>
+        <div class="p-feat"><i class="fa-solid fa-file-signature"></i> Approve leave requests</div>
+        <div class="p-feat"><i class="fa-solid fa-calendar-week"></i> View timetable</div>
+      </div>
+      <div class="p-lnk">Enter Faculty Portal <i class="fa-solid fa-arrow-right"></i></div>
+    </a>
+    <a href="login.html?role=student" class="p-card stu">
+      <div class="p-ico"><i class="fa-solid fa-graduation-cap"></i></div>
+      <div class="p-title">Student</div>
+      <div class="p-desc">Check your attendance, mark via face scan, and apply for leave — all in one place.</div>
+      <div class="p-feats">
+        <div class="p-feat"><i class="fa-solid fa-chart-pie"></i> Subject-wise attendance</div>
+        <div class="p-feat"><i class="fa-solid fa-camera"></i> Face attendance marking</div>
+        <div class="p-feat"><i class="fa-solid fa-file-signature"></i> Apply for leave</div>
+        <div class="p-feat"><i class="fa-solid fa-circle-user"></i> Profile &amp; academics</div>
+      </div>
+      <div class="p-lnk">Enter Student Portal <i class="fa-solid fa-arrow-right"></i></div>
+    </a>
+  </div>
+</section>
+
+<!-- Features dark -->
+<section class="feats-strip">
+  <div class="feats-grid" id="feats-grid">
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(26,86,219,.15);color:#60A5FA;"><i class="fa-solid fa-camera"></i></div>
+      <div class="feat-name">Face Recognition</div>
+      <div class="feat-desc">AI-powered facial attendance with 98%+ accuracy. No physical contact — just look at the camera.</div>
+    </div>
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(184,150,46,.15);color:#FCD34D;"><i class="fa-solid fa-location-dot"></i></div>
+      <div class="feat-name">Geo-Fencing</div>
+      <div class="feat-desc">Location-verified attendance ensures students are physically inside the classroom.</div>
+    </div>
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(22,101,52,.15);color:#4ADE80;"><i class="fa-solid fa-chart-line"></i></div>
+      <div class="feat-name">Live Analytics</div>
+      <div class="feat-desc">Real-time dashboards with subject-wise breakdown and one-click PDF/CSV export.</div>
+    </div>
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(139,92,246,.15);color:#C084FC;"><i class="fa-solid fa-mobile-screen"></i></div>
+      <div class="feat-name">Device Verification</div>
+      <div class="feat-desc">OTP on new devices prevents unauthorized access — your account stays secure.</div>
+    </div>
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(234,88,12,.15);color:#FB923C;"><i class="fa-solid fa-envelope-open-text"></i></div>
+      <div class="feat-name">Parent Alerts</div>
+      <div class="feat-desc">Automated email &amp; SMS alerts notify parents when attendance drops below threshold.</div>
+    </div>
+    <div class="feat-item">
+      <div class="feat-ico" style="background:rgba(20,184,166,.15);color:#2DD4BF;"><i class="fa-solid fa-bell"></i></div>
+      <div class="feat-name">Leave Management</div>
+      <div class="feat-desc">Students apply for leave online — faculty reviews and approves requests instantly from the dashboard.</div>
+    </div>
+  </div>
+</section>
+
 <footer>
-    © 2026 Attendance System | All Rights Reserved
+  <div class="f-brand">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="fc"><circle cx="50" cy="50" r="44"/></clipPath></defs>
+      <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.15"/>
+      <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#fc)"/>
+      <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#fff" stroke-width="7" opacity="0.5" stroke-linecap="round" clip-path="url(#fc)"/>
+      <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#fc)"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2"/>
+    </svg>
+    <div><div class="f-name">Prahari — Invertis University</div><div class="f-sub">NH-530 Lucknow Road, Bareilly, Uttar Pradesh</div></div>
+  </div>
+  <div class="f-links">
+    <a href="login.html?role=admin" class="f-link">Admin</a>
+    <a href="login.html?role=teacher" class="f-link">Faculty</a>
+    <a href="login.html?role=student" class="f-link">Student</a>
+  </div>
+  <div class="f-copy">© 2025–2026 Prahari · Built with Django REST Framework</div>
 </footer>
 
 <script src="api.js"></script>
 <script>
-    window.onload = function () {
-        // Agar already logged in hai to seedha dashboard pe bhejo
-        const role = Auth.getRole();
-        if (Auth.isLoggedIn() && ['admin', 'teacher', 'student'].includes(role)) {
-            Auth.redirectByRole();
-        } else if (Auth.isLoggedIn()) {
-            // Stale/incomplete auth — clear karo
-            Auth.clear();
-        }
-    };
-</script>
+  /* redirect if logged in */
+  try { if (Auth.isLoggedIn()) Auth.redirectByRole(); } catch(e){}
 
+  /* sticky nav shadow */
+  window.addEventListener('scroll', () => {
+    document.getElementById('site-nav').classList.toggle('scrolled', window.scrollY > 20);
+  }, {passive:true});
+
+  /* scatter dots */
+  const heroBg = document.querySelector('.hero-bg');
+  for (let i=0;i<20;i++){
+    const d=document.createElement('div');
+    d.className='geo-dot';
+    d.style.left=Math.random()*100+'%';
+    d.style.top=Math.random()*100+'%';
+    d.style.animationDelay=Math.random()*1.4+'s';
+    heroBg.appendChild(d);
+  }
+
+  /* scroll reveal */
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      const siblings=[...entry.target.parentElement.children];
+      const idx=siblings.indexOf(entry.target);
+      setTimeout(()=>entry.target.classList.add('revealed'), idx*90);
+      io.unobserve(entry.target);
+    });
+  },{threshold:0.1});
+  document.querySelectorAll('.p-card,.feat-item,.stat-cell').forEach(el=>io.observe(el));
+
+  /* number counters */
+  const co = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      const el=entry.target;
+      const target=parseInt(el.dataset.target);
+      const suffix=el.querySelector('span')?.textContent||'';
+      const dur=1400, t0=performance.now();
+      (function tick(now){
+        const p=Math.min((now-t0)/dur,1);
+        const ease=1-Math.pow(1-p,4);
+        el.innerHTML=Math.floor(ease*target).toLocaleString()+'<span>'+suffix+'</span>';
+        if(p<1) requestAnimationFrame(tick);
+      })(t0);
+      co.unobserve(el);
+    });
+  },{threshold:0.5});
+  document.querySelectorAll('.stat-num[data-target]').forEach(el=>co.observe(el));
+
+  /* ripple on portal click */
+  const rippleStyle=document.createElement('style');
+  rippleStyle.textContent='@keyframes rip{to{transform:scale(1);opacity:0;}}';
+  document.head.appendChild(rippleStyle);
+  document.querySelectorAll('.p-card').forEach(card=>{
+    card.addEventListener('click',e=>{
+      const r=document.createElement('span');
+      const rect=card.getBoundingClientRect();
+      const sz=Math.max(rect.width,rect.height)*2;
+      r.style.cssText=`position:absolute;width:${sz}px;height:${sz}px;border-radius:50%;background:color-mix(in srgb,var(--cc) 12%,transparent);left:${e.clientX-rect.left-sz/2}px;top:${e.clientY-rect.top-sz/2}px;transform:scale(0);animation:rip .5s ease forwards;pointer-events:none;z-index:0;`;
+      card.appendChild(r);
+      r.addEventListener('animationend',()=>r.remove());
+    });
+  });
+
+  /* smooth scroll for anchor links */
+  document.querySelectorAll('a[href^="#"]').forEach(a=>{
+    a.addEventListener('click',e=>{
+      const id=a.getAttribute('href').slice(1);
+      const el=document.getElementById(id);
+      if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});}
+    });
+  });
+</script>
 </body>
 </html>

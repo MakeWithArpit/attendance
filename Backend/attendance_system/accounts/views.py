@@ -13,7 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import User, Student, Teacher, Branch, PasswordResetOTP, DeviceToken
+from .models import User, Student, Teacher, Branch, PasswordResetOTP, DeviceToken, StudentProfile, ParentDetail, PermanentAddress, PresentAddress
 from .serializers import (
     CustomTokenObtainPairSerializer,
     StudentSerializer, StudentCreateSerializer,
@@ -89,25 +89,22 @@ class LoginView(TokenObtainPairView):
 
                     profile = getattr(student, 'profile', None)
                     if profile and profile.email:
-                        try:
-                            from analytics.utils import send_professional_email
-                            send_professional_email(
-                                to=profile.email,
-                                subject='New Device Login OTP — AttendX',
-                                heading='New Device Detected',
-                                body=(
-                                    f"Dear {profile.name},\n\n"
-                                    f"A login attempt was detected from a new device. "
-                                    f"To verify that this is you, please enter the following OTP:\n\n"
-                                    f"                {otp_code}\n\n"
-                                    f"This OTP is valid for 10 minutes only.\n\n"
-                                    f"If you did not attempt to log in, please change your password "
-                                    f"immediately and contact your institution."
-                                ),
-                                footer='AttendX Attendance Management System',
-                            )
-                        except Exception:
-                            pass
+                        # Send email in background — don't block login response
+                        import threading as _threading
+                        _email = profile.email
+                        _name  = profile.name
+                        _otp   = otp_code
+                        def _send_device_otp():
+                            try:
+                                from analytics.utils import send_device_otp_email
+                                send_device_otp_email(
+                                    user_email=_email,
+                                    user_name=_name,
+                                    otp_code=_otp,
+                                )
+                            except Exception:
+                                pass
+                        _threading.Thread(target=_send_device_otp, daemon=True).start()
 
                     # Return special response — do NOT include JWT tokens yet
                     return Response({
@@ -238,7 +235,13 @@ class VerifyDeviceOTPView(APIView):
 class BranchListCreateView(generics.ListCreateAPIView):
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
-    permission_classes = [IsAdmin]
+
+    def get_permissions(self):
+        # GET (list) → Teacher + Admin both can see branches
+        # POST (create) → Admin only
+        if self.request.method == 'GET':
+            return [IsTeacherOrAdmin()]
+        return [IsAdmin()]
 
 
 class BranchDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -284,10 +287,25 @@ class StudentCreateView(generics.CreateAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # When FormData is used (multipart), nested fields come as JSON strings.
-        # Parse them into dicts so the serializer can validate them properly.
         import json as _json
-        data = request.data.copy()
+
+        # ── FIX: QueryDict ko plain dict mein convert karo ──────────────────
+        # Jab FormData (multipart) bheja jaata hai, request.data ek QueryDict
+        # hota hai. DRF ka nested serializer QueryDict par html.parse_html_dict()
+        # call karta hai jo 'profile[name]', 'profile[dob]' jaise keys dhundta hai.
+        # Lekin hamare paas sirf 'profile' key hai (JSON string), isliye profile
+        # field ko empty milta hai → 400 "This field is required" error aata tha.
+        # Solution: QueryDict ko plain Python dict mein convert karo PEHLE.
+        # ─────────────────────────────────────────────────────────────────────
+        data = {}
+        for key in request.data:
+            data[key] = request.data[key]   # last value lena (standard behavior)
+
+        # File upload alag se add karo (registered_photo)
+        for key in request.FILES:
+            data[key] = request.FILES[key]
+
+        # Nested JSON strings ko dicts mein parse karo
         for key in ('profile', 'parent_detail', 'permanent_address', 'present_address'):
             if key in data and isinstance(data[key], str):
                 try:
@@ -305,14 +323,99 @@ class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET/PUT/PATCH/DELETE /api/auth/students/<id>/
     Admin can write. Teacher can only read.
+
+    PATCH expects body:
+    {
+      "enrollment_number": "...",        # optional
+      "roll_number": "...",              # optional
+      "password": "...",                 # optional — change password
+      "profile": {                       # optional — any subset of fields
+          "name", "dob", "gender", "mobile_number", "email",
+          "domicile_state", "academic_year", "branch", "date_of_joining"
+      },
+      "parent_detail": {                 # optional
+          "father_name", "father_mobile", "father_occupation",
+          "father_email", "mother_name", "mother_mobile"
+      },
+      "permanent_address": {             # optional
+          "address_line1", "state", "place", "pincode"
+      }
+    }
     """
-    queryset = Student.objects.select_related('profile', 'parent_detail').all()
+    queryset = Student.objects.select_related(
+        'profile', 'parent_detail', 'permanent_address', 'present_address'
+    ).all()
     serializer_class = StudentSerializer
 
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsTeacherOrAdmin()]
         return [IsAdmin()]
+
+    def update(self, request, *args, **kwargs):
+        return self._do_update(request)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self._do_update(request)
+
+    def _do_update(self, request):
+        student = self.get_object()
+        data = request.data
+
+        # ── 1. Student base fields ──────────────────────────────
+        base_fields = ('enrollment_number', 'roll_number', 'rfid_number', 'aadhar_number')
+        changed = False
+        for field in base_fields:
+            if field in data:
+                setattr(student, field, data[field] or None if field in ('rfid_number', 'aadhar_number') else data[field])
+                changed = True
+        if changed:
+            student.save()
+
+        # ── 2. Password (optional) ──────────────────────────────
+        new_pass = str(data.get('password', '')).strip()
+        if new_pass:
+            student.user.set_password(new_pass)
+            student.user.save()
+
+        # ── 3. Profile update ───────────────────────────────────
+        profile_data = data.get('profile')
+        if profile_data and isinstance(profile_data, dict):
+            profile, _ = StudentProfile.objects.get_or_create(student=student)
+            for field in ('name', 'dob', 'gender', 'mobile_number', 'email',
+                          'domicile_state', 'academic_year', 'date_of_joining',
+                          'nationality', 'marital_status'):
+                if field in profile_data:
+                    setattr(profile, field, profile_data[field])
+            # branch is a FK — accept branch_code string
+            if 'branch' in profile_data:
+                profile.branch_id = profile_data['branch'] or None
+            profile.save()
+
+        # ── 4. Parent Detail update ─────────────────────────────
+        parent_data = data.get('parent_detail')
+        if parent_data and isinstance(parent_data, dict):
+            parent, _ = ParentDetail.objects.get_or_create(student=student)
+            for field in ('father_name', 'father_occupation', 'father_mobile',
+                          'father_email', 'mother_name', 'mother_occupation', 'mother_mobile'):
+                if field in parent_data:
+                    setattr(parent, field, parent_data[field])
+            parent.save()
+
+        # ── 5. Permanent Address update ─────────────────────────
+        perm_data = data.get('permanent_address')
+        if perm_data and isinstance(perm_data, dict):
+            perm, _ = PermanentAddress.objects.get_or_create(student=student)
+            for field in ('address_line1', 'address_line2', 'address_line3', 'state', 'place', 'pincode'):
+                if field in perm_data:
+                    setattr(perm, field, perm_data[field])
+            perm.save()
+
+        # ── Return fresh data ───────────────────────────────────
+        student = Student.objects.select_related(
+            'profile', 'parent_detail', 'permanent_address', 'present_address'
+        ).get(pk=student.pk)
+        return Response(StudentSerializer(student).data)
 
 
 class MyProfileView(APIView):
@@ -393,20 +496,10 @@ class AdminDeviceResetView(APIView):
         try:
             profile = student.profile
             if profile.email:
-                from analytics.utils import send_professional_email
-                send_professional_email(
-                    to=profile.email,
-                    subject='Device Registration Reset — AttendX',
-                    heading='Your Device Registration Has Been Reset',
-                    body=(
-                        f"Dear {profile.name},\n\n"
-                        f"Your registered device has been reset by the administrator. "
-                        f"This is typically done when you have changed or lost your device.\n\n"
-                        f"The next time you log into AttendX from a new device, "
-                        f"that device will be automatically registered.\n\n"
-                        f"If you did not request this reset, please contact your institution immediately."
-                    ),
-                    footer='AttendX Attendance Management System',
+                from analytics.utils import send_device_reset_email
+                send_device_reset_email(
+                    user_email=profile.email,
+                    user_name=profile.name,
                 )
         except Exception:
             pass
@@ -437,12 +530,13 @@ class ForgotPasswordView(APIView):
     POST /api/auth/forgot-password/
     Body: { "username": "STU2024001" }
     Generates a 6-digit OTP and emails it to the user's registered address.
+    Email is sent in a background thread so the API responds immediately.
     """
     permission_classes = []  # AllowAny
 
     def post(self, request):
+        import threading
         from django.utils import timezone
-        from django.conf import settings
 
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -453,6 +547,7 @@ class ForgotPasswordView(APIView):
 
         otp_code = str(random.randint(100000, 999999))
 
+        # Save OTP to DB (expire old ones)
         PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
         PasswordResetOTP.objects.create(
             user=user,
@@ -460,18 +555,20 @@ class ForgotPasswordView(APIView):
             expires_at=timezone.now() + datetime.timedelta(minutes=10),
         )
 
-        try:
-            from analytics.utils import send_password_reset_otp_email
-            send_password_reset_otp_email(
-                user_email=email,
-                user_name=self._get_name(user),
-                otp_code=otp_code,
-            )
-        except Exception as e:
-            return Response(
-                {'error': f'Email send karne mein error: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        # Send email in background — API responds immediately, no Broken Pipe
+        def _send_email():
+            try:
+                from analytics.utils import send_password_reset_otp_email
+                send_password_reset_otp_email(
+                    user_email=email,
+                    user_name=self._get_name(user),
+                    otp_code=otp_code,
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"OTP email failed for {username}: {e}")
+
+        threading.Thread(target=_send_email, daemon=True).start()
 
         return Response({
             'message': f'OTP successfully bhej diya gaya hai {self._mask_email(email)} par.',

@@ -1,595 +1,496 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — AttendX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@300;400;500&display=swap"
-    rel="stylesheet">
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Prahari | Invertis University</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+/* ── Login-specific styles ── */
+body { display: flex; flex-direction: column; min-height: 100vh; }
 
-    :root {
-      --bg: #070b14;
-      --panel: #111827;
-      --border: #1e2d45;
-      --blue: #3b82f6;
-      --green: #10b981;
-      --red: #ef4444;
-      --text: #e2e8f0;
-      --muted: #64748b
-    }
+.login-layout {
+  flex: 1;
+  display: flex;
+  min-height: 100vh;
+}
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      position: relative;
-      overflow: hidden
-    }
+/* Left panel */
+.login-left {
+  width: 420px;
+  flex-shrink: 0;
+  background: var(--navy);
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-color: var(--navy);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+/* Geometric accent shape */
+.login-left::before {
+  content: '';
+  position: absolute;
+  bottom: -80px; right: -80px;
+  width: 280px; height: 280px;
+  border: 1px solid rgba(26,86,219,0.25);
+  border-radius: 50%;
+}
+.login-left::after {
+  content: '';
+  position: absolute;
+  bottom: -30px; right: -30px;
+  width: 160px; height: 160px;
+  border: 1px solid rgba(184,150,46,0.2);
+  border-radius: 50%;
+}
 
-    .grid-bg {
-      position: fixed;
-      inset: 0;
-      background-image: linear-gradient(rgba(59, 130, 246, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, .04) 1px, transparent 1px);
-      background-size: 50px 50px;
-      pointer-events: none
-    }
+.left-top {
+  padding: 32px 36px 0;
+}
+.left-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
+.left-brand svg { width: 44px; height: 44px; }
+.left-brand-text .name {
+  font-family: 'Fraunces', serif;
+  font-size: 20px; font-weight: 700;
+  color: #fff; letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+.left-brand-text .uni { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.5px; margin-top: 2px; }
 
-    .blob {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(80px);
-      pointer-events: none;
-      opacity: .12
-    }
+.left-headline {
+  font-family: 'Fraunces', serif;
+  font-size: 32px; font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+.left-headline em { font-style: italic; color: rgba(255,255,255,0.65); }
+.left-sub { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.65; margin-bottom: 40px; }
 
-    .blob1 {
-      width: 400px;
-      height: 400px;
-      background: var(--blue);
-      top: -100px;
-      right: -100px;
-      animation: float 8s ease-in-out infinite
-    }
+.left-rule { width: 36px; height: 2px; background: var(--gold); border-radius: 2px; margin-bottom: 32px; }
 
-    .blob2 {
-      width: 300px;
-      height: 300px;
-      background: var(--green);
-      bottom: -80px;
-      left: -80px;
-      animation: float 10s ease-in-out infinite reverse
-    }
+.left-feats { padding: 0 36px; flex: 1; }
+.left-feat {
+  display: flex; align-items: center; gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.left-feat:last-child { border-bottom: none; }
+.feat-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.left-feat-text strong { display: block; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+.left-feat-text span   { font-size: 11.5px; color: rgba(255,255,255,0.4); line-height: 1.4; }
 
-    @keyframes float {
+.left-bottom {
+  padding: 24px 36px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin-top: auto;
+}
+.left-bottom p { font-size: 11px; color: rgba(255,255,255,0.28); line-height: 1.6; }
 
-      0%,
-      100% {
-        transform: translateY(0)
-      }
+/* Right panel */
+.login-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: var(--bg);
+}
 
-      50% {
-        transform: translateY(-20px)
-      }
-    }
+.login-box {
+  width: 100%;
+  max-width: 430px;
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--text-3);
+  text-decoration: none; margin-bottom: 28px;
+  transition: color 0.15s;
+  font-weight: 500;
+}
+.back-link:hover { color: var(--text); }
 
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 36px;
-      width: 100%;
-      max-width: 440px;
-      position: relative;
-      z-index: 1
-    }
+.login-box h2 {
+  font-family: 'Fraunces', serif;
+  font-size: 28px; font-weight: 600;
+  color: var(--text); letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+.login-box .sub { font-size: 13px; color: var(--text-3); margin-bottom: 28px; }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 28px
-    }
+/* Role pills */
+.role-pills {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 26px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+.role-pill {
+  flex: 1; padding: 8px 10px;
+  border: none; background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: 'Sora', sans-serif;
+  font-size: 12.5px; font-weight: 500;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.role-pill i { font-size: 11px; }
+.role-pill:hover { color: var(--text); }
+.role-pill.active {
+  background: var(--navy);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
 
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--blue), #818cf8);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px
-    }
+/* Sub-sections */
+.sub-sec { display: none; }
+.sub-sec.show { display: block; animation: fadeIn 0.18s ease; }
 
-    .logo-text {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 20px
-    }
+/* Message */
+.msg { display: none; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 12px; align-items: flex-start; gap: 9px; }
+.msg.error   { display: flex; background: var(--red-dim); border: 1px solid #FECACA; color: var(--red); }
+.msg.success { display: flex; background: var(--green-dim); border: 1px solid #BBF7D0; color: var(--green); }
+.msg.hidden  { display: none !important; }
+.otp-input { letter-spacing: 10px; font-size: 22px; font-weight: 700; text-align: center; }
 
-    .logo-sub {
-      font-size: 11px;
-      color: var(--muted)
-    }
-
-    .tabs {
-      display: flex;
-      background: var(--bg);
-      border-radius: 8px;
-      padding: 4px;
-      margin-bottom: 24px
-    }
-
-    .tab {
-      flex: 1;
-      padding: 8px;
-      text-align: center;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--muted);
-      transition: all .2s;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600
-    }
-
-    .tab.active {
-      background: var(--panel);
-      color: var(--blue);
-      box-shadow: 0 1px 4px rgba(0, 0, 0, .3)
-    }
-
-    .form-group {
-      margin-bottom: 14px
-    }
-
-    label {
-      display: block;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 5px;
-      font-weight: 500;
-      letter-spacing: .05em;
-      text-transform: uppercase
-    }
-
-    input {
-      width: 100%;
-      padding: 10px 14px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      outline: none;
-      transition: border-color .2s
-    }
-
-    input:focus {
-      border-color: var(--blue)
-    }
-
-    .btn {
-      width: 100%;
-      padding: 11px;
-      border: none;
-      border-radius: 8px;
-      font-family: 'Syne', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all .2s;
-      margin-top: 4px;
-      letter-spacing: .04em
-    }
-
-    .btn-blue {
-      background: var(--blue);
-      color: #fff
-    }
-
-    .btn-blue:hover {
-      background: #2563eb
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted)
-    }
-
-    .btn-ghost:hover {
-      border-color: var(--blue);
-      color: var(--blue)
-    }
-
-    .btn:disabled {
-      opacity: .5;
-      cursor: not-allowed
-    }
-
-    .err {
-      background: rgba(239, 68, 68, .1);
-      border: 1px solid rgba(239, 68, 68, .3);
-      border-radius: 7px;
-      padding: 10px 14px;
-      font-size: 12px;
-      color: var(--red);
-      margin-top: 8px;
-      display: none
-    }
-
-    .err.show {
-      display: block
-    }
-
-    .ok {
-      background: rgba(16, 185, 129, .1);
-      border: 1px solid rgba(16, 185, 129, .3);
-      border-radius: 7px;
-      padding: 10px 14px;
-      font-size: 12px;
-      color: var(--green);
-      margin-top: 8px;
-      display: none
-    }
-
-    .ok.show {
-      display: block
-    }
-
-    .step {
-      display: none
-    }
-
-    .step.active {
-      display: block
-    }
-
-    .steps-indicator {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 20px
-    }
-
-    .step-dot {
-      flex: 1;
-      height: 3px;
-      background: var(--border);
-      border-radius: 2px;
-      transition: background .3s
-    }
-
-    .step-dot.done {
-      background: var(--green)
-    }
-
-    .step-dot.active {
-      background: var(--blue)
-    }
-
-    .hint-box {
-      background: rgba(59, 130, 246, .08);
-      border: 1px solid rgba(59, 130, 246, .15);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 16px;
-      line-height: 1.7
-    }
-
-    .hint-box b {
-      color: var(--blue)
-    }
-
-    #toast-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 999
-    }
-
-    .toast {
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
-      opacity: 0;
-      transform: translateX(20px);
-      transition: all .3s;
-      max-width: 280px
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(0)
-    }
-
-    .toast-success {
-      border-color: var(--green)
-    }
-
-    .toast-success span {
-      color: var(--green)
-    }
-
-    .toast-error {
-      border-color: var(--red)
-    }
-
-    .toast-error span {
-      color: var(--red)
-    }
-  </style>
+@media (max-width: 760px) { .login-left { display: none; } }
+</style>
 </head>
-
 <body>
-  <div class="grid-bg"></div>
-  <div class="blob blob1"></div>
-  <div class="blob blob2"></div>
-  <div id="toast-container"></div>
+<div class="login-layout">
 
-  <div class="card">
-    <div class="logo">
-      <div class="logo-icon">📋</div>
-      <div>
-        <div class="logo-text">AttendX</div>
-        <div class="logo-sub">Attendance Management System</div>
-      </div>
-    </div>
-
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('login')">Login</div>
-      <div class="tab" onclick="switchTab('forgot')">Forgot Password</div>
-    </div>
-
-    <!-- ── LOGIN TAB ── -->
-    <div id="tab-login">
-      <div class="hint-box">
-        <b>Admin:</b> admin001 / admin@123 &nbsp;|&nbsp;
-        <b>Teacher:</b> T001–T006 / teacher@123 &nbsp;|&nbsp;
-        <b>Student:</b> BCS2024001–020 / student@123
-      </div>
-      <div class="form-group">
-        <label>Username</label>
-        <input id="l-user" placeholder="e.g. admin001, T001, BCS2024001" autocomplete="username">
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <div class="err" id="l-err"></div>
-      <button class="btn btn-blue" onclick="doLogin()" id="btn-login">Sign In →</button>
-    </div>
-
-    <!-- ── DEVICE OTP TAB (shown when new device detected) ── -->
-    <div id="tab-device-otp" style="display:none">
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:32px">📱</div>
-        <div style="font-weight:700;font-size:16px;margin-top:8px">New Device Detected</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:6px">
-          A 6-digit OTP has been sent to your registered email address.
+  <!-- Left Panel -->
+  <div class="login-left">
+    <div class="left-top">
+      <div class="left-brand">
+        <svg class="iu-globe" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs><clipPath id="gc"><circle cx="50" cy="50" r="44"/></clipPath></defs>
+          <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.12"/>
+          <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="7" stroke-linecap="round" clip-path="url(#gc)"/>
+          <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#1A56DB" stroke-width="7" stroke-linecap="round" clip-path="url(#gc)"/>
+          <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="7" stroke-linecap="round" clip-path="url(#gc)"/>
+          <ellipse cx="50" cy="50" rx="18" ry="44" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.2" clip-path="url(#gc)"/>
+          <line x1="6" y1="50" x2="94" y2="50" stroke="rgba(255,255,255,0.12)" stroke-width="1.2" clip-path="url(#gc)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+        </svg>
+        <div class="left-brand-text">
+          <div class="name">Prahari</div>
+          <div class="uni">Invertis University, Bareilly</div>
         </div>
       </div>
-      <div class="form-group">
-        <label>Enter OTP</label>
-        <input id="otp-input" placeholder="6-digit OTP" maxlength="6"
-               style="letter-spacing:6px;font-size:20px;text-align:center" autocomplete="one-time-code">
+      <div class="left-headline">
+        Attendance,<br><em>reimagined</em><br>for academia.
       </div>
-      <div class="err" id="otp-err"></div>
-      <button class="btn btn-blue" onclick="doVerifyOTP()" id="btn-otp">Verify & Login →</button>
-      <button class="btn btn-ghost" onclick="cancelDeviceOTP()"
-              style="width:100%;margin-top:8px;font-size:12px">← Back to Login</button>
+      <div class="left-rule"></div>
+      <div class="left-sub">Secure, transparent, and intelligent attendance management for students, faculty, and administration.</div>
     </div>
-
-    <!-- ── FORGOT TAB ── -->
-    <div id="tab-forgot" style="display:none">
-      <div class="steps-indicator">
-        <div class="step-dot active" id="dot1"></div>
-        <div class="step-dot" id="dot2"></div>
-        <div class="step-dot" id="dot3"></div>
+    <div class="left-feats">
+      <div class="left-feat">
+        <div class="feat-icon" style="background:rgba(26,86,219,0.15);color:#60A5FA;"><i class="fa-solid fa-lock"></i></div>
+        <div class="left-feat-text"><strong>JWT Authentication</strong><span>Role-based secure access</span></div>
       </div>
-
-      <!-- Step 1: Enter username -->
-      <div class="step active" id="fp-step1">
-        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Apna username enter karo — OTP registered email
-          par bhej diya jaayega.</p>
-        <div class="form-group"><label>Username</label><input id="fp-user" placeholder="e.g. STU2024001"></div>
-        <div class="err" id="fp-err1"></div>
-        <div class="ok" id="fp-ok1"></div>
-        <button class="btn btn-blue" onclick="fpStep1()">Send OTP →</button>
+      <div class="left-feat">
+        <div class="feat-icon" style="background:rgba(22,101,52,0.15);color:#4ADE80;"><i class="fa-solid fa-camera"></i></div>
+        <div class="left-feat-text"><strong>Face Recognition</strong><span>AI-powered attendance marking</span></div>
       </div>
-
-      <!-- Step 2: OTP + new password -->
-      <div class="step" id="fp-step2">
-        <div class="ok show" id="fp-email-hint">OTP bhej diya gaya!</div>
-        <div class="form-group" style="margin-top:14px"><label>6-digit OTP</label><input id="fp-otp"
-            placeholder="123456" maxlength="6"></div>
-        <div class="form-group"><label>New Password (min 8 chars)</label><input id="fp-newpass" type="password"
-            placeholder="NewPass@123"></div>
-        <div class="err" id="fp-err2"></div>
-        <button class="btn btn-blue" onclick="fpStep2()">Reset Password →</button>
-        <button class="btn btn-ghost" onclick="fpBack()" style="margin-top:8px">← Back</button>
+      <div class="left-feat">
+        <div class="feat-icon" style="background:rgba(184,150,46,0.15);color:#FCD34D;"><i class="fa-solid fa-location-dot"></i></div>
+        <div class="left-feat-text"><strong>Geo-Fencing</strong><span>Location-verified attendance</span></div>
       </div>
-
-      <!-- Step 3: Success -->
-      <div class="step" id="fp-step3">
-        <div style="text-align:center;padding:20px 0">
-          <div style="font-size:48px;margin-bottom:12px">✅</div>
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:8px">Password Reset Ho
-            Gaya!</div>
-          <div style="font-size:13px;color:var(--muted)">Ab naye password se login karo.</div>
-        </div>
-        <button class="btn btn-blue" onclick="switchTab('login')">Login Karo →</button>
+      <div class="left-feat">
+        <div class="feat-icon" style="background:rgba(234,88,12,0.15);color:#FB923C;"><i class="fa-solid fa-chart-line"></i></div>
+        <div class="left-feat-text"><strong>Live Analytics</strong><span>Real-time PDF/CSV reports</span></div>
       </div>
+      <div class="left-feat">
+        <div class="feat-icon" style="background:rgba(139,92,246,0.15);color:#C084FC;"><i class="fa-solid fa-mobile-screen"></i></div>
+        <div class="left-feat-text"><strong>Device Verification</strong><span>New-device OTP protection</span></div>
+      </div>
+    </div>
+    <div class="left-bottom">
+      <p>Prahari — Attendance Management System<br>Invertis University, NH-530 Lucknow Road, Bareilly (U.P.)</p>
     </div>
   </div>
 
-  <script src="api.js"></script>
-  <script>
-    // Auto-redirect: sirf tab jab token AND valid role dono hon
-    // Stale token (no role) = clear karo, login form dikhao — loop nahi
-    const _savedRole = Auth.getRole();
-    if (Auth.isLoggedIn() && ['admin', 'teacher', 'student'].includes(_savedRole)) {
-      Auth.redirectByRole();
-    } else if (Auth.isLoggedIn()) {
-      // Token hai lekin role missing/invalid — stale state clear karo
-      Auth.clear();
-    }
+  <!-- Right Panel -->
+  <div class="login-right">
+    <div class="login-box">
+      <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in with your University credentials</p>
 
-    function switchTab(tab) {
-      document.getElementById('tab-login').style.display = tab === 'login' ? 'block' : 'none';
-      document.getElementById('tab-forgot').style.display = tab === 'forgot' ? 'block' : 'none';
-      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1)));
-    }
+      <div class="role-pills">
+        <button type="button" class="role-pill" onclick="setRole('admin',this)"><i class="fa-solid fa-user-shield"></i> Admin</button>
+        <button type="button" class="role-pill" onclick="setRole('teacher',this)"><i class="fa-solid fa-chalkboard-user"></i> Faculty</button>
+        <button type="button" class="role-pill active" onclick="setRole('student',this)"><i class="fa-solid fa-graduation-cap"></i> Student</button>
+      </div>
 
-    async function doLogin() {
-      const user  = document.getElementById('l-user').value.trim();
-      const pass  = document.getElementById('l-pass').value;
-      const errEl = document.getElementById('l-err');
-      const btn   = document.getElementById('btn-login');
-      if (!user || !pass) {
-        errEl.textContent = 'Username aur password zaruri hain.';
-        errEl.classList.add('show'); return;
-      }
-      errEl.classList.remove('show');
-      btn.disabled = true; btn.textContent = 'Logging in...';
+      <!-- Login form -->
+      <div id="login-form">
+        <div class="form-group">
+          <label id="uid-label"><i class="fa-solid fa-id-card"></i> <span id="uid-lbl-txt">Student ID</span></label>
+          <div class="input-wrap">
+            <i class="fa-solid fa-user i-left"></i>
+            <input class="input-icon" type="text" id="uid" placeholder="e.g. BCS2024001" autocomplete="username">
+          </div>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-key"></i> Password</label>
+          <div class="input-wrap">
+            <i class="fa-solid fa-lock i-left"></i>
+            <input class="input-icon" type="password" id="pass" placeholder="Enter your password" autocomplete="current-password">
+            <button class="eye-btn" type="button" onclick="togglePass()"><i class="fa-regular fa-eye" id="eye-ico"></i></button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-navy" style="width:100%;margin-top:4px;" id="btn-login" onclick="doLogin()">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+        <div class="divider">or</div>
+        <button type="button" style="width:100%;text-align:center;background:none;border:none;color:var(--blue);font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="showForgot()">
+          <i class="fa-solid fa-circle-question"></i> Forgot Password?
+        </button>
+        <div class="msg hidden" id="login-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
+        <div class="api-tag" style="margin-top:16px;">
+          <span class="api-method" style="background:#16a34a;">POST</span>
+          <span class="api-ep">/api/auth/login/</span>
+        </div>
+      </div>
 
-      const r = await loginWithDeviceCheck(user, pass);
-      btn.disabled = false; btn.textContent = 'Sign In →';
+      <!-- OTP section -->
+      <div class="sub-sec" id="otp-sec">
+        <div class="info-box blue"><i class="fa-solid fa-shield-halved"></i><span>New device detected. A 6-digit OTP has been sent to your registered email.</span></div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-hashtag"></i> Enter OTP</label>
+          <div class="input-wrap">
+            <i class="fa-solid fa-key i-left"></i>
+            <input class="input-icon otp-input" type="text" id="otp-inp" maxlength="6" placeholder="000000">
+          </div>
+        </div>
+        <button type="button" class="btn btn-navy" style="width:100%;" onclick="doOTP()"><i class="fa-solid fa-circle-check"></i> Verify & Sign In</button>
+        <div class="msg hidden" id="otp-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
+        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/verify-device-otp/</span></div>
+      </div>
 
-      if (r && r.ok === 'otp_required') {
-        // New device — show OTP screen
-        document.getElementById('tab-login').style.display       = 'none';
-        document.getElementById('tab-device-otp').style.display  = 'block';
-        document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
-        document.getElementById('otp-input').focus();
-        return;
-      }
+      <!-- Forgot password -->
+      <div class="sub-sec" id="forgot-sec">
+        <div class="info-box blue"><i class="fa-solid fa-envelope"></i><span>Enter your username and we'll send a reset OTP to your registered email.</span></div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-user"></i> Username</label>
+          <div class="input-wrap"><i class="fa-solid fa-user i-left"></i><input class="input-icon" type="text" id="fp-user" placeholder="Your username"></div>
+        </div>
+        <button type="button" class="btn btn-navy" style="width:100%;" onclick="doForgot()"><i class="fa-solid fa-paper-plane"></i> Send OTP</button>
+        <div class="msg hidden" id="fp-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
+        <button type="button" onclick="showPanel('login')" style="width:100%;margin-top:10px;background:none;border:none;color:var(--blue);font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/forgot-password/</span></div>
+      </div>
 
-      if (r && r.ok) {
-        toast('Login successful! Redirecting...');
-        setTimeout(() => Auth.redirectByRole(), 800);
+      <!-- Reset password -->
+      <div class="sub-sec" id="reset-sec">
+        <input type="hidden" id="reset-username">
+        <div class="info-box green"><i class="fa-solid fa-circle-check"></i><span>OTP sent successfully. Enter the OTP and your new password below.</span></div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-hashtag"></i> OTP</label>
+          <div class="input-wrap"><i class="fa-solid fa-key i-left"></i><input class="input-icon otp-input" type="text" id="reset-otp" maxlength="6" placeholder="000000"></div>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-lock"></i> New Password</label>
+          <div class="input-wrap"><i class="fa-solid fa-lock i-left"></i><input class="input-icon" type="password" id="new-pass" placeholder="Minimum 8 characters"></div>
+        </div>
+        <button type="button" class="btn btn-navy" style="width:100%;" onclick="doReset()"><i class="fa-solid fa-rotate-right"></i> Reset Password</button>
+        <div class="msg hidden" id="reset-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
+        <button type="button" onclick="showPanel('login')" style="width:100%;margin-top:10px;background:none;border:none;color:var(--blue);font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/reset-password/</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script>
+  let activeRole = 'student';
+  const urlRole = new URLSearchParams(location.search).get('role');
+  if (['admin','teacher','student'].includes(urlRole)) activeRole = urlRole;
+
+  // ── Single source-of-truth panel switcher ──────────────────────────────────
+  // Shows exactly ONE panel, hides all others. No mixed inline-style + class mess.
+  function showPanel(name) {
+    const panels = {
+      'login'  : document.getElementById('login-form'),
+      'otp'    : document.getElementById('otp-sec'),
+      'forgot' : document.getElementById('forgot-sec'),
+      'reset'  : document.getElementById('reset-sec'),
+    };
+    Object.entries(panels).forEach(([key, el]) => {
+      if (!el) return;
+      const isActive = (key === name);
+      if (key === 'login') {
+        el.style.display = isActive ? '' : 'none';
       } else {
-        const msg = r && r.data
-          ? (r.data.detail || r.data.non_field_errors?.[0] || JSON.stringify(r.data))
-          : 'Server error';
-        errEl.textContent = msg;
-        errEl.classList.add('show');
-      }
-    }
-
-    async function doVerifyOTP() {
-      const otp   = document.getElementById('otp-input').value.trim();
-      const errEl = document.getElementById('otp-err');
-      const btn   = document.getElementById('btn-otp');
-      if (!otp || otp.length !== 6) {
-        errEl.textContent = '6-digit OTP enter karo.';
-        errEl.classList.add('show'); return;
-      }
-      errEl.classList.remove('show');
-      btn.disabled = true; btn.textContent = 'Verifying...';
-
-      const r = await verifyDeviceOTP(otp);
-      btn.disabled = false; btn.textContent = 'Verify & Login →';
-
-      if (r && r.ok) {
-        toast('Device verified! Logging in...');
-        setTimeout(() => Auth.redirectByRole(), 800);
-      } else {
-        const msg = r && r.data ? (r.data.error || r.data.detail || JSON.stringify(r.data)) : 'Error';
-        errEl.textContent = msg;
-        errEl.classList.add('show');
-      }
-    }
-
-    function cancelDeviceOTP() {
-      document.getElementById('tab-device-otp').style.display = 'none';
-      document.getElementById('tab-login').style.display      = 'block';
-      document.querySelectorAll('.tab').forEach(t => t.style.display = '');
-      document.getElementById('otp-input').value = '';
-      document.getElementById('otp-err').classList.remove('show');
-      // Clear pending session
-      sessionStorage.removeItem('_pending_user_id');
-      sessionStorage.removeItem('_pending_device_id');
-      sessionStorage.removeItem('_pending_device_label');
-    }
-
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        const otpVisible = document.getElementById('tab-device-otp').style.display !== 'none';
-        if (otpVisible) doVerifyOTP(); else doLogin();
+        // Explicit 'block' — CSS .sub-sec{display:none} conflict se bachata hai
+        el.style.display = isActive ? 'block' : 'none';
+        if (isActive) el.classList.add('show');
+        else          el.classList.remove('show');
       }
     });
+  }
 
-    let fpUsername = '';
+  window.onload = function() {
+    if (Auth.isLoggedIn()) { Auth.redirectByRole(); return; }
+    showPanel('login');   // always start at login
+    document.querySelectorAll('.role-pill').forEach(t => {
+      const txt = t.textContent.trim().toLowerCase();
+      t.classList.toggle('active', txt.includes(activeRole === 'teacher' ? 'faculty' : activeRole));
+    });
+    updateLabel();
+  };
 
-    function setFpStep(n) {
-      document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === n - 1));
-      [1, 2, 3].forEach(i => {
-        const d = document.getElementById('dot' + i);
-        d.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
-      });
+  function setRole(r, el) {
+    activeRole = r;
+    document.querySelectorAll('.role-pill').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    updateLabel();
+  }
+  function updateLabel() {
+    const map = { admin:'Admin Username', teacher:'Employee ID', student:'Student ID' };
+    const ph  = { admin:'e.g. admin',     teacher:'e.g. T001',  student:'e.g. BCS2024001' };
+    document.getElementById('uid-lbl-txt').textContent = map[activeRole];
+    document.getElementById('uid').placeholder         = ph[activeRole];
+  }
+  function showMsg(id, msg, type='error') {
+    const el = document.getElementById(id);
+    el.className = 'msg ' + type;
+    el.querySelector('span').textContent = msg;
+    el.querySelector('i').className = type === 'error'
+      ? 'fa-solid fa-circle-exclamation'
+      : 'fa-solid fa-circle-check';
+  }
+  function hideMsg(id) {
+    const el = document.getElementById(id);
+    el.className = 'msg hidden';
+  }
+  function togglePass() {
+    const i  = document.getElementById('pass');
+    const ic = document.getElementById('eye-ico');
+    if (i.type === 'password') { i.type = 'text';     ic.className = 'fa-regular fa-eye-slash'; }
+    else                        { i.type = 'password'; ic.className = 'fa-regular fa-eye'; }
+  }
+
+  // ── LOGIN ──────────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const u = document.getElementById('uid').value.trim();
+    const p = document.getElementById('pass').value;
+    if (!u || !p) { showMsg('login-msg', 'Please enter your username and password.'); return; }
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in…';
+    const r = await loginWithDeviceCheck(u, p);
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';
+    if (!r) { showMsg('login-msg', 'Server error. Please try again.'); return; }
+    if (r.ok === 'otp_required') { showPanel('otp'); return; }
+    if (!r.ok) { showMsg('login-msg', r.data.detail || r.data.error || 'Invalid credentials.'); return; }
+    Auth.redirectByRole();
+  }
+
+  // ── DEVICE OTP ─────────────────────────────────────────────────────────────
+  async function doOTP() {
+    const otp = document.getElementById('otp-inp').value.trim();
+    if (otp.length !== 6) { showMsg('otp-msg', 'Please enter a valid 6-digit OTP.'); return; }
+    const r = await verifyDeviceOTP(otp);
+    if (!r || !r.ok) { showMsg('otp-msg', r?.data?.error || 'Invalid or expired OTP.'); return; }
+    Auth.redirectByRole();
+  }
+
+  // ── FORGOT PASSWORD ────────────────────────────────────────────────────────
+  function showForgot() {
+    hideMsg('fp-msg');
+    document.getElementById('fp-user').value = '';
+    showPanel('forgot');
+    setTimeout(() => document.getElementById('fp-user').focus(), 50);
+  }
+
+  let _forgotPending = false;
+  async function doForgot() {
+    if (_forgotPending) return;
+    const username = document.getElementById('fp-user').value.trim();
+    if (!username) { showMsg('fp-msg', 'Please enter your username.'); return; }
+
+    _forgotPending = true;
+    const btn = document.querySelector('#forgot-sec .btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
+
+    let r;
+    try {
+      r = await POST_PUBLIC('auth/forgot-password/', { username });
+    } catch (err) {
+      // Should not happen since _fetch now handles errors, but safety net
+      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP';
+      _forgotPending = false;
+      showMsg('fp-msg', 'Network error. Please try again.');
+      return;
     }
 
-    async function fpStep1() {
-      const u = document.getElementById('fp-user').value.trim();
-      const errEl = document.getElementById('fp-err1');
-      if (!u) { errEl.textContent = 'Username zaruri hai.'; errEl.classList.add('show'); return; }
-      errEl.classList.remove('show');
-      const r = await POST('auth/forgot-password/', { username: u });
-      if (r && r.ok) {
-        fpUsername = u;
-        document.getElementById('fp-email-hint').textContent = r.data.message || 'OTP bhej diya gaya!';
-        setFpStep(2);
-      } else {
-        const msg = r && r.data ? (r.data.username?.[0] || r.data.detail || JSON.stringify(r.data)) : 'Error';
-        errEl.textContent = msg; errEl.classList.add('show');
-      }
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP';
+    _forgotPending = false;
+
+    if (!r || !r.ok) {
+      showMsg('fp-msg', r?.data?.error || 'Error sending OTP. Please try again.');
+      return;
     }
 
-    async function fpStep2() {
-      const otp = document.getElementById('fp-otp').value.trim();
-      const pass = document.getElementById('fp-newpass').value;
-      const errEl = document.getElementById('fp-err2');
-      if (!otp || !pass) { errEl.textContent = 'OTP aur naya password zaruri hain.'; errEl.classList.add('show'); return; }
-      if (pass.length < 8) { errEl.textContent = 'Password kam se kam 8 characters ka hona chahiye.'; errEl.classList.add('show'); return; }
-      errEl.classList.remove('show');
-      const r = await POST('auth/reset-password/', { username: fpUsername, otp: otp, new_password: pass });
-      if (r && r.ok) {
-        setFpStep(3);
-      } else {
-        const msg = r && r.data ? (r.data.error || r.data.detail || JSON.stringify(r.data)) : 'Error';
-        errEl.textContent = msg; errEl.classList.add('show');
-      }
-    }
+    // Store username for reset step
+    document.getElementById('reset-username').value = username;
+    showMsg('fp-msg', r.data.message || 'OTP sent to your registered email!', 'success');
 
-    function fpBack() { setFpStep(1); }
-  </script>
+    // Switch to reset panel — no delay needed since backend now responds instantly
+    setTimeout(() => {
+      hideMsg('reset-msg');
+      document.getElementById('reset-otp').value = '';
+      document.getElementById('new-pass').value  = '';
+      showPanel('reset');
+      document.getElementById('reset-otp').focus();
+    }, 700);
+  }
+
+  // ── RESET PASSWORD ─────────────────────────────────────────────────────────
+  async function doReset() {
+    const otp      = document.getElementById('reset-otp').value.trim();
+    const np       = document.getElementById('new-pass').value;
+    const username = document.getElementById('reset-username').value;
+    if (!otp || !np) { showMsg('reset-msg', 'Please fill all fields.'); return; }
+    const btn = document.querySelector('#reset-sec .btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resetting…';
+    const r = await POST_PUBLIC('auth/reset-password/', { username, otp, new_password: np });
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Reset Password';
+    if (!r || !r.ok) { showMsg('reset-msg', r?.data?.error || 'Reset failed.'); return; }
+    showMsg('reset-msg', 'Password reset successfully! Redirecting to login…', 'success');
+    setTimeout(() => { showPanel('login'); document.getElementById('uid').value = username; }, 1800);
+  }
+
+  // ── KEYBOARD SHORTCUT ──────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const otp    = document.getElementById('otp-sec');
+    const forgot = document.getElementById('forgot-sec');
+    const reset  = document.getElementById('reset-sec');
+    if (otp.classList.contains('show'))    { doOTP();    return; }
+    if (forgot.classList.contains('show')) { doForgot(); return; }
+    if (reset.classList.contains('show'))  { doReset();  return; }
+    doLogin();
+  });
+</script>
 </body>
-
 </html>

@@ -196,7 +196,7 @@ class RegisterFaceView(APIView):
         if not photo:
             return Response({'error': 'Photo is required'}, status=400)
 
-        student = get_object_or_404(Student, id=student_id)
+        student = get_object_or_404(Student, pk=student_id)
 
         # Save temp file and encode
         with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
@@ -792,19 +792,14 @@ class TeacherAttendanceRequestView(APIView):
         )
 
         try:
-            from analytics.utils import send_professional_email
-            send_professional_email(
-                to=teacher.email,
-                subject='Attendance Request Submitted — AttendX',
-                heading='Request Submitted Successfully',
-                body=(
-                    f"Your attendance request has been submitted to the administrator.\n\n"
-                    f"Student: {student.profile.name if hasattr(student, 'profile') else student_id}\n"
-                    f"Session: {session.subject.subject_name} | {session.date}\n"
-                    f"Reason: {reason}\n\n"
-                    f"You will be notified once the admin reviews your request."
-                ),
-                footer='AttendX Attendance Management System',
+            from analytics.utils import send_attendance_request_email
+            send_attendance_request_email(
+                teacher_email=teacher.email,
+                student_name=student.profile.name if hasattr(student, 'profile') else student_id,
+                subject_name=session.subject.subject_name,
+                date=session.date,
+                reason=reason,
+                action='submitted',
             )
         except Exception:
             pass
@@ -879,27 +874,16 @@ class AdminAttendanceRequestView(APIView):
             )
 
         try:
-            from analytics.utils import send_professional_email
-            status_word  = 'Approved ✓' if action == 'approved' else 'Rejected ✗'
+            from analytics.utils import send_attendance_request_email
             student_name = getattr(req.student, 'profile', None) and req.student.profile.name
-            send_professional_email(
-                to=req.teacher.email,
-                subject=f'Attendance Request {status_word} — AttendX',
-                heading=f'Your Attendance Request Has Been {status_word}',
-                body=(
-                    f"Your attendance request has been reviewed by the administrator.\n\n"
-                    f"Student: {student_name or req.student_id}\n"
-                    f"Subject: {req.session.subject.subject_name}\n"
-                    f"Date: {req.session.date}\n"
-                    f"Decision: {status_word}\n"
-                    f"Admin Remark: {remark or 'No remarks provided.'}\n\n"
-                    + (
-                        "The attendance has been marked as Present in the system."
-                        if action == 'approved' else
-                        "The request was not approved. Please contact the administrator for further details."
-                    )
-                ),
-                footer='AttendX Attendance Management System',
+            send_attendance_request_email(
+                teacher_email=req.teacher.email,
+                student_name=student_name or req.student_id,
+                subject_name=req.session.subject.subject_name,
+                date=req.session.date,
+                reason=req.reason,
+                action=action,
+                remark=remark,
             )
         except Exception:
             pass
@@ -908,4 +892,125 @@ class AdminAttendanceRequestView(APIView):
             'message':           f'Request {action} successfully.',
             'request_id':        req.id,
             'attendance_marked': action == 'approved',
+        })
+
+# ─────────────────────────────────────────────
+# Parent Notification (Admin + Teacher)
+# ─────────────────────────────────────────────
+class SendParentNotificationView(APIView):
+    """
+    POST /api/attendance/notify-parent/
+    Admin ya Teacher parent ko attendance alert email bhejta hai.
+
+    Body:
+    {
+      "student_id": "BCS2024001",
+      "subject_code": "CS301",        # optional — specific subject
+      "semester": 3,                  # optional
+      "academic_year": "2024-2025",   # optional
+      "custom_message": "..."         # optional custom note
+    }
+
+    Returns:
+      { "sent": true, "email": "pa***@gmail.com", "student": "...", "percentage": 72.5 }
+    """
+    permission_classes = [IsTeacherOrAdmin]
+
+    def post(self, request):
+        from accounts.models import Student
+        from analytics.utils import send_attendance_alert_email
+
+        student_id   = request.data.get('student_id', '').strip()
+        subject_code = request.data.get('subject_code', '').strip()
+        semester     = request.data.get('semester')
+        academic_year = request.data.get('academic_year', '').strip()
+        custom_msg   = request.data.get('custom_message', '').strip()
+
+        if not student_id:
+            return Response({'error': 'student_id is required'}, status=400)
+
+        student = get_object_or_404(Student, pk=student_id)
+        profile = getattr(student, 'profile', None)
+        parent  = getattr(student, 'parent_detail', None)
+
+        if not profile:
+            return Response({'error': 'Student profile nahi mila.'}, status=400)
+
+        student_name = profile.name
+
+        # Parent email — father_email first, then mother email fallback
+        parent_email = None
+        if parent:
+            parent_email = parent.father_email or None
+        if not parent_email:
+            # Try student own email as fallback (notify student too)
+            parent_email = profile.email
+
+        if not parent_email:
+            return Response({
+                'error': 'Is student ke parent ka koi email registered nahi hai. '
+                         'Please first student ki family details mein parent email add karo.'
+            }, status=400)
+
+        # Calculate attendance percentage
+        percentage = None
+        subject_name = subject_code  # fallback
+
+        if subject_code and semester and academic_year:
+            try:
+                from academics.models import Subject
+                subject_obj = Subject.objects.filter(subject_code=subject_code).first()
+                if subject_obj:
+                    subject_name = subject_obj.subject_name
+                    total   = Attendance.objects.filter(
+                        student=student, subject=subject_obj,
+                        semester=semester, academic_year=academic_year
+                    ).count()
+                    present = Attendance.objects.filter(
+                        student=student, subject=subject_obj,
+                        semester=semester, academic_year=academic_year,
+                        is_present=True
+                    ).count()
+                    percentage = round((present / total * 100), 1) if total > 0 else 0.0
+            except Exception:
+                percentage = 0.0
+        elif not subject_code:
+            # Overall attendance
+            if semester and academic_year:
+                total   = Attendance.objects.filter(student=student, semester=semester, academic_year=academic_year).count()
+                present = Attendance.objects.filter(student=student, semester=semester, academic_year=academic_year, is_present=True).count()
+                percentage = round((present / total * 100), 1) if total > 0 else 0.0
+                subject_name = 'Overall Attendance'
+            else:
+                percentage = 0.0
+                subject_name = 'Attendance Update'
+
+        if percentage is None:
+            percentage = 0.0
+
+        try:
+            send_attendance_alert_email(
+                parent_email=parent_email,
+                student_name=student_name,
+                subject_name=subject_name,
+                percentage=percentage,
+                custom_message=custom_msg,
+            )
+        except Exception as e:
+            return Response({'error': f'Email send nahi hua: {str(e)}'}, status=500)
+
+        # Mask email for privacy
+        try:
+            local, domain = parent_email.split('@')
+            masked = f"{local[:2]}***@{domain}"
+        except Exception:
+            masked = '***'
+
+        return Response({
+            'sent':       True,
+            'email':      masked,
+            'student':    student_name,
+            'subject':    subject_name,
+            'percentage': percentage,
+            'message':    f'Parent notification successfully sent to {masked}',
         })
