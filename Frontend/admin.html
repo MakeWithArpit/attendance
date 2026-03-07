@@ -338,8 +338,38 @@
         <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-user"></i> Full Name</label><input type="text" id="te-name"></div>
         <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-envelope"></i> Email</label><input type="email" id="te-email"></div>
         <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-phone"></i> Mobile</label><input type="text" id="te-mobile"></div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building"></i> Department</label><input type="text" id="te-dept"></div>
-        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-briefcase"></i> Designation</label><input type="text" id="te-desig"></div>
+        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building"></i> Department</label><select id="te-dept">
+        <option value="">Select Department</option>
+        <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+        <option value="Information Technology">Information Technology</option>
+        <option value="Electronics & Communication Engineering">Electronics & Communication Engineering</option>
+        <option value="Electrical Engineering">Electrical Engineering</option>
+        <option value="Mechanical Engineering">Mechanical Engineering</option>
+        <option value="Civil Engineering">Civil Engineering</option>
+        <option value="Applied Sciences & Humanities">Applied Sciences & Humanities</option>
+        <option value="Mathematics">Mathematics</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+        <option value="Management Studies (MBA)">Management Studies (MBA)</option>
+        <option value="Commerce (B.Com)">Commerce (B.Com)</option>
+        <option value="Law">Law</option>
+        <option value="Pharmacy">Pharmacy</option>
+        <option value="Agriculture">Agriculture</option>
+</select></div>
+        <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-briefcase"></i> Designation</label><select id="te-desig">
+        <option value="">Select Designation</option>
+        <option value="Professor">Professor</option>
+        <option value="Associate Professor">Associate Professor</option>
+        <option value="Assistant Professor">Assistant Professor</option>
+        <option value="Senior Lecturer">Senior Lecturer</option>
+        <option value="Lecturer">Lecturer</option>
+        <option value="Lab Instructor">Lab Instructor</option>
+        <option value="Teaching Assistant">Teaching Assistant</option>
+        <option value="Head of Department">Head of Department</option>
+        <option value="Dean">Dean</option>
+        <option value="Director">Director</option>
+        <option value="Visiting Faculty">Visiting Faculty</option>
+</select></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -682,8 +712,38 @@
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-user"></i> Full Name *</label><input type="text" id="nt-name"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-envelope"></i> Email *</label><input type="email" id="nt-email"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-phone"></i> Mobile *</label><input type="text" id="nt-mobile"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building"></i> Department *</label><input type="text" id="nt-dept" placeholder="e.g. Computer Science" oninput="autoGenerateEmployeeId()"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-briefcase"></i> Designation</label><input type="text" id="nt-desig" placeholder="e.g. Assistant Professor"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building"></i> Department *</label><select id="nt-dept" onchange="autoGenerateEmployeeId()">
+        <option value="">Select Department</option>
+        <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+        <option value="Information Technology">Information Technology</option>
+        <option value="Electronics & Communication Engineering">Electronics & Communication Engineering</option>
+        <option value="Electrical Engineering">Electrical Engineering</option>
+        <option value="Mechanical Engineering">Mechanical Engineering</option>
+        <option value="Civil Engineering">Civil Engineering</option>
+        <option value="Applied Sciences & Humanities">Applied Sciences & Humanities</option>
+        <option value="Mathematics">Mathematics</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+        <option value="Management Studies (MBA)">Management Studies (MBA)</option>
+        <option value="Commerce (B.Com)">Commerce (B.Com)</option>
+        <option value="Law">Law</option>
+        <option value="Pharmacy">Pharmacy</option>
+        <option value="Agriculture">Agriculture</option>
+</select></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-briefcase"></i> Designation</label><select id="nt-desig">
+        <option value="">Select Designation</option>
+        <option value="Professor">Professor</option>
+        <option value="Associate Professor">Associate Professor</option>
+        <option value="Assistant Professor">Assistant Professor</option>
+        <option value="Senior Lecturer">Senior Lecturer</option>
+        <option value="Lecturer">Lecturer</option>
+        <option value="Lab Instructor">Lab Instructor</option>
+        <option value="Teaching Assistant">Teaching Assistant</option>
+        <option value="Head of Department">Head of Department</option>
+        <option value="Dean">Dean</option>
+        <option value="Director">Director</option>
+        <option value="Visiting Faculty">Visiting Faculty</option>
+</select></div>
           </div>
           <button class="btn btn-navy" style="margin-top:4px;" onclick="addTeacher()"><i class="fa-solid fa-user-plus"></i> Add Faculty Member</button>
         </div>
@@ -1431,7 +1491,7 @@
     const empId = 'T-' + deptCode + seq;                 // e.g. T-CS001, T-MATH002
 
     document.getElementById('nt-id').value = empId;
-    toast('Employee ID auto-generated: ' + empId, 'info');
+
   }
 
   function autoGenerateNumbers() {
@@ -1460,7 +1520,7 @@
     document.getElementById('ns-enroll').value = enrollment;
     document.getElementById('ns-roll').value   = roll;
 
-    toast(`Auto-generated → ID/Username: ${studentId} · Enrollment: ${enrollment} · Roll: ${roll}`, 'info');
+
   }
 
   async function loadBranchDDs(){
