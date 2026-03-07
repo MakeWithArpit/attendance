@@ -434,17 +434,20 @@
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-tag"></i> Subject Type</label>
           <select id="sube-type">
-            <option value="Theory">Theory</option>
-            <option value="Practical">Practical</option>
-            <option value="Project">Project</option>
+            <option value="">-- Select --</option>
+            <option value="theory">Theory</option>
+            <option value="practical">Practical</option>
+            <option value="tutorial">Tutorial</option>
           </select>
         </div>
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-layer-group"></i> Classification</label>
           <select id="sube-class">
-            <option value="Core">Core</option>
-            <option value="Elective">Elective</option>
-            <option value="Open Elective">Open Elective</option>
+            <option value="">-- Select --</option>
+            <option value="core">Core</option>
+            <option value="elective">Elective</option>
+            <option value="lab">Lab / Practical</option>
+            <option value="theory">Theory</option>
           </select>
         </div>
       </div>
@@ -786,18 +789,19 @@
               <label><i class="fa-solid fa-tag"></i> Subject Type *</label>
               <select id="nsub-type">
                 <option value="">Select Type</option>
-                <option value="Theory">Theory</option>
-                <option value="Practical">Practical</option>
-                <option value="Project">Project</option>
+                <option value="theory">Theory</option>
+                <option value="practical">Practical</option>
+                <option value="tutorial">Tutorial</option>
               </select>
             </div>
             <div class="form-group" style="margin:0;">
               <label><i class="fa-solid fa-layer-group"></i> Classification *</label>
               <select id="nsub-class">
                 <option value="">Select Classification</option>
-                <option value="Core">Core</option>
-                <option value="Elective">Elective</option>
-                <option value="Open Elective">Open Elective</option>
+                <option value="core">Core</option>
+                <option value="elective">Elective</option>
+                <option value="lab">Lab / Practical</option>
+                <option value="theory">Theory</option>
               </select>
             </div>
             <div class="form-group" style="margin:0;">
@@ -1911,10 +1915,26 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     document.getElementById('sube-code').value    = s.subject_code;
     const dispEl = document.getElementById('sube-code-disp'); if(dispEl) dispEl.textContent = s.subject_code;
     document.getElementById('sube-name').value    = s.subject_name||'';
-    document.getElementById('sube-type').value    = s.subject_type||'Theory';
-    document.getElementById('sube-class').value   = s.subject_classification||'Core';
+    document.getElementById('sube-type').value    = (s.subject_type||'').toLowerCase();
+    document.getElementById('sube-class').value   = (s.subject_classification||'').toLowerCase();
     document.getElementById('sube-credit').value  = s.subject_credit||'';
-    document.getElementById('sube-teacher').value = s.assigned_teacher||'';
+    // Teacher picker
+    const tInput = document.getElementById('sube-teacher');
+    tInput.value = s.assigned_teacher||'';
+    tInput.title = s.assigned_teacher ? s.assigned_teacher + ' — ' + (s.assigned_teacher_name||'') : '';
+    // Update/remove teacher badge
+    const wrap = document.getElementById('sube-teacher-wrap');
+    const oldBadge = wrap && wrap.querySelector('.selected-teacher-badge');
+    if (oldBadge) oldBadge.remove();
+    if (s.assigned_teacher && s.assigned_teacher_name) {
+      const badge = document.createElement('div');
+      badge.className = 'selected-teacher-badge';
+      badge.style.cssText = 'font-size:11.5px;color:#1A56DB;margin-top:5px;display:flex;align-items:center;gap:5px;';
+      badge.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--green);"></i>'
+        + ' <strong>' + s.assigned_teacher + '</strong> — ' + s.assigned_teacher_name
+        + ' <span onclick="clearTeacher(&quot;sube-teacher&quot;,&quot;sube-teacher-dd&quot;)" style="color:#DC2626;cursor:pointer;margin-left:4px;" title="Remove">✕</span>';
+      wrap.appendChild(badge);
+    }
     openModal('m-subject-edit');
   }
 
@@ -1924,7 +1944,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       subject_name:           document.getElementById('sube-name').value,
       subject_type:           document.getElementById('sube-type').value,
       subject_classification: document.getElementById('sube-class').value,
-      subject_credit:         document.getElementById('sube-credit').value,
+      subject_credit:         parseInt(document.getElementById('sube-credit').value) || 0,
       assigned_teacher:       document.getElementById('sube-teacher').value,
     };
     const r = await PATCH(`academics/subjects/${code}/`, body);
