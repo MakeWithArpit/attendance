@@ -122,7 +122,7 @@ class StudentProfile(models.Model):
     email           = models.EmailField(blank=True, null=True)
     nationality     = models.CharField(max_length=50, default='Indian')
     marital_status  = models.CharField(max_length=10, choices=MARITAL_CHOICES, default='single')
-    domicile_state  = models.CharField(max_length=50)
+    domicile_state  = models.CharField(max_length=50, blank=True, default='')
     date_of_joining = models.DateField()
     academic_year    = models.CharField(max_length=9)
     section          = models.CharField(max_length=10, blank=True, null=True)
@@ -139,13 +139,13 @@ class StudentProfile(models.Model):
 
 class ParentDetail(models.Model):
     student            = models.OneToOneField(Student, on_delete=models.CASCADE, related_name='parent_detail')
-    father_name        = models.CharField(max_length=100)
+    father_name        = models.CharField(max_length=100, blank=True, default='')
     father_occupation  = models.CharField(max_length=100, blank=True)
-    father_mobile      = models.CharField(max_length=15)
+    father_mobile      = models.CharField(max_length=15, blank=True, default='')
     father_email       = models.EmailField(blank=True, null=True)
-    mother_name        = models.CharField(max_length=100)
+    mother_name        = models.CharField(max_length=100, blank=True, default='')
     mother_occupation  = models.CharField(max_length=100, blank=True)
-    mother_mobile      = models.CharField(max_length=15)
+    mother_mobile      = models.CharField(max_length=15, blank=True, default='')
 
     class Meta:
         db_table = 'parent_details'
@@ -153,12 +153,12 @@ class ParentDetail(models.Model):
 
 class PermanentAddress(models.Model):
     student       = models.OneToOneField(Student, on_delete=models.CASCADE, related_name='permanent_address')
-    address_line1 = models.CharField(max_length=200)
-    address_line2 = models.CharField(max_length=200, blank=True)
-    address_line3 = models.CharField(max_length=200, blank=True)
-    state         = models.CharField(max_length=50)
-    place         = models.CharField(max_length=100)
-    pincode       = models.CharField(max_length=6)
+    address_line1 = models.CharField(max_length=200, blank=True, default='')
+    address_line2 = models.CharField(max_length=200, blank=True, default='')
+    address_line3 = models.CharField(max_length=200, blank=True, default='')
+    state         = models.CharField(max_length=50,  blank=True, default='')
+    place         = models.CharField(max_length=100, blank=True, default='')
+    pincode       = models.CharField(max_length=6,   blank=True, default='')
 
     class Meta:
         db_table = 'permanent_addresses'
@@ -166,12 +166,12 @@ class PermanentAddress(models.Model):
 
 class PresentAddress(models.Model):
     student       = models.OneToOneField(Student, on_delete=models.CASCADE, related_name='present_address')
-    address_line1 = models.CharField(max_length=200)
-    address_line2 = models.CharField(max_length=200, blank=True)
-    address_line3 = models.CharField(max_length=200, blank=True)
-    state         = models.CharField(max_length=50)
-    place         = models.CharField(max_length=100)
-    pincode       = models.CharField(max_length=6)
+    address_line1 = models.CharField(max_length=200, blank=True, default='')
+    address_line2 = models.CharField(max_length=200, blank=True, default='')
+    address_line3 = models.CharField(max_length=200, blank=True, default='')
+    state         = models.CharField(max_length=50,  blank=True, default='')
+    place         = models.CharField(max_length=100, blank=True, default='')
+    pincode       = models.CharField(max_length=6,   blank=True, default='')
 
     class Meta:
         db_table = 'present_addresses'

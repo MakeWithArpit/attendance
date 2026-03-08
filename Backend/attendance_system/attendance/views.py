@@ -244,22 +244,56 @@ class ActiveSessionsForStudentView(APIView):
     def get(self, request):
         student = get_object_or_404(Student, user=request.user)
 
-        # Student ke enrolled subjects nikalo
         from academics.models import CourseRegistration
-        enrolled_subject_ids = CourseRegistration.objects.filter(
-            student=student
-        ).values_list('subject_id', flat=True)
-
-        # Un subjects ki aaj ki active sessions nikalo
+        from django.utils import timezone as tz
         import datetime
-        active_sessions = AttendanceSession.objects.filter(
+
+        # Aaj ki date IST mein (USE_TZ=True ke saath sahi kaam karta hai)
+        today = tz.localdate()
+
+        # Student ke enrolled subjects + uska branch/section/semester nikalo
+        enrollments = CourseRegistration.objects.filter(
+            student=student
+        ).select_related('branch')
+
+        enrolled_subject_ids = enrollments.values_list('subject_id', flat=True)
+
+        # Student ki profile se branch, section, semester nikalo
+        # (session sirf student ke apne section ka dikhna chahiye)
+        try:
+            profile  = student.profile
+            s_branch  = profile.branch_id      # branch_code string
+            s_section = profile.section.strip().upper() if profile.section else None
+            s_semester = profile.current_semester
+        except Exception:
+            s_branch = s_section = s_semester = None
+
+        # Base filter: enrolled subjects ki aaj ki active sessions
+        session_filter = dict(
             subject_id__in=enrolled_subject_ids,
             status='active',
-            date=datetime.date.today(),
+            date=today,
+        )
+
+        # Agar profile mein section/branch/semester hai toh session bhi usi ka match karo
+        # Yeh ensure karta hai Section D ka student sirf Section D ka session dekhe
+        if s_branch:
+            session_filter['branch_id'] = s_branch
+        if s_section:
+            session_filter['section'] = s_section
+        if s_semester:
+            session_filter['semester'] = s_semester
+
+        active_sessions = AttendanceSession.objects.filter(
+            **session_filter
         ).select_related('subject', 'teacher')
 
         sessions_data = []
         for s in active_sessions:
+            # Expired sessions skip karo (duration_minutes wali sessions)
+            if s.is_expired:
+                continue
+
             # Kya student ne already attendance mark ki hai?
             already_marked = Attendance.objects.filter(
                 student=student,
@@ -274,7 +308,7 @@ class ActiveSessionsForStudentView(APIView):
                 'subject_name':        s.subject.subject_name,
                 'teacher_name':        s.teacher.name,
                 'date':                str(s.date),
-                'facial_enabled':      s.facial_enabled,       # ← frontend isi se button dikhayega
+                'facial_enabled':      s.facial_enabled,
                 'geo_fencing_enabled': s.geo_fencing_enabled,
                 'already_marked':      already_marked,
             })

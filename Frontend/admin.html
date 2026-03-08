@@ -48,6 +48,17 @@
 
 /* Delete confirm modal */
 .del-ico{width:52px;height:52px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;font-size:22px;color:#C53030;margin:0 auto 14px;}
+
+.pw-wrap { position:relative; display:flex; align-items:center; }
+.pw-wrap input { flex:1; padding-right:40px !important; }
+.pw-toggle {
+  position:absolute; right:0; top:0; bottom:0;
+  width:38px; border:none; background:transparent;
+  cursor:pointer; color:#8A95A3; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  transition:color .15s; border-radius:0 7px 7px 0;
+}
+.pw-toggle:hover { color:#1A56DB; background:rgba(26,86,219,.05); }
 </style>
 
 <style>
@@ -204,9 +215,17 @@
             <option value="Puducherry">Puducherry</option>
           </select>
         </div>
+        <div class="form-group" style="margin:0;grid-column:1/-1;">
+          <label><i class="fa-solid fa-location-dot"></i> Permanent Address</label>
+          <input type="text" id="se-address" placeholder="e.g. 12, Civil Lines">
+        </div>
         <div class="form-group" style="margin:0;">
-          <label><i class="fa-solid fa-map-marker-alt"></i> Address</label>
-          <input type="text" id="se-address" placeholder="Full address">
+          <label><i class="fa-solid fa-city"></i> Place / City</label>
+          <input type="text" id="se-place" placeholder="e.g. Bareilly">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label><i class="fa-solid fa-signs-post"></i> Pincode</label>
+          <input type="text" id="se-pincode" placeholder="e.g. 243001" maxlength="6">
         </div>
       </div>
 
@@ -524,6 +543,7 @@
       <button class="nav-item" onclick="go('teachers',this)"><i class="fa-solid fa-chalkboard-user"></i> Faculty</button>
       <button class="nav-item" onclick="go('subjects',this)"><i class="fa-solid fa-book"></i> Subjects</button>
       <button class="nav-item" onclick="go('branches',this)"><i class="fa-solid fa-building-columns"></i> Branches</button>
+      <button class="nav-item" onclick="go('enrollment',this);initEnrollment()"><i class="fa-solid fa-user-plus"></i> Course Enrollment</button>
       <div class="nav-section">Reports</div>
       <button class="nav-item" onclick="go('analytics',this)"><i class="fa-solid fa-chart-bar"></i> Analytics</button>
       <button class="nav-item" onclick="go('att-requests',this)"><i class="fa-solid fa-clipboard-list"></i> Att. Requests</button>
@@ -657,10 +677,26 @@
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building-columns"></i> Branch *</label><select id="ns-branch" onchange="autoGenerateNumbers()"><option value="">Select Branch</option></select></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-calendar-days"></i> Academic Year *</label><input type="text" id="ns-year" placeholder="2025-2026"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-users-rectangle"></i> Section *</label>
-              <select id="ns-section"><option value="">Select Section</option><option value="A">Section A</option><option value="B">Section B</option><option value="C">Section C</option><option value="D">Section D</option></select></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-layer-group"></i> Current Semester</label>
-              <select id="ns-semester"><option value="">Select</option><option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></div>
+              <select id="ns-section" onchange="previewEnrollment()"><option value="">Select Section</option><option value="A">Section A</option><option value="B">Section B</option><option value="C">Section C</option><option value="D">Section D</option></select></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-layer-group"></i> Current Semester *</label>
+              <select id="ns-semester" onchange="previewEnrollment()"><option value="">Select</option><option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-regular fa-calendar-check"></i> Date of Joining *</label><input type="date" id="ns-doj"></div>
+          </div>
+
+          <!-- Auto-Enrollment Preview -->
+          <div id="enrollment-preview" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;border:1px solid #bbf7d0;background:#f0fdf4;">
+            <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:6px;">
+              <i class="fa-solid fa-circle-check"></i> Auto-Enrollment — Yeh subjects milenge:
+            </div>
+            <div id="enrollment-preview-list" style="font-size:12px;color:#166534;"></div>
+          </div>
+          <div id="enrollment-warning" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;border:1px solid #fde68a;background:#fffbeb;">
+            <div style="font-size:12px;font-weight:700;color:#92400e;">
+              <i class="fa-solid fa-triangle-exclamation"></i> Koi Subject Nahi Mila
+            </div>
+            <div style="font-size:12px;color:#78350f;margin-top:4px;">
+              Is branch+semester ke liye koi subject tagged nahi hai. Pehle <strong>Subjects</strong> mein subject add karo aur Branch+Semester set karo.
+            </div>
           </div>
           <!-- Family -->
           <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-house-user" style="color:var(--blue);"></i> Parent &amp; Family Details</div>
@@ -671,7 +707,9 @@
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-phone"></i> Mother's Mobile</label><input type="text" id="ns-mother-mobile" placeholder="Mother's contact"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-briefcase"></i> Father's Occupation</label><input type="text" id="ns-father-occupation" placeholder="e.g. Business, Govt. Service"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-envelope"></i> Parent's Email</label><input type="email" id="ns-parent-email" placeholder="For notifications"></div>
-            <div class="form-group" style="margin:0;grid-column:1/-1;"><label><i class="fa-solid fa-location-dot"></i> Permanent Address</label><textarea id="ns-permanent-address" rows="2" placeholder="Village/City, District, State, PIN"></textarea></div>
+            <div class="form-group" style="margin:0;grid-column:1/-1;"><label><i class="fa-solid fa-location-dot"></i> Permanent Address</label><textarea id="ns-permanent-address" rows="2" placeholder="e.g. 12, Civil Lines, Near Post Office"></textarea></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-city"></i> Place / City</label><input type="text" id="ns-place" placeholder="e.g. Bareilly"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-signs-post"></i> Pincode</label><input type="text" id="ns-pincode" placeholder="e.g. 243001" maxlength="6"></div>
           </div>
           <button class="btn btn-navy" style="margin-top:18px;" onclick="addStudent()"><i class="fa-solid fa-user-plus"></i> Register Student</button>
         </div>
@@ -818,6 +856,10 @@
                 <option value="7">Semester 7</option><option value="8">Semester 8</option>
               </select>
             </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-building-columns"></i> Branch <span style="color:#8A95A3;font-size:10px;">(auto-enroll ke liye)</span></label>
+              <select id="nsub-branch"><option value="">Select Branch (optional)</option></select>
+            </div>
             <div class="form-group" style="margin:0;grid-column:1/-1;">
               <label><i class="fa-solid fa-chalkboard-user"></i> Assign Teacher <span style="color:#8A95A3;font-size:10px;">(optional)</span></label>
               <div class="teacher-picker-wrap" id="nsub-teacher-wrap">
@@ -827,6 +869,12 @@
                   title="Click to choose teacher from list">
                 <div class="teacher-dropdown" id="nsub-teacher-dd"></div>
               </div>
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;">
+              <p style="margin:0;font-size:12px;color:#15803d;">
+                <i class="fa-solid fa-circle-info"></i>
+                <strong>Auto-Enrollment:</strong> Branch aur Semester set karo — jab bhi us branch+semester ka naya student create hoga, yeh subject automatically enroll ho jaayega.
+              </p>
             </div>
           </div>
           <button class="btn btn-navy" onclick="addSubject()"><i class="fa-solid fa-plus"></i> Add Subject</button>
@@ -857,6 +905,95 @@
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building-columns"></i> Branch Name *</label><input type="text" id="nb-name" placeholder="e.g. Computer Science & Engineering"></div>
           </div>
           <button class="btn btn-navy" onclick="addBranch()"><i class="fa-solid fa-plus"></i> Add Branch</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Course Enrollment -->
+    <div id="sec-enrollment" class="section">
+      <div class="page-header">
+        <h1 class="page-title">Course Enrollment <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Branch aur Semester select karo — students ko subjects mein auto-enroll karo</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="card card-accent" style="margin-bottom:18px;">
+        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-filter"></i> Filter Students &amp; Subjects</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-solid fa-building-columns"></i> Branch *</label>
+            <select id="enr-branch" onchange="loadEnrollmentData()"><option value="">Select Branch</option></select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-solid fa-layer-group"></i> Semester *</label>
+            <select id="enr-sem" onchange="loadEnrollmentData()">
+              <option value="">Select</option>
+              <option value="1">Sem 1</option><option value="2">Sem 2</option>
+              <option value="3">Sem 3</option><option value="4">Sem 4</option>
+              <option value="5">Sem 5</option><option value="6">Sem 6</option>
+              <option value="7">Sem 7</option><option value="8">Sem 8</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-solid fa-users"></i> Section</label>
+            <select id="enr-section" onchange="loadEnrollmentData()">
+              <option value="">All Sections</option>
+              <option value="A">A</option><option value="B">B</option>
+              <option value="C">C</option><option value="D">D</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label><i class="fa-solid fa-calendar"></i> Academic Year</label>
+            <input type="text" id="enr-year" placeholder="e.g. 2025-2026" oninput="loadEnrollmentData()">
+          </div>
+        </div>
+        <div id="enr-status" style="font-size:13px;color:#64748b;min-height:20px;"></div>
+      </div>
+
+      <!-- Main content: Subjects + Students side by side -->
+      <div id="enr-main" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+          <!-- Subjects panel -->
+          <div class="card">
+            <div class="card-title">
+              <div class="card-title-left"><i class="fa-solid fa-book"></i> Available Subjects</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-sm" onclick="selectAllSubjects(true)" style="font-size:11px;padding:4px 10px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;cursor:pointer;">All</button>
+                <button class="btn btn-sm" onclick="selectAllSubjects(false)" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;cursor:pointer;">None</button>
+              </div>
+            </div>
+            <div id="enr-subjects-list" style="max-height:400px;overflow-y:auto;"></div>
+          </div>
+
+          <!-- Students panel -->
+          <div class="card">
+            <div class="card-title">
+              <div class="card-title-left"><i class="fa-solid fa-graduation-cap"></i> Students</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-sm" onclick="selectAllStudents(true)" style="font-size:11px;padding:4px 10px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;cursor:pointer;">All</button>
+                <button class="btn btn-sm" onclick="selectAllStudents(false)" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;cursor:pointer;">None</button>
+              </div>
+            </div>
+            <div id="enr-students-list" style="max-height:400px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <!-- Enroll button -->
+        <div style="margin-top:18px;display:flex;align-items:center;gap:14px;">
+          <button class="btn btn-navy" onclick="doEnroll()" style="padding:10px 28px;font-size:15px;">
+            <i class="fa-solid fa-user-plus"></i> Enroll Selected Students in Selected Subjects
+          </button>
+          <span id="enr-result" style="font-size:13px;font-weight:600;"></span>
+        </div>
+
+        <!-- Existing enrollments table -->
+        <div class="card" style="margin-top:22px;">
+          <div class="card-title">
+            <div class="card-title-left"><i class="fa-solid fa-list-check"></i> Current Enrollments</div>
+            <button onclick="loadCurrentEnrollments()" style="background:none;border:none;cursor:pointer;color:#6366f1;font-size:13px;"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+          </div>
+          <div id="enr-current-list" class="table-wrap"></div>
         </div>
       </div>
     </div>
@@ -1117,7 +1254,8 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     document.getElementById('sec-'+id).classList.add('active');
     el.classList.add('active');
-    const m={
+    populateBranchSelects();
+  const m={
       overview:loadOverview,
       students:()=>{loadStudents();loadBranchDDs();},
       teachers:loadTeachers,
@@ -1140,8 +1278,21 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     el.classList.add('active');
   }
 
+  async function populateBranchSelects() {
+    const r = await GET('auth/branches/');
+    const list = r?.data?.results || r?.data || [];
+    if (!list.length) return;
+    window._branches = list;   // cache for editStudent
+    const opts = '<option value="">Select Branch</option>'
+      + list.map(b => `<option value="${b.branch_code}">${b.branch_code} — ${b.branch_name}</option>`).join('');
+    ['ns-branch','se-branch','an-branch'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { const cur = el.value; el.innerHTML = opts; if(cur) el.value = cur; }
+    });
+  }
+
   async function loadOverview(){
-    const[sr,tr,subr,br]=await Promise.all([GET('auth/students/'),GET('auth/teachers/'),GET('academics/subjects/'),GET('auth/branches/')]);
+    const[sr,tr,subr,br]=await Promise.all([GET('auth/students/'),GET('auth/teachers/'),GET('academics/subjects/?page_size=500'),GET('auth/branches/')]);
     const c=r=>r?.data?.count??(r?.data?.results?.length??(Array.isArray(r?.data)?r.data.length:'—'));
     document.getElementById('overview-stats').innerHTML=`
       <div class="stat-card" style="--stat-bg:var(--blue-dim);--stat-color:var(--blue);">
@@ -1235,18 +1386,25 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       permanent_address:{
         address_line1: document.getElementById('ns-permanent-address').value ||
                        document.getElementById('ns-address').value,
-        state: document.getElementById('ns-state').value,
-        place: '', pincode: '',
+        state:   document.getElementById('ns-state').value,
+        place:   document.getElementById('ns-place').value,
+        pincode: document.getElementById('ns-pincode').value,
       },
     };
     const r=await POST('auth/students/create/',body);
-    if(!r||!r.ok){toast(JSON.stringify(r?.data||'Failed'),'error');return;}
+    if(!r||!r.ok){
+      const d=r?.data||{};
+      const msg = d.error || d.detail || JSON.stringify(d) || 'Server error';
+      toast('Error: '+msg,'error');
+      console.error('Student create error:', d);
+      return;
+    }
     toast('Student registered successfully','success');
     // Clear key fields
     ['ns-id','ns-pass','ns-enroll','ns-roll','ns-name','ns-mobile','ns-email',
      'ns-address','ns-year','ns-father-name','ns-father-mobile',
      'ns-mother-name','ns-mother-mobile','ns-father-occupation',
-     'ns-parent-email','ns-permanent-address'].forEach(id=>{
+     'ns-parent-email','ns-permanent-address','ns-place','ns-pincode'].forEach(id=>{
        const el=document.getElementById(id); if(el) el.value='';
      });
     loadStudents();
@@ -1308,7 +1466,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
   async function loadSubjects(){
     document.getElementById('subjects-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET('academics/subjects/');
+    const r=await GET('academics/subjects/?page_size=500');
     const list=r?.data?.results||r?.data||[];
     if(!list.length){document.getElementById('subjects-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No subjects found.</p></div>';return;}
     let html='<table><thead><tr><th>Code</th><th>Subject Name</th><th>Type</th><th>Classification</th><th>Credits</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>';
@@ -1333,13 +1491,14 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
 
   async function addSubject() {
-    const code   = document.getElementById('nsub-code').value.trim().toUpperCase();
-    const name   = document.getElementById('nsub-name').value.trim();
-    const type   = document.getElementById('nsub-type').value;
-    const cls    = document.getElementById('nsub-class').value;
-    const credit = document.getElementById('nsub-credit').value;
-    const sem    = document.getElementById('nsub-sem').value;
+    const code    = document.getElementById('nsub-code').value.trim().toUpperCase();
+    const name    = document.getElementById('nsub-name').value.trim();
+    const type    = document.getElementById('nsub-type').value;
+    const cls     = document.getElementById('nsub-class').value;
+    const credit  = document.getElementById('nsub-credit').value;
+    const sem     = document.getElementById('nsub-sem').value;
     const teacher = document.getElementById('nsub-teacher').value.trim();
+    const branch  = document.getElementById('nsub-branch') ? document.getElementById('nsub-branch').value : '';
 
     if (!code || !name || !type || !cls || !credit || !sem) {
       toast('Subject Code, Name, Type, Classification, Credits aur Semester — sab required hain', 'error');
@@ -1355,6 +1514,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       semester:                parseInt(sem),
     };
     if (teacher) body.assigned_teacher = teacher;
+    if (branch)  body.branch = branch;
 
     const r = await POST('academics/subjects/', body);
     if (!r || !r.ok) {
@@ -1370,6 +1530,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     document.getElementById('nsub-type').value  = '';
     document.getElementById('nsub-class').value = '';
     document.getElementById('nsub-sem').value   = '';
+    const nb = document.getElementById('nsub-branch'); if(nb) nb.value = '';
 
     // Switch to list tab and reload
     document.querySelectorAll('#sec-subjects .tab-btn')[0].click();
@@ -1562,7 +1723,46 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
   }
 
+  // ── Auto-Enrollment Preview ─────────────────────────────────────────────────
+  async function previewEnrollment() {
+    const branch  = document.getElementById('ns-branch').value;
+    const sem     = document.getElementById('ns-semester').value;
+    const preview = document.getElementById('enrollment-preview');
+    const warning = document.getElementById('enrollment-warning');
+    const list    = document.getElementById('enrollment-preview-list');
+    if (!preview) return;
+
+    if (!branch || !sem) {
+      preview.style.display = 'none';
+      warning.style.display = 'none';
+      return;
+    }
+    try {
+      const r = await GET('academics/subjects/?page_size=500');
+      const allSubs = r.data.results || r.data || [];
+      const matched = allSubs.filter(s =>
+        s.branch === branch && String(s.semester) === String(sem)
+      );
+      if (matched.length === 0) {
+        preview.style.display = 'none';
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+        preview.style.display = 'block';
+        list.innerHTML = matched.map(s =>
+          `<div style="padding:2px 0;">✓ <strong>${s.subject_code}</strong> — ${s.subject_name}</div>`
+        ).join('') + `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0;font-weight:600;">
+          Student create hone par ${matched.length} subject(s) mein auto-enroll ho jaayega ✓
+        </div>`;
+      }
+    } catch(e) {
+      if(preview) preview.style.display = 'none';
+      if(warning) warning.style.display = 'none';
+    }
+  }
+
   function autoGenerateNumbers() {
+    previewEnrollment();
     const branchCode = document.getElementById('ns-branch').value;
     if (!branchCode) return;
 
@@ -1595,7 +1795,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     window._branches=[];
     const r=await GET('auth/branches/');
     const list=r?.data?.results||r?.data||[];
-    ['ns-branch','an-branch'].forEach(id=>{
+    ['ns-branch','an-branch','nsub-branch'].forEach(id=>{
       const sel=document.getElementById(id);if(!sel)return;
       const prev=sel.value;
       sel.innerHTML='<option value="">Select Branch</option>';
@@ -1605,7 +1805,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     });
   }
   async function loadSubjectDDs(){
-    const r=await GET('academics/subjects/');
+    const r=await GET('academics/subjects/?page_size=500');
     const list=r?.data?.results||r?.data||[];
     const sel=document.getElementById('an-subject');if(!sel)return;
     sel.innerHTML='<option value="">Select Subject</option>';
@@ -1751,6 +1951,8 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
     // ── Address (from permanent_address) ─────────────────────
     document.getElementById('se-address').value = pa.address_line1 || '';
+    const sePlaceEl = document.getElementById('se-place'); if(sePlaceEl) sePlaceEl.value = pa.place || '';
+    const sePinEl   = document.getElementById('se-pincode'); if(sePinEl) sePinEl.value = pa.pincode || '';
 
     // ── Family (from parent_detail) ───────────────────────────
     document.getElementById('se-father-name').value       = pd.father_name       || '';
@@ -1812,6 +2014,9 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       permanent_address: {
         address_line1: document.getElementById('se-permanent-address').value ||
                        document.getElementById('se-address').value,
+        state:   document.getElementById('se-state').value,
+        place:   document.getElementById('se-place')   ? document.getElementById('se-place').value   : '',
+        pincode: document.getElementById('se-pincode') ? document.getElementById('se-pincode').value : '',
       },
     };
 
@@ -2152,6 +2357,235 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     const show = inp.type === 'password';
     inp.type = show ? 'text' : 'password';
     ico.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════
+  // COURSE ENROLLMENT SECTION
+  // ═══════════════════════════════════════════════════════════════════
+  let enrSubjects = [];   // all subjects for selected branch+sem
+  let enrStudents = [];   // all students for selected branch+sem
+
+  function initEnrollment() {
+    // Populate branch dropdown from already-loaded branches
+    const brSel = document.getElementById('enr-branch');
+    if (brSel && brSel.options.length <= 1) {
+      GET('auth/branches/').then(r => {
+        (r.data.results || r.data || []).forEach(b => {
+          brSel.innerHTML += `<option value="${b.branch_code}">${b.branch_code} — ${b.branch_name}</option>`;
+        });
+      });
+    }
+    // Set default academic year
+    const yearEl = document.getElementById('enr-year');
+    if (yearEl && !yearEl.value) {
+      const y = new Date().getFullYear();
+      yearEl.value = `${y}-${y+1}`;
+    }
+  }
+
+  async function loadEnrollmentData() {
+    const branch  = document.getElementById('enr-branch').value;
+    const sem     = document.getElementById('enr-sem').value;
+    const section = document.getElementById('enr-section').value;
+    const status  = document.getElementById('enr-status');
+    const main    = document.getElementById('enr-main');
+
+    if (!branch || !sem) {
+      main.style.display = 'none';
+      status.textContent = 'Branch aur Semester select karo.';
+      return;
+    }
+
+    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading…';
+
+    // Fetch subjects for this branch+semester (filter by branch prefix or all)
+    // Subjects: CourseRegistration se un subjects ko lo jo is branch+semester mein hain
+    // (Subject model mein semester field nahi hai — CourseRegistration ke through linked hai)
+    // Saath mein sab subjects bhi fetch karo taaki naye subjects show ho sakein
+    const [crRes, allSubRes, stuRes] = await Promise.all([
+      GET(`academics/course-registrations/?branch=${branch}&semester=${sem}&page_size=500`),
+      GET('academics/subjects/?page_size=500'),
+      GET(`auth/students/?profile__branch=${branch}&page_size=200`)
+    ]);
+
+    // CourseRegistration se subject codes nikalo
+    const crList = (crRes.data.results || crRes.data || []);
+    const enrolledSubCodes = new Set(crList.map(cr => cr.subject || cr.subject_code).filter(Boolean));
+
+    // Saare subjects dikhaao — already enrolled wale highlight honge
+    // Agar koi subjects enrolled hain toh unhe first dikhao, baaki baad mein
+    const allSubs = (allSubRes.data.results || allSubRes.data || []);
+
+    // Agar branch ke liye koi existing enrollment hai → sirf woh subjects
+    // Agar naye subjects add kiye hain jinki abhi koi enrollment nahi → sab dikhao
+    if (enrolledSubCodes.size > 0) {
+      // Enrolled subjects pehle, phir baaki
+      const enrolled = allSubs.filter(s => enrolledSubCodes.has(s.subject_code));
+      const others   = allSubs.filter(s => !enrolledSubCodes.has(s.subject_code));
+      enrSubjects = [...enrolled, ...others];
+    } else {
+      enrSubjects = allSubs;  // Koi enrollment nahi → sab subjects dikhao
+    }
+
+    const allStudents = (stuRes.data.results || stuRes.data || []);
+    enrStudents = allStudents.filter(s => {
+      const p = s.profile || {};
+      const branchMatch  = (p.branch === branch);
+      const semMatch     = !sem     || String(p.current_semester) === String(sem);
+      const sectionMatch = !section || (p.section || '').toUpperCase() === section.toUpperCase();
+      return branchMatch && semMatch && sectionMatch;
+    });
+
+    if (!enrSubjects.length && !enrStudents.length) {
+      status.textContent = `Branch "${branch}" Sem ${sem} ke liye koi subjects ya students nahi mile.`;
+      main.style.display = 'none';
+      return;
+    }
+
+    status.textContent = `${enrSubjects.length} subjects · ${enrStudents.length} students mile`;
+    main.style.display = 'block';
+
+    renderEnrSubjects();
+    renderEnrStudents();
+    loadCurrentEnrollments();
+  }
+
+  function renderEnrSubjects() {
+    const el = document.getElementById('enr-subjects-list');
+    if (!enrSubjects.length) {
+      el.innerHTML = '<div class="empty" style="padding:20px;"><i class="fa-solid fa-book-open"></i><p>Koi subject nahi mila. Pehle subjects add karo.</p></div>';
+      return;
+    }
+    el.innerHTML = enrSubjects.map(s => {
+      const credits = s.subject_credit || s.credits || '?';
+      const type    = s.subject_type || s.type || '';
+      return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px;">
+        <input type="checkbox" class="enr-sub-cb" value="${s.subject_code}" checked
+          style="width:15px;height:15px;accent-color:#6366f1;flex-shrink:0;">
+        <span style="flex:1;">
+          <strong>${s.subject_code}</strong> — ${s.subject_name}
+          <span style="font-size:11px;color:#94a3b8;display:block;">${type} · ${credits} credits · Teacher: ${s.assigned_teacher||'—'}</span>
+        </span>
+      </label>`;
+    }).join('');
+  }
+
+  function renderEnrStudents() {
+    const el = document.getElementById('enr-students-list');
+    if (!enrStudents.length) {
+      el.innerHTML = '<div class="empty" style="padding:20px;"><i class="fa-solid fa-graduation-cap"></i><p>Koi student nahi mila is branch/semester ke liye.</p></div>';
+      return;
+    }
+    el.innerHTML = enrStudents.map(s => {
+      const p = s.profile || {};
+      return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px;">
+        <input type="checkbox" class="enr-stu-cb" value="${s.student_id}" checked
+          style="width:15px;height:15px;accent-color:#6366f1;flex-shrink:0;">
+        <span>
+          <strong>${p.name || s.student_id}</strong>
+          <span style="font-size:11px;color:#94a3b8;display:block;">${s.student_id} · Sec ${p.section||'?'} · Sem ${p.current_semester||'?'}</span>
+        </span>
+      </label>`;
+    }).join('');
+  }
+
+  function selectAllSubjects(val) {
+    document.querySelectorAll('.enr-sub-cb').forEach(cb => cb.checked = val);
+  }
+  function selectAllStudents(val) {
+    document.querySelectorAll('.enr-stu-cb').forEach(cb => cb.checked = val);
+  }
+
+  async function doEnroll() {
+    const branch   = document.getElementById('enr-branch').value;
+    const sem      = parseInt(document.getElementById('enr-sem').value);
+    const section  = document.getElementById('enr-section').value || 'A';
+    const resultEl = document.getElementById('enr-result');
+
+    const selSubjects = [...document.querySelectorAll('.enr-sub-cb:checked')].map(cb => cb.value);
+    const selStudents = [...document.querySelectorAll('.enr-stu-cb:checked')].map(cb => cb.value);
+
+    if (!selSubjects.length) { toast('Kam se kam ek subject select karo','error'); return; }
+    if (!selStudents.length) { toast('Kam se kam ek student select karo','error'); return; }
+
+    resultEl.textContent = '';
+    resultEl.style.color = '#6366f1';
+
+    let totalCreated = 0;
+    let failed = 0;
+
+    // Bulk enroll karo: ek subject at a time (backend supports it)
+    for (const subCode of selSubjects) {
+      const r = await POST('academics/course-registrations/bulk/', {
+        branch:      branch,
+        semester:    sem,
+        section:     section,
+        subject:     subCode,
+        student_ids: selStudents,
+      });
+      if (r && r.ok) {
+        totalCreated++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (failed === 0) {
+      resultEl.style.color = '#16a34a';
+      resultEl.textContent = `✓ ${selStudents.length} students × ${selSubjects.length} subjects — enrollment complete!`;
+      toast(`${selStudents.length} students ko ${selSubjects.length} subjects mein enroll kar diya`, 'success');
+    } else {
+      resultEl.style.color = '#dc2626';
+      resultEl.textContent = `${totalCreated} subjects OK · ${failed} subjects mein error`;
+      toast('Kuch subjects mein error aaya — console check karo', 'error');
+    }
+
+    loadCurrentEnrollments();
+  }
+
+  async function loadCurrentEnrollments() {
+    const branch  = document.getElementById('enr-branch').value;
+    const sem     = document.getElementById('enr-sem').value;
+    const section = document.getElementById('enr-section').value;
+    const el      = document.getElementById('enr-current-list');
+    if (!branch || !sem) return;
+
+    el.innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+
+    let url = `academics/course-registrations/?branch=${branch}&semester=${sem}&page_size=500`;
+    if (section) url += `&section=${section}`;
+
+    const r = await GET(url);
+    const list = r.data.results || r.data || [];
+
+    if (!list.length) {
+      el.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">Koi enrollment nahi mili</div>';
+      return;
+    }
+
+    // Group by student
+    const byStudent = {};
+    list.forEach(cr => {
+      const sid = cr.student_id || cr.student;
+      if (!byStudent[sid]) byStudent[sid] = { name: cr.student_name || sid, subjects: [] };
+      byStudent[sid].subjects.push(cr.subject_code || cr.subject);
+    });
+
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Student ID</th><th>Name</th><th>Enrolled Subjects</th><th>Count</th></tr></thead>
+      <tbody>
+        ${Object.entries(byStudent).map(([sid, d]) => `
+          <tr>
+            <td><code style="font-size:12px;">${sid}</code></td>
+            <td>${d.name}</td>
+            <td style="font-size:12px;">${d.subjects.join(', ')}</td>
+            <td><span class="badge badge-info">${d.subjects.length}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
   }
 
 </script>

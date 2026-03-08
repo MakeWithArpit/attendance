@@ -281,13 +281,24 @@ class StudentCreateView(generics.CreateAPIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def create(self, request, *args, **kwargs):
+        import json as _json, traceback as _tb
+        try:
+            return self._do_create(request, *args, **kwargs)
+        except Exception as exc:
+            _tb.print_exc()
+            return Response(
+                {'error': str(exc), 'trace': _tb.format_exc()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _do_create(self, request, *args, **kwargs):
+        import json as _json, traceback as _tb
+
         if request.user.role != 'admin':
             return Response(
                 {'error': 'Only admin can register new students.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-
-        import json as _json
 
         # ── FIX: QueryDict ko plain dict mein convert karo ──────────────────
         # Jab FormData (multipart) bheja jaata hai, request.data ek QueryDict
@@ -313,10 +324,84 @@ class StudentCreateView(generics.CreateAPIView):
                 except (ValueError, TypeError):
                     pass
 
+        print("DEBUG: data keys =", list(data.keys()))
+        print("DEBUG: profile =", data.get('profile'))
         serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        student = serializer.save()
-        return Response(StudentSerializer(student).data, status=201)
+        if not serializer.is_valid():
+            print("DEBUG: validation errors =", serializer.errors)
+            return Response(
+                {'error': 'Validation failed', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        print("DEBUG: validated_data keys =", list(serializer.validated_data.keys()))
+        try:
+            student = serializer.save()
+        except Exception as exc:
+            _tb.print_exc()
+            return Response(
+                {'error': str(exc), 'trace': _tb.format_exc()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # ── Auto CourseRegistration ─────────────────────────────────────────
+        # Student ke profile se branch, section, semester nikaalo aur
+        # us branch+semester ke saare subjects mein enroll kar do.
+        #
+        # Priority order:
+        #   1★ Subject.branch + Subject.semester (direct tag — BEST, instant)
+        #   2. Doosre students ki existing CourseRegistration copy karo
+        #   3. TimeTable se subjects lo
+        # ─────────────────────────────────────────────────────────────────────
+        try:
+            from academics.models import Subject, CourseRegistration
+            profile = getattr(student, 'profile', None)
+            if profile and profile.branch and profile.section and profile.current_semester:
+                branch   = profile.branch
+                section  = profile.section.strip().upper()
+                semester = int(profile.current_semester)
+
+                # Strategy 1 ★ BEST: Subject mein directly branch+semester tagged
+                subjects = list(Subject.objects.filter(
+                    branch=branch,
+                    semester=semester,
+                ).distinct())
+
+                # Strategy 2: Doosre students ki existing CourseRegistration se
+                if not subjects:
+                    subjects = list(Subject.objects.filter(
+                        courseregistration__branch=branch,
+                        courseregistration__semester=semester,
+                    ).distinct())
+
+                # Strategy 3: TimeTable se
+                if not subjects:
+                    from academics.models import TimeTable
+                    subjects = list(Subject.objects.filter(
+                        timetable__branch=branch,
+                        timetable__semester=semester,
+                    ).distinct())
+
+                for subj in subjects:
+                    CourseRegistration.objects.get_or_create(
+                        student=student,
+                        subject=subj,
+                        semester=semester,
+                        defaults={'branch': branch, 'section': section}
+                    )
+        except Exception:
+            pass  # Registration fail hone se student create nahi rokna
+
+        try:
+            response_data = StudentSerializer(student).data
+        except Exception as exc:
+            _tb.print_exc()   # server log mein print hoga
+            # Student ban gaya — sirf simple response bhejo
+            response_data = {
+                'student_id': student.student_id,
+                'enrollment_number': student.enrollment_number,
+                'roll_number': student.roll_number,
+            }
+        return Response(response_data, status=201)
 
 
 class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):

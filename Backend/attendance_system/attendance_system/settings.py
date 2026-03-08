@@ -96,6 +96,12 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'arpitgangwar062@gmail.com'
 EMAIL_HOST_PASSWORD = 'gbhvugvjibswyanj'
 
+# Internationalization
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE     = 'Asia/Kolkata'   # IST — India Standard Time
+USE_I18N      = True
+USE_TZ        = True             # Store timestamps as UTC in DB, display as IST
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 TEMPLATES = [
@@ -115,7 +121,3 @@ TEMPLATES = [
 ]
 
 CORS_ALLOWED_ORIGINS = ["https://attendance-ashen-ten.vercel.app", "http://localhost:8000"]
-
-
-
-

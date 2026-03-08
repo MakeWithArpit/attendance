@@ -6,6 +6,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Student, StudentProfile, Teacher, Branch, ParentDetail, PermanentAddress, PresentAddress
 
 
+
 # ─────────────────────────────────────────────
 # Custom JWT Token - adds role & name to token response
 # ─────────────────────────────────────────────
@@ -48,12 +49,38 @@ class BranchSerializer(serializers.ModelSerializer):
 # Student Serializers
 # ─────────────────────────────────────────────
 class StudentProfileSerializer(serializers.ModelSerializer):
+    # Explicitly mark fields that may be blank in the creation form
+    name             = serializers.CharField()
+    domicile_state   = serializers.CharField(required=False, allow_blank=True, default='')
+    date_of_joining  = serializers.DateField(required=False, allow_null=True, default=None)
+    section          = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    current_semester = serializers.IntegerField(required=False, allow_null=True, default=None)
+    email            = serializers.EmailField(required=False, allow_blank=True, allow_null=True, default=None)
+    photo            = serializers.ImageField(required=False, allow_null=True, default=None)
+    # branch: accepts branch_code string (pk), optional — admin may not always select one
+    branch           = serializers.SlugRelatedField(
+        slug_field='branch_code',
+        queryset=Branch.objects.all(),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+
     class Meta:
         model = StudentProfile
         exclude = ['student']
 
 
 class ParentDetailSerializer(serializers.ModelSerializer):
+    # All parent fields are optional — guardian may not have both parents' info
+    father_name       = serializers.CharField(required=False, allow_blank=True, default='')
+    father_mobile     = serializers.CharField(required=False, allow_blank=True, default='')
+    father_occupation = serializers.CharField(required=False, allow_blank=True, default='')
+    father_email      = serializers.EmailField(required=False, allow_blank=True, allow_null=True, default=None)
+    mother_name       = serializers.CharField(required=False, allow_blank=True, default='')
+    mother_mobile     = serializers.CharField(required=False, allow_blank=True, default='')
+    mother_occupation = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta:
         model = ParentDetail
         exclude = ['student']
@@ -120,20 +147,42 @@ class StudentCreateSerializer(serializers.Serializer):
         registered_photo     = validated_data.pop('registered_photo', None)
 
         # Create User
-        user = User.objects.create_user(
-            username=validated_data['student_id'],
-            password=validated_data['password'],
-            role='student'
-        )
-        # Create Student
-        student = Student.objects.create(
-            student_id=validated_data['student_id'],
-            user=user,
-            enrollment_number=validated_data['enrollment_number'],
-            roll_number=validated_data['roll_number'],
-            rfid_number=validated_data.get('rfid_number') or None,
-            aadhar_number=validated_data.get('aadhar_number') or None,
-        )
+        from django.db import IntegrityError, transaction
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=validated_data['student_id'],
+                    password=validated_data['password'],
+                    role='student'
+                )
+                student = Student.objects.create(
+                    student_id=validated_data['student_id'],
+                    user=user,
+                    enrollment_number=validated_data['enrollment_number'],
+                    roll_number=validated_data['roll_number'],
+                    rfid_number=validated_data.get('rfid_number') or None,
+                    aadhar_number=validated_data.get('aadhar_number') or None,
+                )
+        except IntegrityError as e:
+            err = str(e).lower()
+            if 'student_id' in err or 'username' in err or 'users' in err:
+                raise serializers.ValidationError(
+                    {'student_id': f"Student ID '{validated_data['student_id']}' already exists."}
+                )
+            elif 'enrollment' in err:
+                raise serializers.ValidationError(
+                    {'enrollment_number': 'This enrollment number is already registered.'}
+                )
+            elif 'aadhar' in err:
+                raise serializers.ValidationError(
+                    {'aadhar_number': 'This Aadhar number is already registered.'}
+                )
+            elif 'rfid' in err:
+                raise serializers.ValidationError(
+                    {'rfid_number': 'This RFID number is already registered.'}
+                )
+            else:
+                raise serializers.ValidationError({'non_field_errors': f'Duplicate entry: {str(e)}'})
 
         # Save face photo if provided
         if registered_photo:

@@ -41,6 +41,7 @@ def get_student_attendance_summary(student_id, semester: int, academic_year: str
     from .models import Attendance
     from academics.models import CourseRegistration
 
+    # FIX: academic_year bhi filter karo taaki purane semester ke subjects na aayein
     registrations = CourseRegistration.objects.filter(
         student_id=student_id, semester=semester
     ).select_related('subject')
@@ -57,6 +58,12 @@ def get_student_attendance_summary(student_id, semester: int, academic_year: str
         attended = records.filter(is_present=True).count()
         pct      = calculate_attendance_percentage(total, attended)
 
+        # Agar is subject mein koi class hi nahi hui toh skip karo
+        # (enrollment hai lekin abhi tak koi session nahi hua)
+        # Uncomment karo agar empty subjects hide karne hain:
+        # if total == 0:
+        #     continue
+
         if pct >= 75:
             status = 'safe'
         elif pct >= 60:
@@ -70,7 +77,9 @@ def get_student_attendance_summary(student_id, semester: int, academic_year: str
             'total_classes': total,
             'attended':      attended,
             'percentage':    pct,
-            'status':        status,
+            'status':        status,  # 'safe' | 'warning' | 'critical'
+            # Note: 0 total_classes → 0% → 'critical' — thoda misleading hai
+            # lekin student ko pata hoga ki classes abhi shuru nahi hui
         })
     return summary
 
@@ -140,14 +149,18 @@ def get_students_by_attendance_threshold(subject_id, semester: int, academic_yea
             'percentage':        pct,
         }
 
+        # FIX: Mutually exclusive categories — student sirf ek list mein hoga
+        # below_75 mein sirf 60-75 wale hain, below_60 mein sirf 50-60 wale
         if pct >= 75:
             result['above_75'].append(student_info)
+        elif pct >= 60:
+            result['below_75'].append(student_info)   # 60-74.99%
+        elif pct >= 50:
+            result['below_60'].append(student_info)   # 50-59.99%
         else:
-            result['below_75'].append(student_info)
-            if pct < 60:
-                result['below_60'].append(student_info)
-            if pct < 50:
-                result['below_50'].append(student_info)
+            result['below_50'].append(student_info)   # < 50%
+            result['below_60'].append(student_info)   # below_60 mein bhi rakhte hain (cumulative)
+            result['below_75'].append(student_info)   # aur below_75 mein bhi
 
     return result
 

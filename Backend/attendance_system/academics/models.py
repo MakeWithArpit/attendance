@@ -19,6 +19,8 @@ class Subject(models.Model):
         ('tutorial', 'Tutorial'),
     ]
 
+    SEMESTER_CHOICES = [(i, f'Semester {i}') for i in range(1, 9)]
+
     subject_code           = models.CharField(max_length=20, primary_key=True)
     subject_name           = models.CharField(max_length=100)
     subject_classification = models.CharField(max_length=20, choices=CLASSIFICATION_CHOICES)
@@ -28,11 +30,28 @@ class Subject(models.Model):
         Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='subjects'
     )
 
+    # ── Auto-enrollment ke liye: subject kis branch aur semester ka hai ──
+    # Yeh set karne ke baad naye students automatically enroll ho jaayenge
+    # branch: e.g. "ECE", "CSE" — optional (NULL = sab branches)
+    # semester: 1-8 — optional (NULL = sab semesters)
+    branch   = models.ForeignKey(
+        Branch, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='subjects',
+        help_text='Kis branch ka subject hai (auto-enroll ke liye zaruri)'
+    )
+    semester = models.PositiveSmallIntegerField(
+        choices=SEMESTER_CHOICES,
+        null=True, blank=True,
+        help_text='Kis semester ka subject hai (auto-enroll ke liye zaruri)'
+    )
+
     class Meta:
         db_table = 'subjects'
 
     def __str__(self):
-        return f"{self.subject_code} - {self.subject_name}"
+        branch_str = f' [{self.branch_id}]' if self.branch_id else ''
+        sem_str    = f' Sem{self.semester}' if self.semester else ''
+        return f"{self.subject_code}{branch_str}{sem_str} - {self.subject_name}"
 
 
 class CourseRegistration(models.Model):

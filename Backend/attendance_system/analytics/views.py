@@ -69,10 +69,16 @@ class SubjectWiseAnalyticsView(APIView):
             )
             total_students = len(thresholds["above_75"]) + len(thresholds["below_75"])
 
-            # Average attendance for this subject
+            # Average attendance for this subject — sirf is branch+section ke students ka
+            # FIX: branch_id aur section filter add kiya taaki dono sections ka data mix na ho
             records = Attendance.objects.filter(
-                subject=subject, semester=semester, academic_year=academic_year
-            )
+                subject=subject,
+                semester=semester,
+                academic_year=academic_year,
+                student__courseregistration__branch_id=branch_id,
+                student__courseregistration__section=section,
+                student__courseregistration__subject=subject,
+            ).distinct()
             total_present = records.filter(is_present=True).count()
             total_records = records.count()
             avg_pct = calculate_attendance_percentage(total_records, total_present)
