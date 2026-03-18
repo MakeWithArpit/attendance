@@ -19,6 +19,33 @@
 .modal-close{width:32px;height:32px;border-radius:50%;border:none;background:#F1F5F9;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:13px;transition:all .15s;}
 .modal-close:hover{background:#E2E8F0;color:#0C1B33;}
 .modal-body{padding:20px 24px 24px;}
+/* ── Session Settings list ── */
+.sess-settings{border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:20px;}
+.sess-settings-head{padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-3);display:flex;align-items:center;gap:6px;}
+.sess-settings-head i{color:var(--blue);font-size:11px;}
+.sess-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+.sess-row:last-child{border-bottom:none;}
+.sess-row:hover{background:var(--surface-2);}
+.sess-row-on{background:var(--blue-dim);}
+.sess-row-on:hover{background:#dce8fb;}
+.sess-row-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.sess-row-text{flex:1;min-width:0;}
+.sess-row-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:1px;}
+.sess-row-desc{font-size:11.5px;color:var(--text-3);}
+/* ── iOS-style toggle switch ── */
+.sw{position:relative;display:inline-flex;cursor:pointer;flex-shrink:0;}
+.sw input{opacity:0;width:0;height:0;position:absolute;}
+.sw-track{display:block;width:38px;height:22px;border-radius:11px;background:var(--border-2);transition:background .2s;position:relative;}
+.sw-track::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s;}
+.sw input:checked + .sw-track{background:var(--blue);}
+.sw input:checked + .sw-track::after{transform:translateX(16px);}
+/* ── Duration badge ── */
+#dur-badge{font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;background:var(--surface-2);color:var(--text-3);border:1px solid var(--border-2);white-space:nowrap;}
+/* ── Segmented duration control ── */
+.dur-seg{display:flex;flex-wrap:wrap;gap:5px;}
+.dur-seg-btn{padding:5px 11px;border-radius:6px;border:1px solid var(--border-2);background:var(--surface);color:var(--text-2);font-size:12px;font-weight:500;cursor:pointer;font-family:'Sora',sans-serif;transition:all .12s;white-space:nowrap;}
+.dur-seg-btn:hover{border-color:var(--navy);color:var(--navy);background:var(--surface-2);}
+.dur-seg-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600;}
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
 .info-field{padding:11px 0;border-bottom:1px solid #F1F5F9;}
 .info-field:nth-child(odd){padding-right:16px;}
@@ -44,6 +71,89 @@
 
 
 
+<!-- ══ Manual Attendance Modal ══ -->
+<div class="modal-overlay" id="m-manual-att">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--navy);"><i class="fa-solid fa-list-check"></i> Manual Attendance</div>
+      <button class="modal-close" onclick="closeModal('m-manual-att')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <!-- Summary bar -->
+      <div style="padding:12px 24px;background:var(--surface-2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;color:var(--text-2);">
+          <strong id="ma-subject-lbl" style="color:var(--text);">—</strong>
+          &nbsp;·&nbsp; <span id="ma-count-lbl">0 students</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="maMarkAll(true)"><i class="fa-solid fa-circle-check"></i> All Present</button>
+          <button class="btn btn-outline btn-sm" onclick="maMarkAll(false)"><i class="fa-solid fa-circle-xmark"></i> All Absent</button>
+        </div>
+      </div>
+      <!-- Student table -->
+      <div style="max-height:400px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead style="position:sticky;top:0;z-index:1;">
+            <tr style="background:var(--surface-2);">
+              <th style="padding:9px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600;color:var(--text-3);border-bottom:1px solid var(--border);">Student ID</th>
+              <th style="padding:9px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600;color:var(--text-3);border-bottom:1px solid var(--border);">Name</th>
+              <th style="padding:9px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600;color:var(--text-3);border-bottom:1px solid var(--border);">Father Name</th>
+              <th style="padding:9px 16px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600;color:var(--text-3);border-bottom:1px solid var(--border);">Present</th>
+            </tr>
+          </thead>
+          <tbody id="ma-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="font-size:13px;color:var(--text-2);margin-right:auto;">
+        <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+        Present: <strong id="ma-present-ct" style="color:var(--text);">0</strong> /
+        <span id="ma-total-ct">0</span>
+      </div>
+      <button class="btn btn-outline" onclick="closeModal('m-manual-att')">Cancel</button>
+      <button class="btn" style="background:var(--navy);color:#fff;" onclick="maConfirm()">
+        <i class="fa-solid fa-check"></i> Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Attendance Confirm Popup ══ -->
+<div class="modal-overlay" id="m-att-confirm">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--navy);"><i class="fa-solid fa-clipboard-check"></i> Confirm Submission</div>
+      <button class="modal-close" onclick="closeModal('m-att-confirm')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin-bottom:20px;">
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:16px 8px;">
+          <div style="font-size:24px;font-weight:700;font-family:'Fraunces',serif;" id="conf-total">0</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:3px;">Total</div>
+        </div>
+        <div style="background:var(--green-dim);border:1px solid #BBF7D0;border-radius:10px;padding:16px 8px;">
+          <div style="font-size:24px;font-weight:700;font-family:'Fraunces',serif;color:var(--green);" id="conf-present">0</div>
+          <div style="font-size:11px;color:var(--green);margin-top:3px;">Present</div>
+        </div>
+        <div style="background:var(--red-dim);border:1px solid #FECACA;border-radius:10px;padding:16px 8px;">
+          <div style="font-size:24px;font-weight:700;font-family:'Fraunces',serif;color:var(--red);" id="conf-absent">0</div>
+          <div style="font-size:11px;color:var(--red);margin-top:3px;">Absent</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--text-2);text-align:center;">Kya aap yeh attendance submit karna chahte hain? Ek baar submit hone ke baad edit nahi ho sakti.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('m-att-confirm');openModal('m-manual-att')">
+        <i class="fa-solid fa-arrow-left"></i> Back
+      </button>
+      <button class="btn btn-success" onclick="maSubmit()">
+        <i class="fa-solid fa-paper-plane"></i> Submit Attendance
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
   <!-- Sidebar -->
   <aside class="sidebar">
@@ -68,7 +178,7 @@
       <div class="nav-section">Navigation</div>
       <button class="nav-item active" onclick="go('dashboard',this)"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
       <button class="nav-item" onclick="go('session',this)"><i class="fa-solid fa-circle-play"></i> Start Session</button>
-      <button class="nav-item" onclick="go('manual',this)"><i class="fa-solid fa-pencil"></i> Mark Attendance</button>
+      <button class="nav-item" onclick="go('attreq',this)"><i class="fa-solid fa-file-circle-check"></i> Attendance Requests</button>
       <button class="nav-item" onclick="go('leaves',this)"><i class="fa-solid fa-file-signature"></i> Leave Requests</button>
       <button class="nav-item" onclick="go('timetable',this)"><i class="fa-solid fa-calendar-week"></i> My Timetable</button>
       <button class="nav-item" onclick="go('students',this)"><i class="fa-solid fa-graduation-cap"></i> Student Info</button>
@@ -104,10 +214,15 @@
         <h1 class="page-title">Start Session <span class="page-title-rule"></span></h1>
         <p class="page-sub">Create a new attendance session for a class</p>
       </div>
+
       <div class="card card-accent">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-circle-play"></i> Session Details</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/sessions/start/</span></div>
-        <div class="form-row">
+        <div class="card-title">
+          <div class="card-title-left"><i class="fa-solid fa-circle-play"></i> Session Details</div>
+          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/sessions/start/</span></div>
+        </div>
+
+        <!-- Row 1: Subject + Branch -->
+        <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-book"></i> Subject</label>
             <select id="s-subject"><option value="">Select Subject</option></select>
@@ -116,6 +231,10 @@
             <label><i class="fa-solid fa-building-columns"></i> Branch</label>
             <select id="s-branch"><option value="">Select Branch</option></select>
           </div>
+        </div>
+
+        <!-- Row 2: Semester + Section + Date + Academic Year -->
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:20px;">
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-layer-group"></i> Semester</label>
             <select id="s-sem"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
@@ -130,19 +249,109 @@
           </div>
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-calendar-days"></i> Academic Year</label>
-            <input type="text" id="s-year" placeholder="e.g. 2025-2026">
+            <select id="s-year">
+              <option value="">Select Year</option>
+            </select>
           </div>
         </div>
-        <div style="display:flex;gap:20px;align-items:center;margin-bottom:18px;flex-wrap:wrap;">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin:0;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text);">
-            <input type="checkbox" id="s-facial" style="width:15px;height:15px;">
-            <i class="fa-solid fa-camera" style="color:var(--blue);font-size:13px;"></i> Enable Face Attendance
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin:0;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text);">
-            <input type="checkbox" id="s-geo" style="width:15px;height:15px;">
-            <i class="fa-solid fa-location-dot" style="color:#EA580C;font-size:13px;"></i> Enable Geo-Fencing
-          </label>
+
+        <!-- ── Session Settings ── -->
+        <div class="sess-settings">
+          <div class="sess-settings-head">
+            <i class="fa-solid fa-sliders"></i> Session Settings
+          </div>
+
+          <!-- Row: Face Attendance -->
+          <div class="sess-row sess-row-on" id="face-row" onclick="document.getElementById('s-facial').click()">
+            <div class="sess-row-icon" style="background:var(--blue-dim);color:var(--blue);">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div class="sess-row-text">
+              <div class="sess-row-title">Face Attendance</div>
+              <div class="sess-row-desc">Students selfie se attendance mark kar sakte hain</div>
+            </div>
+            <label class="sw" onclick="event.stopPropagation()">
+              <input type="checkbox" id="s-facial" checked
+                onchange="document.getElementById('face-row').classList.toggle('sess-row-on',this.checked)">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <!-- Row: Geo-Fencing -->
+          <div class="sess-row" id="geo-row" onclick="document.getElementById('s-geo').click()">
+            <div class="sess-row-icon" style="background:#FFF3E0;color:#EA580C;">
+              <i class="fa-solid fa-location-dot"></i>
+            </div>
+            <div class="sess-row-text">
+              <div class="sess-row-title">Geo-Fencing</div>
+              <div class="sess-row-desc">Campus ke bahar se attendance block ho jaayegi</div>
+            </div>
+            <label class="sw" onclick="event.stopPropagation()">
+              <input type="checkbox" id="s-geo"
+                onchange="document.getElementById('geo-row').classList.toggle('sess-row-on',this.checked);onGeoToggle()">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
+          <!-- Row: Session Duration -->
+          <div class="sess-row" style="cursor:default;align-items:flex-start;padding:14px 16px;">
+            <div class="sess-row-icon" style="background:#ECFDF5;color:#059669;margin-top:2px;">
+              <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div class="sess-row-text" style="flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div class="sess-row-title">Session Duration</div>
+                <span id="dur-badge">No Limit</span>
+              </div>
+              <div class="sess-row-desc" style="margin-bottom:10px;">Set karein kitne minute baad session expire ho — proxy attendance automatically block hogi</div>
+              <!-- Segmented control -->
+              <div class="dur-seg" role="group" aria-label="Duration">
+                <button type="button" class="dur-seg-btn active" data-val="0"  onclick="selectDuration(this)">∞ No limit</button>
+                <button type="button" class="dur-seg-btn" data-val="5"   onclick="selectDuration(this)">5 min</button>
+                <button type="button" class="dur-seg-btn" data-val="10"  onclick="selectDuration(this)">10 min</button>
+                <button type="button" class="dur-seg-btn" data-val="15"  onclick="selectDuration(this)">15 min</button>
+                <button type="button" class="dur-seg-btn" data-val="20"  onclick="selectDuration(this)">20 min</button>
+                <button type="button" class="dur-seg-btn" data-val="30"  onclick="selectDuration(this)">30 min</button>
+                <button type="button" class="dur-seg-btn" data-val="45"  onclick="selectDuration(this)">45 min</button>
+                <button type="button" class="dur-seg-btn" data-val="60"  onclick="selectDuration(this)">1 hour</button>
+                <button type="button" class="dur-seg-btn" data-val="custom" onclick="selectDuration(this)">Custom</button>
+              </div>
+              <div id="dur-custom-wrap" style="display:none;margin-top:10px;display:none;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="number" id="s-duration-custom" min="1" max="300" placeholder="e.g. 25"
+                    style="width:90px;" oninput="onCustomDurInput()">
+                  <span style="font-size:13px;color:var(--text-3);">minutes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /sess-settings -->
+
+        <!-- ── Geo config panel ── -->
+        <div id="geo-panel" style="display:none;border:1px solid #FED7AA;border-radius:8px;padding:14px 16px;margin-bottom:16px;background:#FFFBF7;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#C2410C;margin-bottom:12px;">
+            <i class="fa-solid fa-location-dot"></i> Geo-Fence Location
+          </div>
+          <div id="geo-status" style="margin-bottom:10px;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 140px;gap:12px;">
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-map-pin"></i> Latitude <span style="font-weight:400;color:var(--text-3);">(auto-fill)</span></label>
+              <input type="text" id="s-lat" readonly placeholder="Detecting…"
+                style="background:var(--surface-2);color:var(--text-3);cursor:not-allowed;font-family:monospace;font-size:12px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-map-pin"></i> Longitude <span style="font-weight:400;color:var(--text-3);">(auto-fill)</span></label>
+              <input type="text" id="s-lng" readonly placeholder="Detecting…"
+                style="background:var(--surface-2);color:var(--text-3);cursor:not-allowed;font-family:monospace;font-size:12px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-solid fa-circle-dot"></i> Radius (m)</label>
+              <input type="number" id="s-radius" value="200" min="10" max="5000">
+            </div>
+          </div>
         </div>
+
         <button class="btn btn-navy" onclick="startSession()"><i class="fa-solid fa-circle-play"></i> Start Session</button>
       </div>
 
@@ -151,69 +360,58 @@
           <div class="card-title-left" style="color:var(--green);"><i class="fa-solid fa-circle-check"></i> Session Started Successfully</div>
         </div>
         <div class="result-grid" id="session-result-body"></div>
+        <!-- Action buttons shown after session starts -->
+        <div id="session-actions" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);gap:10px;flex-wrap:wrap;">
+          <button class="btn" style="background:var(--navy);color:#fff;" onclick="openManualModal()">
+            <i class="fa-solid fa-list-check"></i> Manual Attendance
+          </button>
+          <button class="btn" style="background:#DC2626;color:#fff;margin-left:auto;" onclick="closeSession()">
+            <i class="fa-solid fa-circle-stop"></i> End Session
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Mark Attendance -->
-    <div id="sec-manual" class="section">
+    <!-- Attendance Requests -->
+    <div id="sec-attreq" class="section">
       <div class="page-header">
-        <h1 class="page-title">Mark Attendance <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Load students for a session and toggle present / absent</p>
+        <h1 class="page-title">Attendance Requests <span class="page-title-rule"></span></h1>
+        <p class="page-sub">Students ki missed attendance ke liye admin ko request bhejein</p>
       </div>
-
       <div class="card card-accent">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-users"></i> Load Student List</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/sessions/start/</span></div>
-        <div class="form-row">
+        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-file-circle-plus"></i> New Request</div></div>
+        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/attendance-requests/</span></div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
           <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-book"></i> Subject</label>
-            <select id="m-subject"><option value="">Select</option></select>
+            <label><i class="fa-solid fa-id-badge"></i> Student ID</label>
+            <input type="text" id="ar-student-id" placeholder="e.g. BCS2024001" oninput="lookupStudent()">
           </div>
           <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-building-columns"></i> Branch</label>
-            <select id="m-branch"><option value="">Select</option></select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-layer-group"></i> Semester</label>
-            <select id="m-sem"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-users-rectangle"></i> Section</label>
-            <select id="m-section"><option value="">—</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-regular fa-calendar"></i> Date</label>
-            <input type="date" id="m-date">
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-calendar-days"></i> Academic Year</label>
-            <input type="text" id="m-year" placeholder="e.g. 2025-2026">
+            <label><i class="fa-solid fa-user"></i> Student Name</label>
+            <input type="text" id="ar-student-name" readonly placeholder="Auto-fill…"
+              style="background:var(--surface-2);color:var(--text-3);cursor:not-allowed;">
           </div>
         </div>
-        <button class="btn btn-navy" onclick="loadStudents()"><i class="fa-solid fa-users"></i> Load Students</button>
+        <div class="form-group">
+          <label><i class="fa-solid fa-hashtag"></i> Session</label>
+          <select id="ar-session">
+            <option value="">— Select session (pehle student ID enter karo) —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-pen-to-square"></i> Reason</label>
+          <textarea id="ar-reason" rows="3" placeholder="e.g. Face recognition fail hua / network error / session expire ho gayi…"></textarea>
+        </div>
+        <button class="btn btn-navy" onclick="submitAttReq()"><i class="fa-solid fa-paper-plane"></i> Submit to Admin</button>
       </div>
 
-      <div class="card" id="att-card" style="display:none;">
+      <div class="card">
         <div class="card-title">
-          <div class="card-title-left">
-            <i class="fa-solid fa-list-check"></i> Student List
-            <span class="badge badge-blue" style="font-weight:600;font-size:12px;" id="total-students-badge">0 students</span>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-outline btn-sm" onclick="markAll(true)"><i class="fa-solid fa-circle-check"></i> All Present</button>
-            <button class="btn btn-outline btn-sm" onclick="markAll(false)"><i class="fa-solid fa-circle-xmark"></i> All Absent</button>
-          </div>
+          <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> My Submitted Requests</div>
+          <button class="btn btn-outline btn-sm" onclick="loadMyAttReqs()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/mark/manual/</span></div>
-        <div class="att-grid" id="att-grid"></div>
-        <div style="margin-top:18px;display:flex;align-items:center;gap:16px;border-top:1px solid var(--border);padding-top:16px;">
-          <button class="btn btn-success" onclick="submitAttendance()"><i class="fa-solid fa-paper-plane"></i> Submit Attendance</button>
-          <span style="font-size:13px;color:var(--text-2);">
-            <i class="fa-solid fa-circle-check" style="color:var(--green);"></i> Present:
-            <strong id="present-count" style="color:var(--text);">0</strong> /
-            <span id="total-count">0</span>
-          </span>
-        </div>
+        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/attendance-requests/</span></div>
+        <div id="attreq-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
       </div>
     </div>
 
@@ -259,16 +457,34 @@
       </div>
       <div class="card card-accent">
         <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/students/</span></div>
-        <div class="filters">
+        <div class="filters" style="flex-wrap:wrap;gap:12px;">
           <div class="filter-group">
             <label><i class="fa-solid fa-magnifying-glass"></i> Search</label>
-            <input type="text" id="ts-search" placeholder="Name / Enrollment / Student ID" style="width:240px;" oninput="teacherSearchStudents()">
+            <input type="text" id="ts-search" placeholder="Name / Enrollment / Student ID / Roll No" style="width:260px;" oninput="teacherSearchStudents()">
           </div>
           <div class="filter-group">
             <label><i class="fa-solid fa-building-columns"></i> Branch</label>
             <select id="ts-branch" onchange="teacherSearchStudents()" style="width:160px;">
               <option value="">All Branches</option>
             </select>
+          </div>
+          <div class="filter-group">
+            <label><i class="fa-solid fa-layer-group"></i> Semester</label>
+            <select id="ts-sem" onchange="teacherSearchStudents()" style="width:110px;">
+              <option value="">All</option>
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+              <option>5</option><option>6</option><option>7</option><option>8</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label><i class="fa-solid fa-users-rectangle"></i> Section</label>
+            <select id="ts-section" onchange="teacherSearchStudents()" style="width:100px;">
+              <option value="">All</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option>
+            </select>
+          </div>
+          <div class="filter-group" style="align-self:flex-end;">
+            <button class="btn" style="background:var(--surface-2);color:var(--text-2);height:36px;padding:0 14px;font-size:12px;" onclick="clearStudentFilters()"><i class="fa-solid fa-xmark"></i> Clear</button>
           </div>
         </div>
       </div>
@@ -340,9 +556,11 @@
     document.getElementById('sec-'+id).classList.add('active');
     el.classList.add('active');
     if(id==='dashboard') loadDashboard();
-    if(id==='session'||id==='manual') loadDropdowns();
+    if(id==='session')   loadDropdowns();
     if(id==='leaves')    loadLeaves();
     if(id==='timetable') loadTimetable();
+    if(id==='students')  loadTeacherStudents();
+    if(id==='attreq')    { loadMyAttReqs(); loadSessionsForReq(); }
   }
 
   async function loadDashboard(){
@@ -377,115 +595,318 @@
     const [sr,br]=await Promise.all([GET('attendance/sessions/start/'),GET('auth/branches/')]);
     subjects=sr?.data?.subjects||[];
     branches=br?.data?.results||br?.data||[];
-    ['s-subject','m-subject'].forEach(id=>{
-      const sel=document.getElementById(id);if(!sel)return;
-      sel.innerHTML='<option value="">Select Subject</option>';
-      subjects.forEach(s=>sel.innerHTML+=`<option value="${s.subject_code}">${s.subject_name} (${s.subject_code})</option>`);
-    });
-    ['s-branch','m-branch'].forEach(id=>{
-      const sel=document.getElementById(id);if(!sel)return;
-      sel.innerHTML='<option value="">Select Branch</option>';
-      branches.forEach(b=>sel.innerHTML+=`<option value="${b.branch_code}">${b.branch_name}</option>`);
-    });
+    const subSel=document.getElementById('s-subject');
+    if(subSel){ subSel.innerHTML='<option value="">Select Subject</option>'; subjects.forEach(s=>subSel.innerHTML+=`<option value="${s.subject_code}">${s.subject_name} (${s.subject_code})</option>`); }
+    const brSel=document.getElementById('s-branch');
+    if(brSel){ brSel.innerHTML='<option value="">Select Branch</option>'; branches.forEach(b=>brSel.innerHTML+=`<option value="${b.branch_code}">${b.branch_name}</option>`); }
     const today=new Date().toISOString().split('T')[0];
-    ['s-date','m-date'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=today;});
+    const sDate=document.getElementById('s-date'); if(sDate&&!sDate.value) sDate.value=today;
+    const ay=getAcademicYear();
+    // Populate academic year dropdown
+    const sYear=document.getElementById('s-year');
+    if(sYear && sYear.tagName==='SELECT' && sYear.options.length<=1) {
+      const nowY = new Date().getFullYear();
+      // Show 3 years: previous, current, next
+      [[nowY-1,nowY],[nowY,nowY+1],[nowY+1,nowY+2]].forEach(([a,b]) => {
+        const opt = document.createElement('option');
+        opt.value = `${a}-${b}`;
+        opt.textContent = `${a}-${b}`;
+        if(`${a}-${b}` === ay) opt.selected = true;
+        sYear.appendChild(opt);
+      });
+    }
+
+    // Agar active session already hai (page reload pe bhi) — dikhao
+    const existingSession = sr?.data?.active_session;
+    if(existingSession){
+      activeSession = existingSession;
+      studentsList  = sr?.data?.students || [];
+      attendance    = {};
+      studentsList.forEach(s=>{ attendance[s.student_id]=true; });
+      showSessionResult(existingSession, sr?.data?.total_students||0, false);
+    }
   }
 
-  async function startSession(){
-    const body={
-      subject_id:document.getElementById('s-subject').value,
-      branch_id:document.getElementById('s-branch').value,
-      semester:document.getElementById('s-sem').value,
-      section:document.getElementById('s-section').value,
-      date:document.getElementById('s-date').value,
-      academic_year:document.getElementById('s-year').value,
-      facial_enabled:document.getElementById('s-facial').checked,
-      geo_fencing_enabled:document.getElementById('s-geo').checked,
-    };
-    if(!body.subject_id||!body.branch_id||!body.semester||!body.section||!body.date||!body.academic_year){toast('Please fill all required fields','error');return;}
-    const r=await POST('attendance/sessions/start/',body);
-    if(!r||!r.ok){toast(r?.data?.error||'Failed to start session','error');return;}
-    activeSession=r.data.session;
-    toast('Session started successfully','success');
-    const s=r.data.session;
+  function showSessionResult(s, totalStudents, justCreated){
     document.getElementById('session-result').style.display='block';
     document.getElementById('session-result-body').innerHTML=`
       <div class="result-field"><div class="result-label"><i class="fa-solid fa-hashtag"></i> Session ID</div><div class="result-value">${s.id}</div></div>
       <div class="result-field"><div class="result-label"><i class="fa-solid fa-book"></i> Subject</div><div class="result-value">${s.subject_name||s.subject}</div></div>
-      <div class="result-field"><div class="result-label"><i class="fa-solid fa-users"></i> Students Enrolled</div><div class="result-value">${r.data.total_students}</div></div>
-      <div class="result-field"><div class="result-label"><i class="fa-solid fa-circle-dot"></i> Status</div><div class="result-value"><span class="badge badge-safe"><i class="fa-solid fa-circle" style="font-size:8px;"></i>${s.status}</span></div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-layer-group"></i> Semester / Section</div><div class="result-value">Sem ${s.semester||'—'} / Sec ${s.section||'—'}</div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-calendar"></i> Date</div><div class="result-value">${s.date||'—'}</div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-users"></i> Students Enrolled</div><div class="result-value">${totalStudents}</div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-circle-dot"></i> Status</div><div class="result-value"><span class="badge badge-safe"><i class="fa-solid fa-circle" style="font-size:8px;"></i> ${s.status}</span></div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-hourglass-half" style="color:#7C3AED;"></i> Session Duration</div><div class="result-value">
+        ${s.duration_minutes && s.duration_minutes > 0
+          ? `<span style="color:#7C3AED;font-weight:600;">${s.duration_minutes} min</span>
+             <span style="color:#8A95A3;font-size:11px;"> &nbsp;·&nbsp; Expires: ${s.expires_at ? new Date(s.expires_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—'}</span>
+             &nbsp;<span id="session-countdown" style="background:#F5F3FF;color:#7C3AED;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:monospace;"></span>`
+          : '<span style="color:#8A95A3;">No Limit (Manual Close)</span>'}
+      </div></div>
       <div class="result-field"><div class="result-label"><i class="fa-solid fa-camera"></i> Face Recognition</div><div class="result-value" style="color:${s.facial_enabled?'var(--green)':'var(--text-3)'};">${s.facial_enabled?'Enabled':'Disabled'}</div></div>
-      <div class="result-field"><div class="result-label"><i class="fa-solid fa-location-dot"></i> Geo-Fencing</div><div class="result-value" style="color:${s.geo_fencing_enabled?'var(--green)':'var(--text-3)'};">${s.geo_fencing_enabled?'Enabled':'Disabled'}</div></div>`;
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-location-dot"></i> Geo-Fencing</div><div class="result-value" style="color:${s.geo_fencing_enabled?'var(--green)':'var(--text-3)'};">${s.geo_fencing_enabled?'Enabled':'Disabled'}</div></div>
+      ${s.geo_fencing_enabled && s.campus_latitude ? `<div class="result-field" style="grid-column:1/-1;background:#FFF7ED;border-radius:8px;padding:8px 12px;"><div class="result-label" style="color:#EA580C;"><i class="fa-solid fa-map-pin"></i> Geo-Fence Centre &amp; Radius</div><div class="result-value" style="font-family:monospace;font-size:12px;">Lat: ${parseFloat(s.campus_latitude).toFixed(6)} &nbsp;&nbsp; Lng: ${parseFloat(s.campus_longitude).toFixed(6)} &nbsp;&nbsp;·&nbsp;&nbsp; Radius: <strong style="color:#EA580C;">${s.allowed_radius_meters}m</strong></div></div>` : ''}
+    `;
+    if(s.expires_at) startCountdown(s.expires_at);
+    document.getElementById('session-actions').style.display='flex';
+    const fbtn=document.getElementById('btn-facial-sess');
+    if(fbtn) fbtn.style.display=s.facial_enabled?'inline-flex':'none';
+    // Start session button disable karo — session already active hai
+    const startBtn=document.querySelector('button[onclick="startSession()"]');
+    if(startBtn){ startBtn.disabled=true; startBtn.style.opacity='0.4'; startBtn.title='Pehle current session close karo'; }
+    // Card title update karo
+    const cardTitle=document.querySelector('#session-result .card-title-left');
+    if(cardTitle) cardTitle.innerHTML=justCreated
+      ? '<i class="fa-solid fa-circle-check"></i> Session Started Successfully'
+      : '<i class="fa-solid fa-circle-dot" style="color:var(--green);animation:pulse 1.5s infinite;"></i> Active Session';
   }
 
-  async function loadStudents(){
+  async function closeSession(){
+    if(!activeSession){toast('Koi active session nahi hai','error');return;}
+    const r=await PATCH(`attendance/sessions/${activeSession.id}/close/`,{});
+    if(!r||!r.ok){toast(r?.data?.error||'Failed to close session','error');return;}
+    toast('Session closed successfully. Absent students ka record save ho gaya.','success');
+    activeSession=null; studentsList=[]; attendance={};
+    document.getElementById('session-result').style.display='none';
+    document.getElementById('session-actions').style.display='none';
+    const startBtn=document.querySelector('button[onclick="startSession()"]');
+    if(startBtn){ startBtn.disabled=false; startBtn.style.opacity=''; startBtn.title=''; }
+  }
+
+  async function startSession(){
+    const geoEnabled = document.getElementById('s-geo').checked;
+    const lat = document.getElementById('s-lat').value.trim();
+    const lng = document.getElementById('s-lng').value.trim();
+    // Validate: agar geo enable hai toh lat/lng zaroor hona chahiye
+    if(geoEnabled && (!lat || !lng)){
+      toast('Geo-Fencing enable hai par location fetch nahi hui. Dobara checkbox tick karo ya location permission allow karo.','error');
+      return;
+    }
+    // Duration calculate karo — active chip se
+    const activeChip = document.querySelector('.dur-seg-btn.active');
+    const chipVal    = activeChip ? activeChip.dataset.val : '0';
+    const customVal  = document.getElementById('s-duration-custom').value;
+    const durationMins = chipVal === 'custom'
+      ? (parseInt(customVal) || 0)
+      : parseInt(chipVal) || 0;
+
     const body={
-      subject_id:document.getElementById('m-subject').value,
-      branch_id:document.getElementById('m-branch').value,
-      semester:document.getElementById('m-sem').value,
-      section:document.getElementById('m-section').value,
-      date:document.getElementById('m-date').value,
-      academic_year:document.getElementById('m-year').value,
+      subject_id:      document.getElementById('s-subject').value,
+      branch_id:       document.getElementById('s-branch').value,
+      semester:        document.getElementById('s-sem').value,
+      section:         document.getElementById('s-section').value,
+      date:            document.getElementById('s-date').value,
+      academic_year:   document.getElementById('s-year').value,
+      facial_enabled:  document.getElementById('s-facial').checked,
+      geo_fencing_enabled: geoEnabled,
     };
-    if(!body.subject_id||!body.branch_id||!body.semester||!body.section||!body.date||!body.academic_year){toast('Please fill all fields','error');return;}
+    if (durationMins > 0) body.duration_minutes = durationMins;
+    if(geoEnabled){
+      body.campus_latitude       = parseFloat(lat);
+      body.campus_longitude      = parseFloat(lng);
+      body.allowed_radius_meters = parseInt(document.getElementById('s-radius').value)||200;
+    }
+    if(!body.subject_id||!body.branch_id||!body.semester||!body.section||!body.date||!body.academic_year){toast('Please fill all required fields','error');return;}
     const r=await POST('attendance/sessions/start/',body);
-    if(!r||!r.ok){toast(r?.data?.error||'Failed','error');return;}
+    if(!r||!r.ok){toast(r?.data?.error||'Failed to start session','error');return;}
     activeSession=r.data.session;
     studentsList=r.data.students||[];
     attendance={};
     studentsList.forEach(s=>{attendance[s.student_id]=true;});
-    document.getElementById('total-students-badge').textContent=studentsList.length+' students';
-    document.getElementById('total-count').textContent=studentsList.length;
-    renderAttGrid();
-    document.getElementById('att-card').style.display='block';
-    toast(studentsList.length+' students loaded','success');
+    toast('Session started successfully','success');
+    showSessionResult(r.data.session, r.data.total_students, true);
   }
 
-  function renderAttGrid(){
-    const grid=document.getElementById('att-grid');
-    grid.innerHTML='';
+  /* ═══ MANUAL ATTENDANCE MODAL ═══ */
+
+  function openManualModal(){
+    if(!activeSession||!studentsList.length){toast('Pehle session start karo','error');return;}
+    // Re-default all to present
+    studentsList.forEach(s=>{if(attendance[s.student_id]===undefined)attendance[s.student_id]=true;});
+    // Fill modal
+    document.getElementById('ma-subject-lbl').textContent=
+      (activeSession.subject_name||activeSession.subject||'')
+      + ' — ' + (activeSession.branch||'') + ' Sem ' + (activeSession.semester||'') + ' Sec ' + (activeSession.section||'');
+    renderMaTable();
+    openModal('m-manual-att');
+  }
+
+  function renderMaTable(){
+    const tbody=document.getElementById('ma-tbody');
+    tbody.innerHTML='';
     studentsList.forEach(s=>{
-      const p=attendance[s.student_id];
-      const div=document.createElement('div');
-      div.className='att-row';
-      div.innerHTML=`
-        <div class="att-name">${s.name||s.enrollment_number}
-          <span class="att-sub"> · ${s.enrollment_number} · Roll: ${s.roll_number}</span>
-        </div>
-        <div class="toggle-group">
-          <button class="toggle-btn ${p?'present':''}" onclick="setAtt('${s.student_id}',true,this.parentElement)">
-            <i class="fa-solid fa-check"></i> P
-          </button>
-          <button class="toggle-btn ${!p?'absent':''}" onclick="setAtt('${s.student_id}',false,this.parentElement)">
-            <i class="fa-solid fa-xmark"></i> A
-          </button>
-        </div>`;
-      grid.appendChild(div);
+      const present=!!attendance[s.student_id];
+      const tr=document.createElement('tr');
+      tr.style.borderBottom='1px solid var(--border)';
+      tr.innerHTML=`
+        <td style="padding:10px 16px;font-family:monospace;font-size:12px;color:var(--text-2);">${s.student_id||s.enrollment_number}</td>
+        <td style="padding:10px 16px;font-weight:500;">${s.name||'—'}</td>
+        <td style="padding:10px 16px;font-size:12px;color:var(--text-2);">${s.father_name||'—'}</td>
+        <td style="padding:10px 16px;text-align:center;">
+          <label style="display:inline-flex;align-items:center;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-weight:400;color:var(--text);">
+            <input type="checkbox" data-sid="${s.student_id}" ${present?'checked':''} 
+              style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer;"
+              onchange="maToggle(this)">
+          </label>
+        </td>`;
+      tbody.appendChild(tr);
     });
-    updateCount();
+    document.getElementById('ma-count-lbl').textContent=studentsList.length+' students';
+    maUpdateCount();
   }
-  function setAtt(id,val,grp){
-    attendance[id]=val;
-    const btns=grp.querySelectorAll('.toggle-btn');
-    btns[0].className='toggle-btn '+(val?'present':'');
-    btns[1].className='toggle-btn '+(!val?'absent':'');
-    updateCount();
-  }
-  function updateCount(){document.getElementById('present-count').textContent=Object.values(attendance).filter(Boolean).length;}
-  function markAll(val){studentsList.forEach(s=>{attendance[s.student_id]=val;});renderAttGrid();}
 
-  async function submitAttendance(){
-    if(!activeSession){toast('No active session found','error');return;}
+  function maToggle(cb){
+    attendance[cb.dataset.sid]= cb.checked;
+    maUpdateCount();
+  }
+
+  function maUpdateCount(){
+    const present=Object.values(attendance).filter(Boolean).length;
+    document.getElementById('ma-present-ct').textContent=present;
+    document.getElementById('ma-total-ct').textContent=studentsList.length;
+  }
+
+  function maMarkAll(val){
+    studentsList.forEach(s=>{attendance[s.student_id]=val;});
+    renderMaTable();
+  }
+
+  function maConfirm(){
+    const total=studentsList.length;
+    const present=Object.values(attendance).filter(Boolean).length;
+    document.getElementById('conf-total').textContent=total;
+    document.getElementById('conf-present').textContent=present;
+    document.getElementById('conf-absent').textContent=total-present;
+    closeModal('m-manual-att');
+    openModal('m-att-confirm');
+  }
+
+  async function maSubmit(){
+    if(!activeSession){toast('Session not found','error');return;}
     const body={
-      session_id:activeSession.id,
-      academic_year:document.getElementById('m-year').value,
-      attendance:studentsList.map(s=>({student_id:s.student_id,is_present:!!attendance[s.student_id]})),
+      session_id:  activeSession.id,
+      academic_year: activeSession.academic_year || getAcademicYear(),
+      attendance: studentsList.map(s=>({student_id:s.student_id,is_present:!!attendance[s.student_id]})),
     };
     const r=await POST('attendance/mark/manual/',body);
+    closeModal('m-att-confirm');
     if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
-    toast(r.data.message||'Attendance submitted successfully','success');
-    document.getElementById('att-card').style.display='none';
-    activeSession=null;studentsList=[];attendance={};
+    toast(r.data.message||'Attendance submitted successfully! Session abhi bhi active hai.','success');
+    // Session active rehti hai — teacher End Session button se manually close karega
+    // activeSession, studentsList, attendance reset mat karo
+  }
+
+  /* ═══ ATTENDANCE REQUESTS ═══ */
+
+  let _reqSessionsList=[];
+
+  async function loadSessionsForReq(){
+    // Load recent sessions by this teacher for the dropdown
+    const r=await GET('attendance/attendance-requests/');
+    // Sessions dropdown — load from session start endpoint or use active session
+    // We also populate from recent data if any
+    if(activeSession){
+      const sel=document.getElementById('ar-session');
+      const opt=new Option(
+        `${activeSession.subject_name||activeSession.subject} — ${new Date(activeSession.date||activeSession.created_at).toLocaleDateString('en-IN')} (ID: ${activeSession.id})`,
+        activeSession.id
+      );
+      // Only add if not already present
+      if(![...sel.options].find(o=>o.value==activeSession.id)){
+        sel.add(opt);
+      }
+    }
+  }
+
+  let _studentLookupTimer=null;
+  function lookupStudent(){
+    clearTimeout(_studentLookupTimer);
+    const sid=document.getElementById('ar-student-id').value.trim();
+    document.getElementById('ar-student-name').value='';
+    if(!sid) return;
+    _studentLookupTimer=setTimeout(async()=>{
+      const r=await GET(`auth/students/?student_id=${encodeURIComponent(sid)}`);
+      const list=r?.data?.results||r?.data||[];
+      const found=list.find(s=>s.student_id===sid||s.enrollment_number===sid);
+      if(found){
+        const name=(found.profile||{}).name||found.student_id||'—';
+        document.getElementById('ar-student-name').value=name;
+        // Load sessions for this student's subject
+        loadSessionsForStudent(found.pk||found.id||found.student_id);
+      } else {
+        document.getElementById('ar-student-name').value='Not found';
+      }
+    },600);
+  }
+
+  async function loadSessionsForStudent(studentPk){
+    const sel=document.getElementById('ar-session');
+    sel.innerHTML='<option value="">Loading sessions…</option>';
+
+    // Naya endpoint: teacher ki sessions, student ke enrolled subjects se filter
+    const r=await GET(`attendance/sessions/?student_pk=${encodeURIComponent(studentPk)}`);
+    const sessions=(r?.data?.sessions)||[];
+
+    sel.innerHTML='<option value="">— Select session —</option>';
+
+    // Agar active session chal rahi ho to sabse pehle dikhao
+    if(activeSession){
+      const alreadyInList=sessions.find(s=>s.id===activeSession.id);
+      if(!alreadyInList){
+        sel.add(new Option(
+          `${activeSession.subject_name||activeSession.subject} — Today (Active)`,
+          activeSession.id, true, true
+        ));
+      }
+    }
+
+    if(sessions.length===0 && !activeSession){
+      sel.innerHTML='<option value="">Koi session nahi mili — activeSession check karo</option>';
+      return;
+    }
+
+    sessions.forEach(s=>{
+      const label=`${s.subject_name} (${s.subject_code}) — ${s.date}${s.status==='active'?' 🟢':''}`;
+      const opt=new Option(label, s.id, false, s.status==='active');
+      sel.add(opt);
+    });
+  }
+
+  async function submitAttReq(){
+    const student_id = document.getElementById('ar-student-id').value.trim();
+    const session_id = document.getElementById('ar-session').value;
+    const reason     = document.getElementById('ar-reason').value.trim();
+    if(!student_id||!session_id||!reason){toast('Sab fields fill karo','error');return;}
+    // student_id hi primary key hai — seedha bhejo
+    const body={ student_id: student_id, session_id: parseInt(session_id), reason };
+    const r=await POST('attendance/attendance-requests/',body);
+    if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
+    toast('Request submitted! Admin will be notified.','success');
+    document.getElementById('ar-student-id').value='';
+    document.getElementById('ar-student-name').value='';
+    document.getElementById('ar-reason').value='';
+    document.getElementById('ar-session').selectedIndex=0;
+    loadMyAttReqs();
+  }
+
+  async function loadMyAttReqs(){
+    document.getElementById('attreq-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+    const r=await GET('attendance/attendance-requests/');
+    if(!r||!r.ok){document.getElementById('attreq-list').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load.</p></div>';return;}
+    const reqs=r.data.requests||r.data||[];
+    if(!reqs.length){document.getElementById('attreq-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>Koi request submit nahi ki hai abhi tak.</p></div>';return;}
+    const sMap={'pending':'badge-warn','approved':'badge-safe','rejected':'badge-crit'};
+    const iMap={'pending':'fa-clock','approved':'fa-circle-check','rejected':'fa-circle-xmark'};
+    let html='<div class="table-wrap"><table><thead><tr><th>Student</th><th>Subject</th><th>Date</th><th>Reason</th><th>Status</th><th>Admin Remark</th></tr></thead><tbody>';
+    reqs.forEach(req=>{html+=`<tr>
+      <td><strong>${req.student_name||req.student_id}</strong><br><span style="font-size:11px;color:var(--text-3);font-family:monospace;">${req.student_id}</span></td>
+      <td>${req.subject||'—'}</td>
+      <td>${formatDate(req.date)}</td>
+      <td style="max-width:160px;font-size:12px;color:var(--text-2);">${req.reason}</td>
+      <td><span class="badge ${sMap[req.status]||'badge-neutral'}"><i class="fa-solid ${iMap[req.status]||'fa-circle'}" style="font-size:10px;"></i> ${req.status}</span></td>
+      <td style="font-size:12px;color:var(--text-2);">${req.admin_remark||'—'}</td>
+    </tr>`;});
+    document.getElementById('attreq-list').innerHTML=html+'</tbody></table></div>';
   }
 
   async function loadLeaves(){
@@ -546,6 +967,186 @@
     if(e.key==='Escape') document.querySelectorAll('.modal-overlay.open').forEach(o=>o.classList.remove('open'));
   });
 
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  /** Academic year calculate karo current date se */
+  function getAcademicYear() {
+    const now   = new Date();
+    const month = now.getMonth(); // 0-indexed: July = 6
+    const year  = now.getFullYear();
+    return month >= 6 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  }
+
+  /** Geo-Fencing checkbox toggle handler */
+  function onGeoToggle() {
+    const checked   = document.getElementById('s-geo').checked;
+    const panel     = document.getElementById('geo-panel');
+    const statusEl  = document.getElementById('geo-status');
+    const latEl     = document.getElementById('s-lat');
+    const lngEl     = document.getElementById('s-lng');
+
+    if (!checked) {
+      panel.style.display = 'none';
+      latEl.value = '';
+      lngEl.value = '';
+      statusEl.innerHTML = '';
+      return;
+    }
+
+    panel.style.display = 'block';
+    statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;font-size:12.5px;color:#92400E;">
+      <i class="fa-solid fa-spinner fa-spin" style="color:#D97706;"></i>
+      <span>Location permission maang raha hai… Browser popup mein <strong>Allow</strong> click karo.</span>
+    </div>`;
+
+    if (!navigator.geolocation) {
+      statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12.5px;color:#DC2626;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>Is browser mein Geolocation support nahi hai. Kisi doosre browser se try karo.</span>
+      </div>`;
+      document.getElementById('s-geo').checked = false;
+      panel.style.display = 'none';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        const acc = Math.round(pos.coords.accuracy);
+        latEl.value = lat;
+        lngEl.value = lng;
+        statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:12.5px;color:#15803D;">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Location mil gayi! &nbsp;<strong>${lat},&nbsp;${lng}</strong> &nbsp;·&nbsp; Accuracy: ±${acc}m &nbsp;·&nbsp; Ab neeche Radius set karo.</span>
+        </div>`;
+      },
+      function(err) {
+        const msgs = {
+          1: 'Permission deny kar diya. Browser settings → Site Settings → Location → Allow karo.',
+          2: 'Location unavailable. GPS ya WiFi check karo.',
+          3: 'Timeout. Dobara checkbox tick karo.'
+        };
+        statusEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12.5px;color:#DC2626;">
+          <i class="fa-solid fa-triangle-exclamation" style="margin-top:1px;"></i>
+          <span>${msgs[err.code] || 'Location error aaya. Dobara try karo.'}</span>
+        </div>`;
+        document.getElementById('s-geo').checked = false;
+        panel.style.display = 'none';
+        latEl.value = '';
+        lngEl.value = '';
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+    /** Duration segmented button click */
+  function selectDuration(el) {
+    document.querySelectorAll('.dur-seg-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    const val        = el.dataset.val;
+    const customWrap = document.getElementById('dur-custom-wrap');
+    const badge      = document.getElementById('dur-badge');
+
+    if (val === 'custom') {
+      customWrap.style.display = 'flex';
+      document.getElementById('s-duration-custom').focus();
+      badge.textContent = 'Custom';
+      badge.style.background = 'var(--blue-dim)';
+      badge.style.color      = 'var(--blue)';
+      badge.style.borderColor = 'var(--blue)';
+    } else if (val === '0') {
+      customWrap.style.display = 'none';
+      badge.textContent = 'No Limit';
+      badge.style.background  = 'var(--surface-2)';
+      badge.style.color       = 'var(--text-3)';
+      badge.style.borderColor = 'var(--border-2)';
+    } else {
+      customWrap.style.display = 'none';
+      badge.textContent = parseInt(val) < 60 ? val + ' min' : '1 hour';
+      badge.style.background  = 'var(--amber-dim)';
+      badge.style.color       = 'var(--amber)';
+      badge.style.borderColor = '#F6CC6B';
+    }
+  }
+
+  /** Custom minutes input — live badge update */
+  function onCustomDurInput() {
+    const val  = parseInt(document.getElementById('s-duration-custom').value) || 0;
+    const badge = document.getElementById('dur-badge');
+    if (val > 0) {
+      badge.textContent = val + ' min';
+      badge.style.background  = 'var(--amber-dim)';
+      badge.style.color       = 'var(--amber)';
+      badge.style.borderColor = '#F6CC6B';
+    }
+  }
+
+  /** Live countdown timer — session result mein dikhao */
+  let _countdownInterval = null;
+  function startCountdown(expiresAtISO) {
+    if (_countdownInterval) clearInterval(_countdownInterval);
+    const el = document.getElementById('session-countdown');
+    if (!el || !expiresAtISO) return;
+    const expiresAt = new Date(expiresAtISO).getTime();
+    function tick() {
+      const el2 = document.getElementById('session-countdown');
+      if (!el2) { clearInterval(_countdownInterval); return; }
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        clearInterval(_countdownInterval);
+        // Auto-close session — no manual "End Session" needed
+        autoCloseExpiredSession();
+        return;
+      }
+      const totalSecs = Math.floor(remaining / 1000);
+      const hrs  = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      el2.textContent = hrs > 0
+        ? `${hrs}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')} baki`
+        : `${mins}:${String(secs).padStart(2,'0')} baki`;
+      if (totalSecs <= 60)       { el2.style.background='#FEF2F2'; el2.style.color='#DC2626'; }
+      else if (totalSecs <= 300) { el2.style.background='#FEF3C7'; el2.style.color='#D97706'; }
+      else                       { el2.style.background='#F5F3FF'; el2.style.color='#7C3AED'; }
+    }
+    tick();
+    _countdownInterval = setInterval(tick, 1000);
+  }
+
+  /** Session ka time khatam — automatically close karo (no confirm dialog) */
+  async function autoCloseExpiredSession() {
+    if (!activeSession) return;
+    const sessionId = activeSession.id;
+
+    // Show "closing..." in countdown badge
+    const el = document.getElementById('session-countdown');
+    if (el) {
+      el.textContent = '⏰ Time Over — Closing…';
+      el.style.background = '#FEF2F2';
+      el.style.color = '#DC2626';
+    }
+
+    const r = await PATCH(`attendance/sessions/${sessionId}/close/`, {});
+
+    if (r && r.ok) {
+      toast('⏰ Session time khatam — automatically close ho gayi. Absent students ka record save ho gaya.', 'success');
+    } else {
+      toast('Session time khatam. Auto-close fail hua — manually "End Session" click karo.', 'error');
+      // Mark countdown as expired but keep UI visible for manual close
+      if (el) { el.textContent = '⏰ Time Over'; }
+      return;
+    }
+
+    // Reset state — same as manual closeSession()
+    activeSession = null; studentsList = []; attendance = {};
+    document.getElementById('session-result').style.display = 'none';
+    document.getElementById('session-actions').style.display = 'none';
+    const startBtn = document.querySelector('button[onclick="startSession()"]');
+    if (startBtn) { startBtn.disabled = false; startBtn.style.opacity = ''; startBtn.title = ''; }
+  }
+
   loadDashboard();
 
   /* ═══════════ TEACHER: STUDENT INFO (VIEW ONLY) ═══════════ */
@@ -556,31 +1157,56 @@
     const [sr, br] = await Promise.all([GET('auth/students/'), GET('auth/branches/')]);
     tsAllStudents = sr?.data?.results || sr?.data || [];
 
-    // Populate branch filter
+    // Populate branch filter dropdown
     const bSel = document.getElementById('ts-branch');
     bSel.innerHTML = '<option value="">All Branches</option>';
     (br?.data?.results || br?.data || []).forEach(b =>
-      bSel.innerHTML += `<option value="${b.branch_code}">${b.branch_name}</option>`
+      bSel.innerHTML += `<option value="${b.branch_code}">${b.branch_name} (${b.branch_code})</option>`
     );
     renderTeacherStudents(tsAllStudents);
   }
 
   function teacherSearchStudents() {
-    const q  = document.getElementById('ts-search').value.toLowerCase();
-    const br = document.getElementById('ts-branch').value;
+    const q       = document.getElementById('ts-search').value.toLowerCase().trim();
+    const br      = document.getElementById('ts-branch').value;
+    const sem     = document.getElementById('ts-sem').value;
+    const section = document.getElementById('ts-section').value;
     let list = tsAllStudents;
-    if (q)  list = list.filter(s => {
+
+    if (q) list = list.filter(s => {
       const p = s.profile || {};
       return (p.name||'').toLowerCase().includes(q) ||
              (s.enrollment_number||'').toLowerCase().includes(q) ||
-             (s.student_id||'').toLowerCase().includes(q);
+             (s.student_id||'').toLowerCase().includes(q) ||
+             (s.roll_number||'').toLowerCase().includes(q);
     });
+
     if (br) list = list.filter(s => {
       const p = s.profile || {};
-      const bCode = typeof p.branch === 'object' ? p.branch?.branch_code : p.branch;
+      // branch is returned as a plain branch_code string (SlugRelatedField)
+      const bCode = typeof p.branch === 'object' ? (p.branch?.branch_code || '') : (p.branch || '');
       return bCode === br;
     });
+
+    if (sem) list = list.filter(s => {
+      const p = s.profile || {};
+      return String(p.current_semester||'') === sem;
+    });
+
+    if (section) list = list.filter(s => {
+      const p = s.profile || {};
+      return (p.section||'').toUpperCase() === section.toUpperCase();
+    });
+
     renderTeacherStudents(list);
+  }
+
+  function clearStudentFilters(){
+    document.getElementById('ts-search').value='';
+    document.getElementById('ts-branch').value='';
+    document.getElementById('ts-sem').value='';
+    document.getElementById('ts-section').value='';
+    renderTeacherStudents(tsAllStudents);
   }
 
   function renderTeacherStudents(list) {

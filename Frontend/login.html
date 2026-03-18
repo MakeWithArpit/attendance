@@ -414,6 +414,22 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     if (!r) { showMsg('login-msg', 'Server error. Please try again.'); return; }
     if (r.ok === 'otp_required') { showPanel('otp'); return; }
     if (!r.ok) { showMsg('login-msg', r.data.detail || r.data.error || 'Invalid credentials.'); return; }
+
+    // ── Role validation: selected role must match actual account role ──
+    const actualRole    = Auth.getRole();                          // from server token
+    const selectedRole  = activeRole;                             // from pill selection
+    const roleLabel     = { admin: 'Admin', teacher: 'Faculty', student: 'Student' };
+
+    if (actualRole !== selectedRole) {
+      // Mismatch — clear token and show error
+      Auth.clear();
+      showMsg('login-msg',
+        `Ye credentials "${roleLabel[selectedRole] || selectedRole}" account ke nahi hain. ` +
+        `Sahi role select karo ya sahi credentials use karo.`
+      );
+      return;
+    }
+
     Auth.redirectByRole();
   }
 
@@ -423,6 +439,21 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     if (otp.length !== 6) { showMsg('otp-msg', 'Please enter a valid 6-digit OTP.'); return; }
     const r = await verifyDeviceOTP(otp);
     if (!r || !r.ok) { showMsg('otp-msg', r?.data?.error || 'Invalid or expired OTP.'); return; }
+
+    // Same role check as login
+    const actualRole   = Auth.getRole();
+    const selectedRole = activeRole;
+    const roleLabel    = { admin: 'Admin', teacher: 'Faculty', student: 'Student' };
+    if (actualRole !== selectedRole) {
+      Auth.clear();
+      showPanel('login');
+      showMsg('login-msg',
+        `Ye credentials "${roleLabel[selectedRole] || selectedRole}" account ke nahi hain. ` +
+        `Sahi role select karo ya sahi credentials use karo.`
+      );
+      return;
+    }
+
     Auth.redirectByRole();
   }
 
@@ -459,7 +490,12 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     _forgotPending = false;
 
     if (!r || !r.ok) {
-      showMsg('fp-msg', r?.data?.error || 'Error sending OTP. Please try again.');
+      const errData = r?.data || {};
+      const errMsg = errData.error
+        || (errData.username && errData.username[0])
+        || (errData.non_field_errors && errData.non_field_errors[0])
+        || 'OTP bhejne mein error. Dobara try karein.';
+      showMsg('fp-msg', errMsg);
       return;
     }
 

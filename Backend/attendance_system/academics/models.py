@@ -30,19 +30,19 @@ class Subject(models.Model):
         Teacher, on_delete=models.SET_NULL, null=True, blank=True, related_name='subjects'
     )
 
-    # ── Auto-enrollment ke liye: subject kis branch aur semester ka hai ──
-    # Yeh set karne ke baad naye students automatically enroll ho jaayenge
-    # branch: e.g. "ECE", "CSE" — optional (NULL = sab branches)
-    # semester: 1-8 — optional (NULL = sab semesters)
+    # ── Fields for auto-enrollment: defines which branch and semester this subject belongs to ──
+    # Once set, new students will be automatically enrolled in this subject
+    # branch: e.g. "ECE", "CSE" — optional (NULL = applies to all branches)
+    # semester: 1-8 — optional (NULL = applies to all semesters)
     branch   = models.ForeignKey(
         Branch, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='subjects',
-        help_text='Kis branch ka subject hai (auto-enroll ke liye zaruri)'
+        help_text='Branch this subject belongs to (required for auto-enrollment)'
     )
     semester = models.PositiveSmallIntegerField(
         choices=SEMESTER_CHOICES,
         null=True, blank=True,
-        help_text='Kis semester ka subject hai (auto-enroll ke liye zaruri)'
+        help_text='Semester this subject belongs to (required for auto-enrollment)'
     )
 
     class Meta:

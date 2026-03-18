@@ -208,9 +208,18 @@ class StudentCreateSerializer(serializers.Serializer):
 # Teacher Serializers
 # ─────────────────────────────────────────────
 class TeacherSerializer(serializers.ModelSerializer):
+    assigned_subject_count = serializers.SerializerMethodField()
+    assigned_subjects      = serializers.SerializerMethodField()
+
     class Meta:
-        model = Teacher
+        model  = Teacher
         fields = '__all__'
+
+    def get_assigned_subject_count(self, obj):
+        return obj.subjects.count()
+
+    def get_assigned_subjects(self, obj):
+        return list(obj.subjects.values('subject_code', 'subject_name', 'branch_id', 'semester'))
 
 
 class TeacherCreateSerializer(serializers.Serializer):
@@ -250,18 +259,23 @@ class ForgotPasswordSerializer(serializers.Serializer):
     """
     username = serializers.CharField()
 
-    def validate_username(self, value):
+    def validate(self, attrs):
+        username = attrs.get('username', '').strip()
         try:
-            user = User.objects.get(username=value)
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
-            raise serializers.ValidationError("Is username ka koi account nahi mila.")
+            raise serializers.ValidationError({'error': 'Is username ka koi account nahi mila.'})
 
         email = self._get_user_email(user)
         if not email:
-            raise serializers.ValidationError(
-                "Is account mein koi email registered nahi hai. Admin se contact karo."
-            )
-        return value
+            raise serializers.ValidationError({
+                'error': 'Is account mein koi email registered nahi hai. Admin se contact karein.'
+            })
+        attrs['username'] = username
+        return attrs
+
+    def validate_username(self, value):
+        return value  # validate() mein handle ho raha hai
 
     def _get_user_email(self, user):
         if user.role == 'student':

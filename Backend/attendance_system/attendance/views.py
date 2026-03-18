@@ -26,6 +26,13 @@ from .utils import (
 from accounts.permissions import IsTeacherOrAdmin, IsStudent, IsAdmin
 
 
+def _auto_academic_year() -> str:
+    """March 2026 → '2025-2026', August 2026 → '2026-2027'"""
+    now = datetime.date.today()
+    y   = now.year
+    return f"{y}-{y+1}" if now.month >= 7 else f"{y-1}-{y}"
+
+
 # ─────────────────────────────────────────────
 # Step 1: Teacher starts an Attendance Session
 # ─────────────────────────────────────────────
@@ -46,19 +53,68 @@ class StartAttendanceSessionView(APIView):
     permission_classes = [IsTeacherOrAdmin]
 
     def get(self, request):
-        """Return only this teacher's assigned subjects."""
+        """Return this teacher's assigned subjects + current active session (if any)."""
         teacher = get_object_or_404(Teacher, user=request.user)
         subjects = Subject.objects.filter(assigned_teacher=teacher)
         from academics.serializers import SubjectSerializer
-        return Response({'subjects': SubjectSerializer(subjects, many=True).data})
+
+        # Check for any active non-expired session for this teacher
+        active_session = None
+        active_students = []
+        qs = AttendanceSession.objects.filter(
+            teacher=teacher, status='active'
+        ).select_related('subject').order_by('-created_at').first()
+
+        if qs:
+            # Expired session — still show it as-is, don't silently close it.
+            # Teacher can close it manually via End Session button.
+            active_session = AttendanceSessionSerializer(qs).data
+            # Also return enrolled students for this active session
+            students = CourseRegistration.objects.filter(
+                subject=qs.subject,
+                semester=qs.semester,
+                section=qs.section,
+                branch_id=qs.branch_id,
+            ).select_related('student__profile', 'student__parent_detail')
+
+            def _fname(s):
+                try: return s.parent_detail.father_name or ''
+                except Exception: return ''
+
+            active_students = [{
+                'student_id':        s.student.pk,
+                'enrollment_number': s.student.enrollment_number,
+                'roll_number':       s.student.roll_number,
+                'name':              getattr(s.student, 'profile', None) and s.student.profile.name,
+                'father_name':       _fname(s.student),
+            } for s in students]
+
+        return Response({
+            'subjects':        SubjectSerializer(subjects, many=True).data,
+            'active_session':  active_session,
+            'students':        active_students,
+            'total_students':  len(active_students),
+        })
 
     def post(self, request):
         teacher = get_object_or_404(Teacher, user=request.user)
         data    = request.data
         subject = get_object_or_404(Subject, pk=data.get('subject_id'))
 
+        # ── Block if this teacher already has an active session ──
+        existing = AttendanceSession.objects.filter(
+            teacher=teacher, status='active'
+        ).select_related('subject').first()
+        if existing:
+            return Response({
+                'error': (
+                    f'Aapki "{existing.subject.subject_name}" ki session abhi bhi active hai '
+                    f'(ID: {existing.id}). Pehle us session ko End Session se close karo, tabhi nayi session start kar sakte ho.'
+                ),
+                'active_session': AttendanceSessionSerializer(existing).data,
+            }, status=400)
+
         # ── Restriction: subject must be assigned to this teacher ──
-        # Admin can bypass this check (they can start any session)
         if request.user.role == 'teacher':
             if subject.assigned_teacher_id != teacher.employee_id:
                 return Response({
@@ -68,27 +124,25 @@ class StartAttendanceSessionView(APIView):
                     )
                 }, status=403)
 
-        session, created = AttendanceSession.objects.get_or_create(
+        session = AttendanceSession.objects.create(
             teacher=teacher,
             subject=subject,
             branch_id=data.get('branch_id'),
             semester=data.get('semester'),
             section=data.get('section'),
             date=data.get('date', datetime.date.today()),
-            academic_year=data.get('academic_year'),
-            defaults={
-                'status':                'active',
-                'facial_enabled':        data.get('facial_enabled', False),
-                'geo_fencing_enabled':   data.get('geo_fencing_enabled', False),
-                'campus_latitude':       data.get('campus_latitude'),
-                'campus_longitude':      data.get('campus_longitude'),
-                'allowed_radius_meters': data.get('allowed_radius_meters', 200),
-            }
+            academic_year=data.get('academic_year') or _auto_academic_year(),
+            status='active',
+            facial_enabled=data.get('facial_enabled', False),
+            geo_fencing_enabled=data.get('geo_fencing_enabled', False),
+            campus_latitude=data.get('campus_latitude'),
+            campus_longitude=data.get('campus_longitude'),
+            allowed_radius_meters=data.get('allowed_radius_meters', 200),
         )
 
         # ── Auto-expiry: set expires_at if duration_minutes provided ──
         duration_minutes = data.get('duration_minutes')
-        if created and duration_minutes:
+        if duration_minutes:
             try:
                 mins = int(duration_minutes)
                 if mins > 0:
@@ -105,20 +159,78 @@ class StartAttendanceSessionView(APIView):
             semester=data.get('semester'),
             section=data.get('section'),
             branch_id=data.get('branch_id'),
-        ).select_related('student__profile')
+        ).select_related('student__profile', 'student__parent_detail')
+
+        def get_father_name(student):
+            try:
+                return student.parent_detail.father_name or ''
+            except Exception:
+                return ''
 
         student_list = [{
             'student_id':        s.student.pk,
             'enrollment_number': s.student.enrollment_number,
             'roll_number':       s.student.roll_number,
             'name':              getattr(s.student, 'profile', None) and s.student.profile.name,
+            'father_name':       get_father_name(s.student),
         } for s in students]
 
         return Response({
             'session':        AttendanceSessionSerializer(session).data,
             'students':       student_list,
             'total_students': len(student_list),
-        }, status=201 if created else 200)
+        }, status=201)
+
+
+class CloseSessionView(APIView):
+    """
+    PATCH /api/attendance/sessions/<id>/close/
+    Teacher manually closes an active session.
+    """
+    permission_classes = [IsTeacherOrAdmin]
+
+    def patch(self, request, pk):
+        teacher = get_object_or_404(Teacher, user=request.user)
+        session = get_object_or_404(AttendanceSession, pk=pk, teacher=teacher)
+        if session.status == 'closed':
+            return Response({'error': 'Session already closed.'}, status=400)
+        session.status = 'closed'
+        session.save(update_fields=['status'])
+
+        # ── BUG 2 FIX: Create absent records for students who didn't attend ──
+        # Without this, facial/rfid sessions leave absent students with 0 records,
+        # making total_classes=0 for them → wrong percentage in "My Attendance".
+        from academics.models import CourseRegistration
+        enrolled_students = CourseRegistration.objects.filter(
+            subject=session.subject,
+            semester=session.semester,
+            section=session.section,
+            branch_id=session.branch_id,
+        ).values_list('student_id', flat=True)
+
+        # Find students who already have a record for this session
+        already_marked_ids = set(
+            Attendance.objects.filter(session=session).values_list('student_id', flat=True)
+        )
+
+        absent_records = []
+        for sid in enrolled_students:
+            if sid not in already_marked_ids:
+                absent_records.append(Attendance(
+                    student_id=sid,
+                    subject=session.subject,
+                    date=session.date,
+                    day=session.date.strftime('%A'),
+                    semester=session.semester,
+                    academic_year=session.academic_year,
+                    is_present=False,
+                    method='manual',
+                    session=session,
+                ))
+        if absent_records:
+            Attendance.objects.bulk_create(absent_records, ignore_conflicts=True)
+
+        return Response({'message': 'Session closed successfully.', 'session_id': session.id})
 
 
 # ─────────────────────────────────────────────
@@ -156,11 +268,12 @@ class BulkManualAttendanceView(APIView):
                 student_id=entry['student_id'],
                 subject=session.subject,
                 date=session.date,
+                session=session,   # ← include session in lookup so two sessions on same date don't collide
                 defaults={
                     'is_present':    entry['is_present'],
                     'day':           session.date.strftime('%A'),
                     'semester':      session.semester,
-                    'academic_year': academic_year,
+                    'academic_year': academic_year or session.academic_year or _auto_academic_year(),
                     'marked_by':     teacher,
                     'method':        'manual',
                 }
@@ -170,8 +283,8 @@ class BulkManualAttendanceView(APIView):
             else:
                 updated_count += 1
 
-        session.status = 'closed'
-        session.save()
+        # Session band mat karo — teacher manually End Session button se close karega.
+        # (Pehle yahan session.status='closed' tha — yahi "auto-close" bug tha)
 
         return Response({
             'message':  f'Attendance saved. {created_count} new, {updated_count} updated.',
@@ -208,9 +321,9 @@ class RegisterFaceView(APIView):
             from .utils import register_face_photo
             face_valid = register_face_photo(student, tmp_path)
             if not face_valid:
-                return Response({'error': 'Image mein koi face detect nahi hua. Clear front-facing photo upload karo.'}, status=400)
+                return Response({'error': 'No face detected in the image. Please upload a clear front-facing photo.'}, status=400)
 
-            # Photo save karo — file upload karo registered_photo field mein
+            # Save photo — store in the registered_photo field
             import os as _os
             from django.core.files import File
             with open(tmp_path, 'rb') as f:
@@ -232,11 +345,11 @@ class ActiveSessionsForStudentView(APIView):
     """
     GET /api/attendance/sessions/active/
     Student apne enrolled subjects ki active sessions dekhta hai.
-    Yahan se woh choose karta hai ki kis session mein face se attendance lagani hai.
+    The student selects a session and marks attendance via face recognition.
 
-    Response mein dikhta hai:
+    Response includes:
     - Session details
-    - facial_enabled: True/False  ← sirf tab option dikhao jab True ho
+    - facial_enabled: True/False  ← show face option only when True
     - geo_fencing_enabled: True/False
     """
     permission_classes = [IsStudent]
@@ -248,18 +361,18 @@ class ActiveSessionsForStudentView(APIView):
         from django.utils import timezone as tz
         import datetime
 
-        # Aaj ki date IST mein (USE_TZ=True ke saath sahi kaam karta hai)
+        # Today's date in IST (works correctly with USE_TZ=True)
         today = tz.localdate()
 
-        # Student ke enrolled subjects + uska branch/section/semester nikalo
+        # Fetch student's enrolled subjects and their branch/section/semester
         enrollments = CourseRegistration.objects.filter(
             student=student
         ).select_related('branch')
 
         enrolled_subject_ids = enrollments.values_list('subject_id', flat=True)
 
-        # Student ki profile se branch, section, semester nikalo
-        # (session sirf student ke apne section ka dikhna chahiye)
+        # Extract branch, section, semester from the student's profile
+        # (a session should only be visible to students in the matching section)
         try:
             profile  = student.profile
             s_branch  = profile.branch_id      # branch_code string
@@ -268,15 +381,15 @@ class ActiveSessionsForStudentView(APIView):
         except Exception:
             s_branch = s_section = s_semester = None
 
-        # Base filter: enrolled subjects ki aaj ki active sessions
+        # Base filter: today's active sessions for enrolled subjects
         session_filter = dict(
             subject_id__in=enrolled_subject_ids,
             status='active',
             date=today,
         )
 
-        # Agar profile mein section/branch/semester hai toh session bhi usi ka match karo
-        # Yeh ensure karta hai Section D ka student sirf Section D ka session dekhe
+        # If the student has a profile with section/branch/semester, match the session accordingly
+        # This ensures a Section D student only sees Section D sessions
         if s_branch:
             session_filter['branch_id'] = s_branch
         if s_section:
@@ -290,17 +403,23 @@ class ActiveSessionsForStudentView(APIView):
 
         sessions_data = []
         for s in active_sessions:
-            # Expired sessions skip karo (duration_minutes wali sessions)
+            # Skip expired sessions (those with a duration_minutes limit)
             if s.is_expired:
                 continue
 
-            # Kya student ne already attendance mark ki hai?
-            already_marked = Attendance.objects.filter(
+            # Has the student already marked attendance for this session?
+            # ONLY check session FK — no fallback. Every record now has session set.
+            # Fallback was the root cause of false "Teacher ne Marked":
+            #   old get_or_create used student+subject+date as lookup (no session FK),
+            #   so stale records with session=None, method='manual' (default) were matching.
+            att_record = Attendance.objects.filter(
                 student=student,
-                subject=s.subject,
-                date=s.date,
+                session=s,
                 is_present=True,
-            ).exists()
+            ).values('method').first()
+
+            already_marked = att_record is not None
+            marked_method  = att_record['method'] if att_record else None
 
             sessions_data.append({
                 'session_id':          s.id,
@@ -309,8 +428,15 @@ class ActiveSessionsForStudentView(APIView):
                 'teacher_name':        s.teacher.name,
                 'date':                str(s.date),
                 'facial_enabled':      s.facial_enabled,
-                'geo_fencing_enabled': s.geo_fencing_enabled,
-                'already_marked':      already_marked,
+                'geo_fencing_enabled':    s.geo_fencing_enabled,
+                'campus_latitude':        float(s.campus_latitude)  if s.campus_latitude  else None,
+                'campus_longitude':       float(s.campus_longitude) if s.campus_longitude else None,
+                'allowed_radius_meters':  s.allowed_radius_meters,
+                'already_marked':         already_marked,
+                'marked_method':          marked_method,
+                'expires_at':             s.expires_at.isoformat() if s.expires_at else None,
+                'duration_minutes':       s.duration_minutes,
+                'has_face_registered':    bool(student.registered_photo),
             })
 
         return Response({
@@ -322,15 +448,15 @@ class ActiveSessionsForStudentView(APIView):
 class FacialAttendanceView(APIView):
     """
     POST /api/attendance/face/mark/
-    Student apni selfie upload karta hai → face match hota hai → attendance mark hoti hai.
+    Student uploads a selfie → face is matched → attendance is recorded.
 
     Body (multipart form):
         photo      → selfie image file
-        session_id → teacher ne jo session start kiya hai uska ID
+        session_id → the ID of the session started by the teacher
         latitude   → student ki current latitude  (geo-fencing ke liye)
         longitude  → student ki current longitude (geo-fencing ke liye)
 
-    Checks kiye jaate hain (sequence mein):
+    The following checks are performed in sequence:
         1. Session active hai?
         2. Is session mein facial_enabled = True hai?
         3. Student is subject mein enrolled hai?
@@ -341,15 +467,16 @@ class FacialAttendanceView(APIView):
     permission_classes = [IsStudent]
 
     def post(self, request):
-        session_id = request.data.get('session_id')
-        photo      = request.FILES.get('photo')
-        latitude   = request.data.get('latitude')
-        longitude  = request.data.get('longitude')
+        session_id     = request.data.get('session_id')
+        photo          = request.FILES.get('photo')
+        latitude       = request.data.get('latitude')
+        longitude      = request.data.get('longitude')
+        phone_detected = str(request.data.get('phone_detected', 'false')).lower() == 'true'
 
         if not photo:
-            return Response({'error': 'Photo zaruri hai.'}, status=400)
+            return Response({'error': 'Photo is required.'}, status=400)
         if not session_id:
-            return Response({'error': 'session_id zaruri hai.'}, status=400)
+            return Response({'error': 'session_id is required.'}, status=400)
 
         student = get_object_or_404(Student, user=request.user)
         session = get_object_or_404(AttendanceSession, id=session_id, status='active')
@@ -360,6 +487,28 @@ class FacialAttendanceView(APIView):
                 {'error': 'Session expired. Contact your teacher.'},
                 status=400
             )
+
+        # ── Check 0b: Phone detected → mark absent ──
+        if phone_detected:
+            Attendance.objects.update_or_create(
+                student=student,
+                subject=session.subject,
+                date=session.date,
+                session=session,          # ← session FK in lookup — stale records se protect
+                defaults={
+                    'is_present':    False,
+                    'day':           session.date.strftime('%A'),
+                    'semester':      session.semester,
+                    'academic_year': session.academic_year,
+                    'marked_by':     session.teacher,
+                    'method':        'facial',
+                }
+            )
+            return Response({
+                'error': 'Mobile phone detected in camera. Attendance marked ABSENT as per anti-proxy policy.',
+                'code':  'PHONE_DETECTED',
+                'marked_absent': True,
+            }, status=403)
 
         # ── Check 0b: Device validation ──
         device_id = request.data.get('device_id', '').strip()
@@ -372,14 +521,14 @@ class FacialAttendanceView(APIView):
                     'code':  'DEVICE_MISMATCH',
                 }, status=403)
 
-        # ── Check 1: Facial recognition is session mein allowed hai? ──
+        # ── Check 1: Is facial recognition enabled for this session? ──
         if not session.facial_enabled:
             return Response({
                 'error': 'Is session mein facial recognition se attendance allowed nahi hai. '
                          'Teacher se contact karo.'
             }, status=403)
 
-        # ── Check 2: Student is subject mein enrolled hai? ──
+        # ── Check 2: Is the student enrolled in this subject? ──
         from academics.models import CourseRegistration
         enrolled = CourseRegistration.objects.filter(
             student=student,
@@ -387,9 +536,9 @@ class FacialAttendanceView(APIView):
             semester=session.semester,
         ).exists()
         if not enrolled:
-            return Response({'error': 'Aap is subject mein enrolled nahi hain.'}, status=403)
+            return Response({'error': 'You are not enrolled in this subject.'}, status=403)
 
-        # ── Check 3: Geo-fencing (agar enable hai) ──
+        # ── Check 3: Geo-fencing check (if enabled) ──
         location_verified = False
         if session.geo_fencing_enabled:
             if not latitude or not longitude:
@@ -408,7 +557,7 @@ class FacialAttendanceView(APIView):
 
             location_verified = True
 
-        # ── Check 4: Face registered hai? ──
+        # ── Check 4: Does the student have a registered face photo? ──
         if not student.registered_photo:
             return Response({
                 'error': 'Aapka face registered nahi hai. Admin se contact karo.'
@@ -427,16 +576,20 @@ class FacialAttendanceView(APIView):
                     'error': 'Face match nahi hua. Dobara try karo ya teacher se contact karo.'
                 }, status=403)
 
-            # ── Sab checks pass — Attendance mark karo ──
-            attendance, created = Attendance.objects.get_or_create(
+            # ── All checks passed — mark attendance ──
+            # Use update_or_create with session in lookup — prevents stale records
+            # (old get_or_create with only student+subject+date was matching records
+            #  with session=None and method='manual' default, causing false "Teacher ne Marked")
+            attendance, created = Attendance.objects.update_or_create(
                 student=student,
                 subject=session.subject,
                 date=session.date,
+                session=session,          # ← session FK in lookup — KEY FIX
                 defaults={
                     'is_present':         True,
                     'day':                session.date.strftime('%A'),
                     'semester':           session.semester,
-                    'academic_year':      session.academic_year,
+                    'academic_year':      session.academic_year or _auto_academic_year(),
                     'marked_by':          session.teacher,
                     'method':             'facial',
                     'latitude':           latitude,
@@ -444,13 +597,6 @@ class FacialAttendanceView(APIView):
                     'location_verified':  location_verified,
                 }
             )
-            if not created and not attendance.is_present:
-                attendance.is_present        = True
-                attendance.method            = 'facial'
-                attendance.latitude          = latitude
-                attendance.longitude         = longitude
-                attendance.location_verified = location_verified
-                attendance.save()
 
             return Response({
                 'message':          'Attendance successfully mark ho gayi — Face Recognition',
@@ -491,10 +637,11 @@ class RFIDAttendanceView(APIView):
         session = get_object_or_404(AttendanceSession, id=session_id, status='active')
         teacher = get_object_or_404(Teacher, user=request.user)
 
-        attendance, created = Attendance.objects.get_or_create(
+        attendance, created = Attendance.objects.update_or_create(
             student=student,
             subject=session.subject,
             date=session.date,
+            session=session,              # ← session FK in lookup
             defaults={
                 'is_present':    True,
                 'day':           session.date.strftime('%A'),
@@ -541,6 +688,7 @@ class BulkRFIDAttendanceView(APIView):
                 student=student,
                 subject=session.subject,
                 date=session.date,
+                session=session,          # ← session FK in lookup
                 defaults={
                     'is_present':    True,
                     'day':           session.date.strftime('%A'),
@@ -548,6 +696,7 @@ class BulkRFIDAttendanceView(APIView):
                     'academic_year': academic_year or session.academic_year,
                     'marked_by':     teacher,
                     'method':        'rfid',
+                    'session':       session,
                 }
             )
             results['marked'].append(student.enrollment_number)
@@ -706,6 +855,46 @@ class LeaveRequestActionView(APIView):
 # ─────────────────────────────────────────────
 # Teacher Dashboard Summary
 # ─────────────────────────────────────────────
+class TeacherSessionListView(APIView):
+    """
+    GET /api/attendance/sessions/
+    Teacher ki recent sessions list karta hai (last 60 days).
+    Optional filter: ?student_pk=<pk>  — student ke enrolled subjects se match karega.
+    """
+    permission_classes = [IsTeacherOrAdmin]
+
+    def get(self, request):
+        teacher = get_object_or_404(Teacher, user=request.user)
+        student_pk = request.query_params.get('student_pk')
+
+        sessions_qs = AttendanceSession.objects.filter(
+            teacher=teacher
+        ).select_related('subject').order_by('-date', '-created_at')[:60]
+
+        # Agar student_pk diya hai to sirf us student ke enrolled subjects ki sessions
+        if student_pk:
+            try:
+                student = Student.objects.get(pk=student_pk)
+                enrolled_subject_ids = CourseRegistration.objects.filter(
+                    student=student
+                ).values_list('subject_id', flat=True)
+                sessions_qs = sessions_qs.filter(subject_id__in=enrolled_subject_ids)
+            except Student.DoesNotExist:
+                pass
+
+        data = [
+            {
+                'id':           s.id,
+                'subject_name': s.subject.subject_name,
+                'subject_code': s.subject.subject_code,
+                'date':         s.date.strftime('%d %b %Y'),
+                'status':       s.status,
+            }
+            for s in sessions_qs
+        ]
+        return Response({'sessions': data})
+
+
 class TeacherDashboardView(APIView):
     """
     GET /api/attendance/dashboard/teacher/
@@ -812,7 +1001,8 @@ class TeacherAttendanceRequestView(APIView):
             )
 
         from accounts.models import Student
-        student = get_object_or_404(Student, pk=student_id)
+        # student_id yahan string PK hai (e.g. "BCS2024002")
+        student = get_object_or_404(Student, student_id=student_id)
         session = get_object_or_404(AttendanceSession, pk=session_id)
 
         if AttendanceRequest.objects.filter(session=session, student=student).exists():
@@ -968,7 +1158,7 @@ class SendParentNotificationView(APIView):
         parent  = getattr(student, 'parent_detail', None)
 
         if not profile:
-            return Response({'error': 'Student profile nahi mila.'}, status=400)
+            return Response({'error': 'Student profile not found.'}, status=400)
 
         student_name = profile.name
 
@@ -1031,7 +1221,7 @@ class SendParentNotificationView(APIView):
                 custom_message=custom_msg,
             )
         except Exception as e:
-            return Response({'error': f'Email send nahi hua: {str(e)}'}, status=500)
+            return Response({'error': f'Failed to send email: {str(e)}'}, status=500)
 
         # Mask email for privacy
         try:

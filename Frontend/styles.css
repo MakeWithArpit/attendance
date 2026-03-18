@@ -572,8 +572,6 @@ code { font-family: 'Courier New', monospace; font-size: 11.5px; color: var(--te
 .info-box.green { background: var(--green-dim); border: 1px solid #BBF7D0; color: #166534; }
 .info-box.amber { background: var(--amber-dim); border: 1px solid #FDE68A; color: var(--amber); }
 
-/* ── Scrollbar ───────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+/* ── Scrollbar (hidden but functional) ──────────── */
+::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
+* { scrollbar-width: none; -ms-overflow-style: none; }

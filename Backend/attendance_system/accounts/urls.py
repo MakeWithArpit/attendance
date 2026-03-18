@@ -10,6 +10,7 @@ from .views import (
     StudentListView, StudentCreateView, StudentDetailView,
     TeacherListView, TeacherCreateView, TeacherDetailView,
     VerifyDeviceOTPView, AdminDeviceResetView,
+    NextStudentIdView, NextTeacherIdView,
 )
 
 urlpatterns = [
@@ -20,7 +21,7 @@ urlpatterns = [
     path('change-password/',  ChangePasswordView.as_view(),  name='change_password'),
     path('me/',               MyProfileView.as_view(),       name='my_profile'),
 
-    # Forgot Password (login ke bina access)
+    # Forgot Password (accessible without login)
     path('forgot-password/',  ForgotPasswordView.as_view(),  name='forgot_password'),
     path('reset-password/',   ResetPasswordView.as_view(),   name='reset_password'),
 
@@ -38,6 +39,10 @@ urlpatterns = [
     path('students/',           StudentListView.as_view(),   name='student_list'),
     path('students/create/',    StudentCreateView.as_view(), name='student_create'),
     path('students/<str:pk>/',  StudentDetailView.as_view(), name='student_detail'),
+
+    # ID Generators — DB-checked unique IDs
+    path('next-student-id/', NextStudentIdView.as_view(), name='next_student_id'),
+    path('next-teacher-id/', NextTeacherIdView.as_view(), name='next_teacher_id'),
 
     # Teachers
     path('teachers/',           TeacherListView.as_view(),   name='teacher_list'),

@@ -135,11 +135,11 @@
         </div>
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-hashtag"></i> Enrollment Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label>
-          <input type="text" id="se-enroll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte">
+          <input type="text" id="se-enroll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited">
         </div>
         <div class="form-group" style="margin:0;">
           <label><i class="fa-solid fa-list-ol"></i> Roll Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label>
-          <input type="text" id="se-roll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte">
+          <input type="text" id="se-roll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited">
         </div>
       </div>
 
@@ -543,7 +543,6 @@
       <button class="nav-item" onclick="go('teachers',this)"><i class="fa-solid fa-chalkboard-user"></i> Faculty</button>
       <button class="nav-item" onclick="go('subjects',this)"><i class="fa-solid fa-book"></i> Subjects</button>
       <button class="nav-item" onclick="go('branches',this)"><i class="fa-solid fa-building-columns"></i> Branches</button>
-      <button class="nav-item" onclick="go('enrollment',this);initEnrollment()"><i class="fa-solid fa-user-plus"></i> Course Enrollment</button>
       <div class="nav-section">Reports</div>
       <button class="nav-item" onclick="go('analytics',this)"><i class="fa-solid fa-chart-bar"></i> Analytics</button>
       <button class="nav-item" onclick="go('att-requests',this)"><i class="fa-solid fa-clipboard-list"></i> Att. Requests</button>
@@ -614,10 +613,10 @@
           <!-- Account -->
           <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-lock" style="color:var(--blue);"></i> Account Credentials</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Student ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-id" placeholder="Branch & year select karein" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><div class="pw-wrap" id="pww-ns-pass"><input type="password" id="ns-pass" placeholder="Min 8 characters"><button type="button" class="pw-toggle" onclick="togglePw('ns-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-ns-pass"></i></button></div></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-hashtag"></i> Enrollment No. <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-enroll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-list-ol"></i> Roll Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-roll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Student ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-id" placeholder="Select branch and year" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password <span style="font-size:10px;color:#8A95A3;font-weight:400;">(default: student@123)</span></label><div class="pw-wrap" id="pww-ns-pass"><input type="password" id="ns-pass" value="student@123" placeholder="Default: student@123"><button type="button" class="pw-toggle" onclick="togglePw('ns-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-ns-pass"></i></button></div></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-hashtag"></i> Enrollment No. <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-enroll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-list-ol"></i> Roll Number <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="ns-roll" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited"></div>
           </div>
           <!-- Personal -->
           <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-user" style="color:var(--blue);"></i> Personal Information</div>
@@ -749,7 +748,7 @@
         <div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-user-plus"></i> Add Faculty Member</div></div>
           <div class="form-row">
-            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Employee ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="nt-id" placeholder="Department type karein" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="Yeh field auto-generate hoti hai — edit nahi kar sakte"></div>
+            <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Employee ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="nt-id" placeholder="Enter department" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-key"></i> Password *</label><div class="pw-wrap" id="pww-nt-pass"><input type="password" id="nt-pass" placeholder="Min 8 characters"><button type="button" class="pw-toggle" onclick="togglePw('nt-pass')" tabindex="-1" title="Show/hide password"><i class="fa-solid fa-eye" id="pwi-nt-pass"></i></button></div></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-user"></i> Full Name *</label><input type="text" id="nt-name"></div>
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-envelope"></i> Email *</label><input type="email" id="nt-email"></div>
@@ -806,6 +805,32 @@
       <!-- Subject List Tab -->
       <div id="subjects-tab-list" class="tab-content active">
         <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/academics/subjects/</span></div>
+        <!-- Subject Filters -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:end;">
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:11px;"><i class="fa-solid fa-code"></i> Subject Code</label>
+            <input type="text" id="sf-code" placeholder="e.g. CS301…" oninput="filterSubjects()" style="height:36px;font-size:13px;">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:11px;"><i class="fa-solid fa-layer-group"></i> Classification</label>
+            <select id="sf-class" onchange="filterSubjects()" style="height:36px;font-size:13px;">
+              <option value="">All Classifications</option>
+              <option value="core">Core</option>
+              <option value="elective">Elective</option>
+              <option value="lab">Lab / Practical</option>
+              <option value="theory">Theory</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label style="font-size:11px;"><i class="fa-solid fa-chalkboard-user"></i> Assigned Teacher</label>
+            <select id="sf-teacher" onchange="filterSubjects()" style="height:36px;font-size:13px;">
+              <option value="">All Teachers</option>
+              <option value="__unassigned__">Unassigned</option>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="clearSubjectFilters()" style="height:36px;white-space:nowrap;font-size:12px;" title="Clear all filters"><i class="fa-solid fa-xmark"></i> Clear</button>
+        </div>
+        <div id="sf-count" style="font-size:12px;color:#8A95A3;margin-bottom:8px;"></div>
         <div class="table-wrap"><div id="subjects-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
       </div>
 
@@ -909,94 +934,6 @@
       </div>
     </div>
 
-    <!-- Course Enrollment -->
-    <div id="sec-enrollment" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Course Enrollment <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Branch aur Semester select karo — students ko subjects mein auto-enroll karo</p>
-      </div>
-
-      <!-- Filters -->
-      <div class="card card-accent" style="margin-bottom:18px;">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-filter"></i> Filter Students &amp; Subjects</div></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-building-columns"></i> Branch *</label>
-            <select id="enr-branch" onchange="loadEnrollmentData()"><option value="">Select Branch</option></select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-layer-group"></i> Semester *</label>
-            <select id="enr-sem" onchange="loadEnrollmentData()">
-              <option value="">Select</option>
-              <option value="1">Sem 1</option><option value="2">Sem 2</option>
-              <option value="3">Sem 3</option><option value="4">Sem 4</option>
-              <option value="5">Sem 5</option><option value="6">Sem 6</option>
-              <option value="7">Sem 7</option><option value="8">Sem 8</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-users"></i> Section</label>
-            <select id="enr-section" onchange="loadEnrollmentData()">
-              <option value="">All Sections</option>
-              <option value="A">A</option><option value="B">B</option>
-              <option value="C">C</option><option value="D">D</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-solid fa-calendar"></i> Academic Year</label>
-            <input type="text" id="enr-year" placeholder="e.g. 2025-2026" oninput="loadEnrollmentData()">
-          </div>
-        </div>
-        <div id="enr-status" style="font-size:13px;color:#64748b;min-height:20px;"></div>
-      </div>
-
-      <!-- Main content: Subjects + Students side by side -->
-      <div id="enr-main" style="display:none;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-
-          <!-- Subjects panel -->
-          <div class="card">
-            <div class="card-title">
-              <div class="card-title-left"><i class="fa-solid fa-book"></i> Available Subjects</div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn btn-sm" onclick="selectAllSubjects(true)" style="font-size:11px;padding:4px 10px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;cursor:pointer;">All</button>
-                <button class="btn btn-sm" onclick="selectAllSubjects(false)" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;cursor:pointer;">None</button>
-              </div>
-            </div>
-            <div id="enr-subjects-list" style="max-height:400px;overflow-y:auto;"></div>
-          </div>
-
-          <!-- Students panel -->
-          <div class="card">
-            <div class="card-title">
-              <div class="card-title-left"><i class="fa-solid fa-graduation-cap"></i> Students</div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn btn-sm" onclick="selectAllStudents(true)" style="font-size:11px;padding:4px 10px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;cursor:pointer;">All</button>
-                <button class="btn btn-sm" onclick="selectAllStudents(false)" style="font-size:11px;padding:4px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;cursor:pointer;">None</button>
-              </div>
-            </div>
-            <div id="enr-students-list" style="max-height:400px;overflow-y:auto;"></div>
-          </div>
-        </div>
-
-        <!-- Enroll button -->
-        <div style="margin-top:18px;display:flex;align-items:center;gap:14px;">
-          <button class="btn btn-navy" onclick="doEnroll()" style="padding:10px 28px;font-size:15px;">
-            <i class="fa-solid fa-user-plus"></i> Enroll Selected Students in Selected Subjects
-          </button>
-          <span id="enr-result" style="font-size:13px;font-weight:600;"></span>
-        </div>
-
-        <!-- Existing enrollments table -->
-        <div class="card" style="margin-top:22px;">
-          <div class="card-title">
-            <div class="card-title-left"><i class="fa-solid fa-list-check"></i> Current Enrollments</div>
-            <button onclick="loadCurrentEnrollments()" style="background:none;border:none;cursor:pointer;color:#6366f1;font-size:13px;"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-          </div>
-          <div id="enr-current-list" class="table-wrap"></div>
-        </div>
-      </div>
-    </div>
 
     <!-- Analytics -->
     <div id="sec-analytics" class="section">
@@ -1316,8 +1253,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   let allStudents=[];
   async function loadStudents(){
     document.getElementById('students-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET('auth/students/');
-    allStudents=r?.data?.results||r?.data||[];
+    allStudents = await fetchAllPages('auth/students/');
     renderStudents(allStudents);
   }
   function renderStudents(list){
@@ -1356,6 +1292,19 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     }));
   }
   async function addStudent(){
+    // Validate auto-generated fields are ready
+    const nsId = document.getElementById('ns-id').value.trim();
+    if (!nsId || nsId === 'Checking...') {
+      toast('Please select a branch first to generate a Student ID', 'error');
+      return;
+    }
+    // Double-check: ID already exists?
+    const chk = await GET('auth/students/' + nsId + '/');
+    if (chk.ok) {
+      toast('ID ' + nsId + ' already exists. Please reselect the branch to generate a new ID.', 'error');
+      await autoGenerateNumbers();
+      return;
+    }
     const _semVal = document.getElementById('ns-semester').value;
     const body={
       student_id:        document.getElementById('ns-id').value,
@@ -1401,12 +1350,25 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     }
     toast('Student registered successfully','success');
     // Clear key fields
-    ['ns-id','ns-pass','ns-enroll','ns-roll','ns-name','ns-mobile','ns-email',
+    ['ns-name','ns-mobile','ns-email',
      'ns-address','ns-year','ns-father-name','ns-father-mobile',
      'ns-mother-name','ns-mother-mobile','ns-father-occupation',
      'ns-parent-email','ns-permanent-address','ns-place','ns-pincode'].forEach(id=>{
        const el=document.getElementById(id); if(el) el.value='';
      });
+    // Reset password to default
+    const passEl=document.getElementById('ns-pass'); if(passEl) passEl.value='student@123';
+    // Also clear section and semester fields
+    ['ns-section','ns-semester','ns-gender','ns-dob','ns-doj','ns-state'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    // Hide the enrollment preview
+    const ep=document.getElementById('enrollment-preview');
+    const ew=document.getElementById('enrollment-warning');
+    if(ep) ep.style.display='none';
+    if(ew) ew.style.display='none';
+    // Generate fresh IDs for the next student
+    await autoGenerateNumbers();
     loadStudents();
   }
   async function registerFace(){
@@ -1436,14 +1398,14 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
   async function loadTeachers(){
     document.getElementById('teachers-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET('auth/teachers/');
-    const list=r?.data?.results||r?.data||[];
+    const list = await fetchAllPages('auth/teachers/');
     window._allTeachers = list; // global cache for teacher picker
     if(!list.length){document.getElementById('teachers-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No faculty found.</p></div>';return;}
-    let html='<table><thead><tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Email</th><th>Mobile</th><th>Actions</th></tr></thead><tbody>';
+    let html='<table><thead><tr><th>Employee ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Email</th><th>Mobile</th><th>Subjects</th><th>Actions</th></tr></thead><tbody>';
     list.forEach(t=>{html+=`<tr>
       <td><code>${t.employee_id}</code></td><td><strong>${t.name}</strong></td>
       <td>${t.department}</td><td>${t.designation||'—'}</td><td>${t.email}</td><td>${t.mobile}</td>
+      <td><span class="badge badge-blue" style="cursor:pointer;" onclick="viewTeacherSubjects('${t.employee_id}','${(t.name||'').replace(/'/g,"\\'")}')" title="Click to view assigned subjects">${t.assigned_subject_count||0} subject${(t.assigned_subject_count||0)===1?'':'s'}</span></td>
       <td><div class="acts">
         <button class="act-btn act-view" onclick="viewTeacher(this)"><i class="fa-solid fa-eye"></i> View</button>
         <button class="act-btn act-edit" onclick="editTeacher(this)"><i class="fa-solid fa-pen"></i> Edit</button>
@@ -1464,11 +1426,42 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     toast('Faculty member added successfully','success');loadTeachers();
   }
 
-  async function loadSubjects(){
-    document.getElementById('subjects-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET('academics/subjects/?page_size=500');
-    const list=r?.data?.results||r?.data||[];
-    if(!list.length){document.getElementById('subjects-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No subjects found.</p></div>';return;}
+  // ── fetchAllPages: pagination bypass ──────────────────────────────────────
+  // Backend PAGE_SIZE=50 hai. page_size param kabhi kabhi ignore hota hai.
+  // Yeh helper saari pages loop karke ek flat array return karta hai.
+  async function fetchAllPages(endpoint) {
+    const all = [];
+    // First page fetch karo (page_size=200 try karo, agar server ignore kare toh bhi loop chalega)
+    const API_BASE_URL = 'http://127.0.0.1:8000/api/';
+    const sep = endpoint.includes('?') ? '&' : '?';
+    let url = API_BASE_URL + endpoint + sep + 'page_size=200';
+    while (url) {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': 'Bearer ' + Auth.getAccess(),
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      const items = data.results || (Array.isArray(data) ? data : []);
+      all.push(...items);
+      // Agar next page hai toh usi URL pe jao, warna ruko
+      url = data.next || null;
+    }
+    return all;
+  }
+
+  let allSubjects = [];
+
+  function renderSubjectsTable(list) {
+    const countEl = document.getElementById('sf-count');
+    if (!list.length) {
+      document.getElementById('subjects-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No subjects match the selected filters.</p></div>';
+      if(countEl) countEl.textContent = 'Showing 0 subjects';
+      return;
+    }
+    if(countEl) countEl.textContent = `Showing ${list.length} of ${allSubjects.length} subject${allSubjects.length===1?'':'s'}`;
     let html='<table><thead><tr><th>Code</th><th>Subject Name</th><th>Type</th><th>Classification</th><th>Credits</th><th>Assigned To</th><th>Actions</th></tr></thead><tbody>';
     list.forEach(s=>{html+=`<tr>
       <td><code>${s.subject_code}</code></td><td><strong>${s.subject_name}</strong></td>
@@ -1489,6 +1482,77 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     document.getElementById('subjects-list').appendChild(tmp3.firstChild);
   }
 
+  function filterSubjects() {
+    const codeQ   = (document.getElementById('sf-code')?.value||'').trim().toLowerCase();
+    const classQ  = (document.getElementById('sf-class')?.value||'').trim().toLowerCase();
+    const teachQ  = (document.getElementById('sf-teacher')?.value||'').trim();
+    const filtered = allSubjects.filter(s => {
+      const matchCode  = !codeQ  || s.subject_code.toLowerCase().includes(codeQ) || s.subject_name.toLowerCase().includes(codeQ);
+      const matchClass = !classQ || (s.subject_classification||''). toLowerCase() === classQ;
+      let matchTeach = true;
+      if (teachQ === '__unassigned__') {
+        matchTeach = !s.assigned_teacher_name || s.assigned_teacher_name.trim() === '';
+      } else if (teachQ) {
+        // Case-insensitive trim comparison + employee_id fallback
+        const tName = (s.assigned_teacher_name || '').trim().toLowerCase();
+        matchTeach = tName === teachQ.toLowerCase();
+      }
+      return matchCode && matchClass && matchTeach;
+    });
+    renderSubjectsTable(filtered);
+  }
+
+  function clearSubjectFilters() {
+    const c=document.getElementById('sf-code'); if(c) c.value='';
+    const cl=document.getElementById('sf-class'); if(cl) cl.value='';
+    const t=document.getElementById('sf-teacher'); if(t) t.value='';
+    renderSubjectsTable(allSubjects);
+    const countEl=document.getElementById('sf-count');
+    if(countEl) countEl.textContent=`Showing ${allSubjects.length} of ${allSubjects.length} subject${allSubjects.length===1?'':'s'}`;
+  }
+
+  async function loadSubjects(){
+    document.getElementById('subjects-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+    // Subjects + Teachers dono parallel fetch karo (fetchAllPages se sab pages aayengi)
+    const [allSubjectsRaw, teacherList] = await Promise.all([
+      fetchAllPages('academics/subjects/'),
+      fetchAllPages('auth/teachers/')
+    ]);
+    allSubjects = allSubjectsRaw;
+    if(!allSubjects.length){
+      document.getElementById('subjects-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No subjects found.</p></div>';
+      return;
+    }
+    // employee_id → name map banao (fallback ke liye agar assigned_teacher_name missing ho)
+    const teacherMap = {};
+    // teacherList already fetched above via fetchAllPages
+    teacherList.forEach(t => { if(t.employee_id && t.name) teacherMap[t.employee_id] = t.name; });
+
+    // Normalize: assigned_teacher_name missing ho toh teacherMap se fill karo
+    allSubjects = allSubjects.map(s => ({
+      ...s,
+      assigned_teacher_name: (s.assigned_teacher_name && s.assigned_teacher_name.trim())
+        || (s.assigned_teacher ? (teacherMap[s.assigned_teacher] || '') : '')
+    }));
+
+    // Teacher dropdown REBUILD from scratch (stale data avoid karne ke liye)
+    const teachSel = document.getElementById('sf-teacher');
+    if(teachSel) {
+      teachSel.innerHTML = '<option value=>All Teachers</option><option value=__unassigned__>Unassigned</option>';
+      const nameSet = new Map();
+      // Subjects se assigned teachers collect karo
+      allSubjects.forEach(s => { if(s.assigned_teacher_name) nameSet.set(s.assigned_teacher_name, 1); });
+      // Teachers API se bhi sab teachers add karo
+      teacherList.forEach(t => { if(t.name) nameSet.set(t.name, 1); });
+      [...nameSet.keys()].sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        teachSel.appendChild(opt);
+      });
+    }
+    renderSubjectsTable(allSubjects);
+  }
+
 
   async function addSubject() {
     const code    = document.getElementById('nsub-code').value.trim().toUpperCase();
@@ -1501,7 +1565,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     const branch  = document.getElementById('nsub-branch') ? document.getElementById('nsub-branch').value : '';
 
     if (!code || !name || !type || !cls || !credit || !sem) {
-      toast('Subject Code, Name, Type, Classification, Credits aur Semester — sab required hain', 'error');
+      toast('Subject Code, Name, Type, Classification, Credits and Semester are all required', 'error');
       return;
     }
 
@@ -1628,7 +1692,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     }
 
     if (!filtered.length) {
-      itemsEl.innerHTML = '<div class="teacher-dd-empty">Koi teacher nahi mila</div>';
+      itemsEl.innerHTML = '<div class="teacher-dd-empty">No teachers found</div>';
     } else {
       itemsEl.innerHTML = filtered.map(t => `<div class="teacher-dd-item"
         onclick="selectTeacher('${inputId}','${dropdownId}','${t.employee_id}','${(t.name||'').replace(/'/g,"\'")}')">
@@ -1687,40 +1751,21 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   }
 
 
-  function autoGenerateEmployeeId() {
+  async function autoGenerateEmployeeId() {
     const dept = document.getElementById('nt-dept').value.trim();
-    if (!dept) {
-      document.getElementById('nt-id').value = '';
-      return;
+    const idField = document.getElementById('nt-id');
+    if (!dept) { idField.value = ''; return; }
+
+    idField.value = 'Checking...';
+
+    // Fetch a guaranteed unique ID from the backend
+    const r = await GET('auth/next-teacher-id/?dept=' + encodeURIComponent(dept));
+    if (r.ok && r.data.employee_id) {
+      idField.value = r.data.employee_id;
+    } else {
+      idField.value = '';
+      toast('Failed to generate Employee ID: ' + (r.data?.error || ''), 'error');
     }
-
-    // Department se short code nikalo — pehle 2-4 capital letters
-    const deptCode = dept
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g, '')   // special chars hataao
-      .split(' ')
-      .map(w => w.charAt(0))         // har word ka pehla letter
-      .join('')
-      .substring(0, 4)               // max 4 chars
-      || dept.substring(0, 3).toUpperCase();
-
-    // Existing teachers mein is department ke kitne hain
-    const teachersList = document.querySelectorAll('#teachers-list tbody tr');
-    let deptCount = 0;
-    teachersList.forEach(row => {
-      try {
-        const obj = JSON.parse(row.dataset.obj || '{}');
-        if ((obj.department || '').toUpperCase().trim() === dept.toUpperCase().trim()) {
-          deptCount++;
-        }
-      } catch(e) {}
-    });
-
-    const seq = String(deptCount + 1).padStart(3, '0');  // 001, 002...
-    const empId = 'T-' + deptCode + seq;                 // e.g. T-CS001, T-MATH002
-
-    document.getElementById('nt-id').value = empId;
-
   }
 
   // ── Auto-Enrollment Preview ─────────────────────────────────────────────────
@@ -1738,21 +1783,19 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       return;
     }
     try {
-      const r = await GET('academics/subjects/?page_size=500');
-      const allSubs = r.data.results || r.data || [];
-      const matched = allSubs.filter(s =>
-        s.branch === branch && String(s.semester) === String(sem)
-      );
-      if (matched.length === 0) {
+      // Use API-level filter — filter directly by branch and semester
+      const r = await GET('academics/subjects/?branch=' + branch + '&semester=' + sem);
+      const matched = r.data.results || (Array.isArray(r.data) ? r.data : []);
+      if (!r.ok || matched.length === 0) {
         preview.style.display = 'none';
         warning.style.display = 'block';
       } else {
         warning.style.display = 'none';
         preview.style.display = 'block';
         list.innerHTML = matched.map(s =>
-          `<div style="padding:2px 0;">✓ <strong>${s.subject_code}</strong> — ${s.subject_name}</div>`
-        ).join('') + `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0;font-weight:600;">
-          Student create hone par ${matched.length} subject(s) mein auto-enroll ho jaayega ✓
+          `<div style="padding:2px 0;"><span style="color:#16a34a;font-weight:700;">&#10003;</span> <strong>${s.subject_code}</strong> — ${s.subject_name}</div>`
+        ).join('') + `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0;font-weight:600;color:#15803d;">
+          Student create hone par ${matched.length} subject(s) mein auto-enroll hoga
         </div>`;
       }
     } catch(e) {
@@ -1761,34 +1804,27 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     }
   }
 
-  function autoGenerateNumbers() {
+  async function autoGenerateNumbers() {
     previewEnrollment();
     const branchCode = document.getElementById('ns-branch').value;
     if (!branchCode) return;
 
-    // Count how many students already exist in this branch
-    const existingCount = (allStudents || []).filter(s => {
-      const b = s.profile?.branch || '';
-      return b.toUpperCase() === branchCode.toUpperCase();
-    }).length;
+    document.getElementById('ns-id').value     = 'Checking...';
+    document.getElementById('ns-enroll').value = 'Checking...';
+    document.getElementById('ns-roll').value   = 'Checking...';
 
-    const nextSeq  = existingCount + 1;
-    const seq      = String(nextSeq).padStart(3, '0');              // 001, 012, 123
-    const yyyy     = new Date().getFullYear().toString();            // e.g. 2025
-    const branch   = branchCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-    // Student ID & Username: {BRANCH}{YYYY}{SEQ}  e.g. BCS2025001
-    const studentId  = `${branch}${yyyy}${seq}`;
-    // Enrollment No.:        EN{YYYY}{BRANCH}{SEQ} e.g. EN2025BCS001
-    const enrollment = `EN${yyyy}${branch}${seq}`;
-    // Roll Number:           {BRANCH}{SEQ}          e.g. BCS001
-    const roll       = `${branch}${seq}`;
-
-    document.getElementById('ns-id').value     = studentId;   // username = student ID
-    document.getElementById('ns-enroll').value = enrollment;
-    document.getElementById('ns-roll').value   = roll;
-
-
+    // Fetch guaranteed unique IDs from the backend — checked directly against the DB
+    const r = await GET('auth/next-student-id/?branch=' + encodeURIComponent(branchCode));
+    if (r.ok && r.data.student_id) {
+      document.getElementById('ns-id').value     = r.data.student_id;
+      document.getElementById('ns-enroll').value = r.data.enrollment_number;
+      document.getElementById('ns-roll').value   = r.data.roll_number;
+    } else {
+      document.getElementById('ns-id').value     = '';
+      document.getElementById('ns-enroll').value = '';
+      document.getElementById('ns-roll').value   = '';
+      toast('Failed to generate Student ID: ' + (r.data?.error || ''), 'error');
+    }
   }
 
   async function loadBranchDDs(){
@@ -1805,8 +1841,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     });
   }
   async function loadSubjectDDs(){
-    const r=await GET('academics/subjects/?page_size=500');
-    const list=r?.data?.results||r?.data||[];
+    const list = await fetchAllPages('academics/subjects/');
     const sel=document.getElementById('an-subject');if(!sel)return;
     sel.innerHTML='<option value="">Select Subject</option>';
     list.forEach(s=>sel.innerHTML+=`<option value="${s.subject_code}">${s.subject_name}</option>`);
@@ -2048,14 +2083,36 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   /* ═══════════ TEACHER: VIEW / EDIT / DELETE ═══════════ */
   function viewTeacher(btn) {
     const t = JSON.parse(btn.closest('tr').dataset.obj);
+    const subjectRows = (t.assigned_subjects && t.assigned_subjects.length)
+      ? t.assigned_subjects.map(s =>
+          `<div style="padding:3px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <code style="color:var(--blue);font-weight:600;">${s.subject_code}</code>
+            — ${s.subject_name}
+            <span style="color:var(--text-2);font-size:11px;margin-left:6px;">[${s.branch_id||'—'} Sem ${s.semester||'—'}]</span>
+          </div>`
+        ).join('')
+      : '<div style="color:var(--text-2);font-size:13px;">No subjects assigned</div>';
+
     document.getElementById('tv-body').innerHTML =
       infoField('Employee ID',  t.employee_id,  'id-badge') +
       infoField('Full Name',    t.name,          'user') +
       infoField('Department',   t.department,    'building') +
       infoField('Designation',  t.designation,   'briefcase') +
       infoField('Email',        t.email,         'envelope') +
-      infoField('Mobile',       t.mobile,        'phone');
+      infoField('Mobile',       t.mobile,        'phone') +
+      `<div style="margin-top:12px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+          <i class="fa-solid fa-book" style="color:var(--blue);"></i>
+          Assigned Subjects (${t.assigned_subject_count||0})
+        </div>
+        ${subjectRows}
+      </div>`;
     openModal('m-teacher-view');
+  }
+
+  function viewTeacherSubjects(empId, name) {
+    const t = (window._allTeachers||[]).find(x => x.employee_id === empId);
+    if (t) { viewTeacher({ closest: () => ({ dataset: { obj: JSON.stringify(t) } }) }); }
   }
 
   function editTeacher(btn) {
@@ -2224,7 +2281,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     const student = document.getElementById('ae-student').value.trim();
     const date    = document.getElementById('ae-date').value;
     const subject = document.getElementById('ae-subject').value.trim();
-    if (!student || !date || !subject) { toast('Student ID, Date aur Subject Code — teeno required hain', 'error'); return; }
+    if (!student || !date || !subject) { toast('Student ID, Date and Subject Code are all required', 'error'); return; }
     const r = await GET('attendance/?student='+encodeURIComponent(student)+'&subject='+encodeURIComponent(subject)+'&date='+date);
     if (!r || !r.ok) { toast(r?.data?.error || 'Failed to fetch', 'error'); return; }
     const records = r.data.results || r.data || [];
@@ -2251,7 +2308,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   }
 
   async function saveAttRecord() {
-    if (!_aeCurrentRecord) { toast('Pehle record dhundho', 'error'); return; }
+    if (!_aeCurrentRecord) { toast('Please search for a record first', 'error'); return; }
     const is_present = document.getElementById('ae-present').checked;
     const r = await PATCH('attendance/edit/', {
       student_id: document.getElementById('ae-student').value.trim(),
@@ -2274,7 +2331,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     if (!sid) { toast('Student ID daalo', 'error'); return; }
 
     const r = await GET(`auth/students/${sid}/`);
-    if (!r || !r.ok) { toast('Student nahi mila: ' + sid, 'error'); return; }
+    if (!r || !r.ok) { toast('Student not found: ' + sid, 'error'); return; }
 
     const s  = r.data;
     const p  = s.profile || {};
@@ -2300,10 +2357,10 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       `Respected ${pd.father_name || 'Parent/Guardian'},\n\n`
       + `Aapke ward ${p.name || sid} (ID: ${sid}) ki attendance Prahari Attendance System mein ` 
       + `record ki gayi hai.\n\n`
-      + `Kripya unki regular attendance sunishchit karein.\n\n`
+      + `Please ensure their regular attendance.\n\n`
       + `— Invertis University, Bareilly`;
 
-    if (!mobile) toast('Warning: Father mobile number registered nahi hai', 'error');
+    if (!mobile) toast('Warning: Father mobile number is not registered', 'warning');
     else toast('Parent info loaded', 'success');
   }
 
@@ -2311,8 +2368,8 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     const mobile  = document.getElementById('wa-mobile').value.trim().replace(/[^0-9+]/g, '');
     const message = document.getElementById('wa-message').value.trim();
 
-    if (!mobile) { toast('Parent ka mobile number nahi mila — pehle student ID se find karein', 'error'); return; }
-    if (!message) { toast('Message likhna zaroori hai', 'error'); return; }
+    if (!mobile) { toast('Parent mobile number not found. Please look up the student ID first.', 'error'); return; }
+    if (!message) { toast('Please enter a message before sending', 'error'); return; }
 
     // Normalize Indian number: add 91 if needed
     let phone = mobile.startsWith('+') ? mobile.replace('+', '') : mobile;
@@ -2363,230 +2420,13 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   // ═══════════════════════════════════════════════════════════════════
   // COURSE ENROLLMENT SECTION
   // ═══════════════════════════════════════════════════════════════════
-  let enrSubjects = [];   // all subjects for selected branch+sem
-  let enrStudents = [];   // all students for selected branch+sem
 
-  function initEnrollment() {
-    // Populate branch dropdown from already-loaded branches
-    const brSel = document.getElementById('enr-branch');
-    if (brSel && brSel.options.length <= 1) {
-      GET('auth/branches/').then(r => {
-        (r.data.results || r.data || []).forEach(b => {
-          brSel.innerHTML += `<option value="${b.branch_code}">${b.branch_code} — ${b.branch_name}</option>`;
-        });
-      });
-    }
-    // Set default academic year
-    const yearEl = document.getElementById('enr-year');
-    if (yearEl && !yearEl.value) {
-      const y = new Date().getFullYear();
-      yearEl.value = `${y}-${y+1}`;
-    }
-  }
 
-  async function loadEnrollmentData() {
-    const branch  = document.getElementById('enr-branch').value;
-    const sem     = document.getElementById('enr-sem').value;
-    const section = document.getElementById('enr-section').value;
-    const status  = document.getElementById('enr-status');
-    const main    = document.getElementById('enr-main');
 
-    if (!branch || !sem) {
-      main.style.display = 'none';
-      status.textContent = 'Branch aur Semester select karo.';
-      return;
-    }
 
-    status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading…';
 
-    // Fetch subjects for this branch+semester (filter by branch prefix or all)
-    // Subjects: CourseRegistration se un subjects ko lo jo is branch+semester mein hain
-    // (Subject model mein semester field nahi hai — CourseRegistration ke through linked hai)
-    // Saath mein sab subjects bhi fetch karo taaki naye subjects show ho sakein
-    const [crRes, allSubRes, stuRes] = await Promise.all([
-      GET(`academics/course-registrations/?branch=${branch}&semester=${sem}&page_size=500`),
-      GET('academics/subjects/?page_size=500'),
-      GET(`auth/students/?profile__branch=${branch}&page_size=200`)
-    ]);
 
-    // CourseRegistration se subject codes nikalo
-    const crList = (crRes.data.results || crRes.data || []);
-    const enrolledSubCodes = new Set(crList.map(cr => cr.subject || cr.subject_code).filter(Boolean));
 
-    // Saare subjects dikhaao — already enrolled wale highlight honge
-    // Agar koi subjects enrolled hain toh unhe first dikhao, baaki baad mein
-    const allSubs = (allSubRes.data.results || allSubRes.data || []);
-
-    // Agar branch ke liye koi existing enrollment hai → sirf woh subjects
-    // Agar naye subjects add kiye hain jinki abhi koi enrollment nahi → sab dikhao
-    if (enrolledSubCodes.size > 0) {
-      // Enrolled subjects pehle, phir baaki
-      const enrolled = allSubs.filter(s => enrolledSubCodes.has(s.subject_code));
-      const others   = allSubs.filter(s => !enrolledSubCodes.has(s.subject_code));
-      enrSubjects = [...enrolled, ...others];
-    } else {
-      enrSubjects = allSubs;  // Koi enrollment nahi → sab subjects dikhao
-    }
-
-    const allStudents = (stuRes.data.results || stuRes.data || []);
-    enrStudents = allStudents.filter(s => {
-      const p = s.profile || {};
-      const branchMatch  = (p.branch === branch);
-      const semMatch     = !sem     || String(p.current_semester) === String(sem);
-      const sectionMatch = !section || (p.section || '').toUpperCase() === section.toUpperCase();
-      return branchMatch && semMatch && sectionMatch;
-    });
-
-    if (!enrSubjects.length && !enrStudents.length) {
-      status.textContent = `Branch "${branch}" Sem ${sem} ke liye koi subjects ya students nahi mile.`;
-      main.style.display = 'none';
-      return;
-    }
-
-    status.textContent = `${enrSubjects.length} subjects · ${enrStudents.length} students mile`;
-    main.style.display = 'block';
-
-    renderEnrSubjects();
-    renderEnrStudents();
-    loadCurrentEnrollments();
-  }
-
-  function renderEnrSubjects() {
-    const el = document.getElementById('enr-subjects-list');
-    if (!enrSubjects.length) {
-      el.innerHTML = '<div class="empty" style="padding:20px;"><i class="fa-solid fa-book-open"></i><p>Koi subject nahi mila. Pehle subjects add karo.</p></div>';
-      return;
-    }
-    el.innerHTML = enrSubjects.map(s => {
-      const credits = s.subject_credit || s.credits || '?';
-      const type    = s.subject_type || s.type || '';
-      return `
-      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px;">
-        <input type="checkbox" class="enr-sub-cb" value="${s.subject_code}" checked
-          style="width:15px;height:15px;accent-color:#6366f1;flex-shrink:0;">
-        <span style="flex:1;">
-          <strong>${s.subject_code}</strong> — ${s.subject_name}
-          <span style="font-size:11px;color:#94a3b8;display:block;">${type} · ${credits} credits · Teacher: ${s.assigned_teacher||'—'}</span>
-        </span>
-      </label>`;
-    }).join('');
-  }
-
-  function renderEnrStudents() {
-    const el = document.getElementById('enr-students-list');
-    if (!enrStudents.length) {
-      el.innerHTML = '<div class="empty" style="padding:20px;"><i class="fa-solid fa-graduation-cap"></i><p>Koi student nahi mila is branch/semester ke liye.</p></div>';
-      return;
-    }
-    el.innerHTML = enrStudents.map(s => {
-      const p = s.profile || {};
-      return `
-      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px;">
-        <input type="checkbox" class="enr-stu-cb" value="${s.student_id}" checked
-          style="width:15px;height:15px;accent-color:#6366f1;flex-shrink:0;">
-        <span>
-          <strong>${p.name || s.student_id}</strong>
-          <span style="font-size:11px;color:#94a3b8;display:block;">${s.student_id} · Sec ${p.section||'?'} · Sem ${p.current_semester||'?'}</span>
-        </span>
-      </label>`;
-    }).join('');
-  }
-
-  function selectAllSubjects(val) {
-    document.querySelectorAll('.enr-sub-cb').forEach(cb => cb.checked = val);
-  }
-  function selectAllStudents(val) {
-    document.querySelectorAll('.enr-stu-cb').forEach(cb => cb.checked = val);
-  }
-
-  async function doEnroll() {
-    const branch   = document.getElementById('enr-branch').value;
-    const sem      = parseInt(document.getElementById('enr-sem').value);
-    const section  = document.getElementById('enr-section').value || 'A';
-    const resultEl = document.getElementById('enr-result');
-
-    const selSubjects = [...document.querySelectorAll('.enr-sub-cb:checked')].map(cb => cb.value);
-    const selStudents = [...document.querySelectorAll('.enr-stu-cb:checked')].map(cb => cb.value);
-
-    if (!selSubjects.length) { toast('Kam se kam ek subject select karo','error'); return; }
-    if (!selStudents.length) { toast('Kam se kam ek student select karo','error'); return; }
-
-    resultEl.textContent = '';
-    resultEl.style.color = '#6366f1';
-
-    let totalCreated = 0;
-    let failed = 0;
-
-    // Bulk enroll karo: ek subject at a time (backend supports it)
-    for (const subCode of selSubjects) {
-      const r = await POST('academics/course-registrations/bulk/', {
-        branch:      branch,
-        semester:    sem,
-        section:     section,
-        subject:     subCode,
-        student_ids: selStudents,
-      });
-      if (r && r.ok) {
-        totalCreated++;
-      } else {
-        failed++;
-      }
-    }
-
-    if (failed === 0) {
-      resultEl.style.color = '#16a34a';
-      resultEl.textContent = `✓ ${selStudents.length} students × ${selSubjects.length} subjects — enrollment complete!`;
-      toast(`${selStudents.length} students ko ${selSubjects.length} subjects mein enroll kar diya`, 'success');
-    } else {
-      resultEl.style.color = '#dc2626';
-      resultEl.textContent = `${totalCreated} subjects OK · ${failed} subjects mein error`;
-      toast('Kuch subjects mein error aaya — console check karo', 'error');
-    }
-
-    loadCurrentEnrollments();
-  }
-
-  async function loadCurrentEnrollments() {
-    const branch  = document.getElementById('enr-branch').value;
-    const sem     = document.getElementById('enr-sem').value;
-    const section = document.getElementById('enr-section').value;
-    const el      = document.getElementById('enr-current-list');
-    if (!branch || !sem) return;
-
-    el.innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-
-    let url = `academics/course-registrations/?branch=${branch}&semester=${sem}&page_size=500`;
-    if (section) url += `&section=${section}`;
-
-    const r = await GET(url);
-    const list = r.data.results || r.data || [];
-
-    if (!list.length) {
-      el.innerHTML = '<div class="empty" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px;">Koi enrollment nahi mili</div>';
-      return;
-    }
-
-    // Group by student
-    const byStudent = {};
-    list.forEach(cr => {
-      const sid = cr.student_id || cr.student;
-      if (!byStudent[sid]) byStudent[sid] = { name: cr.student_name || sid, subjects: [] };
-      byStudent[sid].subjects.push(cr.subject_code || cr.subject);
-    });
-
-    el.innerHTML = `<table class="data-table">
-      <thead><tr><th>Student ID</th><th>Name</th><th>Enrolled Subjects</th><th>Count</th></tr></thead>
-      <tbody>
-        ${Object.entries(byStudent).map(([sid, d]) => `
-          <tr>
-            <td><code style="font-size:12px;">${sid}</code></td>
-            <td>${d.name}</td>
-            <td style="font-size:12px;">${d.subjects.join(', ')}</td>
-            <td><span class="badge badge-info">${d.subjects.length}</span></td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
-  }
 
 </script>
 </body>

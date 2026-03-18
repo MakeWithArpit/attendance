@@ -4,20 +4,22 @@ attendance/urls.py
 from django.urls import path
 from .views import (
     SendParentNotificationView,
-    StartAttendanceSessionView,
+    StartAttendanceSessionView, CloseSessionView,
     BulkManualAttendanceView,
     RegisterFaceView, FacialAttendanceView, ActiveSessionsForStudentView,
     RFIDAttendanceView, BulkRFIDAttendanceView,
     AttendanceListView, AttendanceEditView,
     StudentAttendanceSummaryView,
     LeaveRequestListCreateView, LeaveRequestActionView,
-    TeacherDashboardView,
+    TeacherDashboardView, TeacherSessionListView,
     TeacherAttendanceRequestView, AdminAttendanceRequestView,
 )
 
 urlpatterns = [
     # Session
     path('sessions/start/',          StartAttendanceSessionView.as_view(),    name='start_session'),
+    path('sessions/<int:pk>/close/', CloseSessionView.as_view(),              name='close_session'),
+    path('sessions/',                TeacherSessionListView.as_view(),        name='teacher_sessions_list'),
     path('sessions/active/',         ActiveSessionsForStudentView.as_view(),  name='active_sessions'),
 
     # Method 1 - Manual

@@ -38,8 +38,14 @@ class Attendance(models.Model):
     )
     method = models.CharField(max_length=10, choices=METHOD_CHOICES, default="manual")
     marked_at = models.DateTimeField(auto_now_add=True)
+    session = models.ForeignKey(
+        "AttendanceSession",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="attendance_records",
+    )
 
-    # Geo-fencing — student ki location jab attendance mark hui
+    # Geo-fencing — student's location at the time attendance was marked
     latitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
     )
@@ -48,7 +54,7 @@ class Attendance(models.Model):
     )
     location_verified = models.BooleanField(
         default=False
-    )  # campus ke andar tha ya nahi
+    )  # whether the student was within the campus boundary
 
     class Meta:
         db_table = "attendance"
@@ -103,14 +109,14 @@ class AttendanceSession(models.Model):
     # ── Geo-fencing settings ─────────────────────
     geo_fencing_enabled = models.BooleanField(default=False)
 
-    # College campus ka center point (admin settings se aa sakta hai)
+    # College campus centre point (configurable via admin settings)
     campus_latitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
     )
     campus_longitude = models.DecimalField(
         max_digits=9, decimal_places=6, null=True, blank=True
     )
-    # Kitne meter radius mein hona chahiye (default 200 meter)
+    # Required radius in metres within which the student must be present (default: 200 m)
     allowed_radius_meters = models.IntegerField(default=200)
 
     class Meta:

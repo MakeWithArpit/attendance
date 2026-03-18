@@ -74,7 +74,7 @@ class Branch(models.Model):
 # ─────────────────────────────────────────────
 class Student(models.Model):
     student_id        = models.CharField(max_length=20, primary_key=True,
-                            help_text="Unique student ID e.g. BCS2024001 — login username bhi yahi hota hai.")
+                            help_text="Unique student ID e.g. BCS2024001 — also used as the login username.")
     user              = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student')
     enrollment_number = models.CharField(max_length=20, unique=True)
     roll_number       = models.CharField(max_length=20)
@@ -83,13 +83,13 @@ class Student(models.Model):
 
     # ── Facial Recognition ───────────────────────────────────────────────────
     # PURANA tha: face_encoding = BinaryField  (numpy array bytes store hote the)
-    # NAYA hai:   registered_photo = ImageField (sirf photo store karo)
+    # New approach: registered_photo = ImageField (store only the photo)
     #
     # Kyun badla?
-    #   face_recognition library mein dlib/CMake chahiye tha — install karna mushkil tha.
-    #   DeepFace library directly do photos compare karti hai — encoding ki zarurat nahi.
-    #   Admin/Teacher ek baar student ki clear photo upload karta hai.
-    #   Baad mein student jo selfie bhejta hai use is photo se compare kiya jaata hai.
+    #   face_recognition required dlib/CMake — difficult to install.
+    #   DeepFace compares photos directly — no face encoding required.
+    #   Admin/Teacher uploads a clear photo of the student once.
+    #   The selfie submitted later is compared against this stored photo.
     registered_photo  = models.ImageField(
         upload_to='students/face_photos/',
         blank=True,

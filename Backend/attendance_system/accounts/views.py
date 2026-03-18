@@ -300,23 +300,22 @@ class StudentCreateView(generics.CreateAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # ── FIX: QueryDict ko plain dict mein convert karo ──────────────────
-        # Jab FormData (multipart) bheja jaata hai, request.data ek QueryDict
-        # hota hai. DRF ka nested serializer QueryDict par html.parse_html_dict()
-        # call karta hai jo 'profile[name]', 'profile[dob]' jaise keys dhundta hai.
-        # Lekin hamare paas sirf 'profile' key hai (JSON string), isliye profile
-        # field ko empty milta hai → 400 "This field is required" error aata tha.
-        # Solution: QueryDict ko plain Python dict mein convert karo PEHLE.
+        # FIX: Convert QueryDict to a plain dict before processing.
+        # When FormData (multipart) is submitted, request.data is a QueryDict.
+        # DRF's nested serializer calls html.parse_html_dict() on it, looking for
+        # keys like 'profile[name]', 'profile[dob]' — but we send 'profile' as a
+        # JSON string, so the profile field appears empty → 400 error.
+        # Solution: convert QueryDict to plain Python dict first.
         # ─────────────────────────────────────────────────────────────────────
         data = {}
         for key in request.data:
-            data[key] = request.data[key]   # last value lena (standard behavior)
+            data[key] = request.data[key]   # take last value (standard QueryDict behaviour)
 
-        # File upload alag se add karo (registered_photo)
+        # Separately attach any uploaded files (e.g. registered_photo)
         for key in request.FILES:
             data[key] = request.FILES[key]
 
-        # Nested JSON strings ko dicts mein parse karo
+        # Parse nested JSON strings into dicts
         for key in ('profile', 'parent_detail', 'permanent_address', 'present_address'):
             if key in data and isinstance(data[key], str):
                 try:
@@ -344,13 +343,13 @@ class StudentCreateView(generics.CreateAPIView):
             )
 
         # ── Auto CourseRegistration ─────────────────────────────────────────
-        # Student ke profile se branch, section, semester nikaalo aur
-        # us branch+semester ke saare subjects mein enroll kar do.
+        # Read branch, section, semester from the new student's profile and
+        # auto-enroll the student into all matching subjects.
         #
-        # Priority order:
-        #   1★ Subject.branch + Subject.semester (direct tag — BEST, instant)
-        #   2. Doosre students ki existing CourseRegistration copy karo
-        #   3. TimeTable se subjects lo
+        # Priority:
+        #   1★ Subject.branch + Subject.semester (direct tag — fastest)
+        #   2. Copy existing CourseRegistrations from peers in the same branch/semester
+        #   3. Derive subjects from the TimeTable
         # ─────────────────────────────────────────────────────────────────────
         try:
             from academics.models import Subject, CourseRegistration
@@ -360,13 +359,13 @@ class StudentCreateView(generics.CreateAPIView):
                 section  = profile.section.strip().upper()
                 semester = int(profile.current_semester)
 
-                # Strategy 1 ★ BEST: Subject mein directly branch+semester tagged
+                # Strategy 1 ★ BEST: Subject is directly tagged with branch + semester
                 subjects = list(Subject.objects.filter(
                     branch=branch,
                     semester=semester,
                 ).distinct())
 
-                # Strategy 2: Doosre students ki existing CourseRegistration se
+                # Strategy 2: Copy from existing CourseRegistrations of peers
                 if not subjects:
                     subjects = list(Subject.objects.filter(
                         courseregistration__branch=branch,
@@ -389,13 +388,13 @@ class StudentCreateView(generics.CreateAPIView):
                         defaults={'branch': branch, 'section': section}
                     )
         except Exception:
-            pass  # Registration fail hone se student create nahi rokna
+            pass  # Auto-enroll failure must not prevent student creation
 
         try:
             response_data = StudentSerializer(student).data
         except Exception as exc:
-            _tb.print_exc()   # server log mein print hoga
-            # Student ban gaya — sirf simple response bhejo
+            _tb.print_exc()   # log the error server-side
+            # Student was created — return a minimal response
             response_data = {
                 'student_id': student.student_id,
                 'enrollment_number': student.enrollment_number,
@@ -709,7 +708,7 @@ class ResetPasswordView(APIView):
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
-            return Response({'error': 'Username galat hai.'}, status=400)
+            return Response({'error': 'Invalid username.'}, status=400)
 
         otp_record = PasswordResetOTP.objects.filter(
             user=user, is_used=False
@@ -730,7 +729,7 @@ class ResetPasswordView(APIView):
             )
 
         if otp_record.otp != otp_entered:
-            return Response({'error': 'OTP galat hai. Dobara check karo.'}, status=400)
+            return Response({'error': 'Invalid OTP. Please try again.'}, status=400)
 
         user.set_password(new_password)
         user.save()
@@ -747,4 +746,112 @@ class ResetPasswordView(APIView):
 
         return Response({
             'message': 'Password successfully change ho gaya hai. Ab naye password se login karo.',
+        })
+
+class NextStudentIdView(APIView):
+    """
+    GET /api/auth/next-student-id/?branch=ECE
+    Returns next available student_id, enrollment_number, roll_number for a branch.
+    DB mein check karke guaranteed unique IDs deta hai.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        branch_code = request.query_params.get('branch', '').strip().upper()
+        if not branch_code:
+            return Response({'error': 'branch parameter required'}, status=400)
+
+        from django.db.models import Q
+        import datetime
+        yyyy = str(datetime.date.today().year)
+        prefix = branch_code + yyyy  # e.g. "ECE2026"
+
+        used_seqs = set()
+
+        # 1. Student table — student_id check
+        for sid in Student.objects.filter(
+            student_id__istartswith=prefix
+        ).values_list('student_id', flat=True):
+            try:
+                used_seqs.add(int(sid.upper()[len(prefix):]))
+            except ValueError:
+                pass
+
+        # 2. User table — check usernames (orphan users from partial creates)
+        for uname in User.objects.filter(
+            username__istartswith=prefix
+        ).values_list('username', flat=True):
+            try:
+                used_seqs.add(int(uname.upper()[len(prefix):]))
+            except ValueError:
+                pass
+
+        # 3. Enrollment number check
+        enr_prefix = f'EN{yyyy}{branch_code}'
+        for enr in Student.objects.filter(
+            enrollment_number__istartswith=enr_prefix
+        ).values_list('enrollment_number', flat=True):
+            try:
+                used_seqs.add(int(enr.upper()[len(enr_prefix):]))
+            except ValueError:
+                pass
+
+        # Find the first unused sequence number
+        seq = 1
+        while seq in used_seqs:
+            seq += 1
+
+        padded = str(seq).zfill(3)
+        return Response({
+            'student_id':        f'{branch_code}{yyyy}{padded}',
+            'enrollment_number': f'EN{yyyy}{branch_code}{padded}',
+            'roll_number':       f'{branch_code}{padded}',
+        })
+
+
+class NextTeacherIdView(APIView):
+    """
+    GET /api/auth/next-teacher-id/?dept=Computer+Science+%26+Engineering
+    Returns next available employee_id for a department.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        dept = request.query_params.get('dept', '').strip()
+        if not dept:
+            return Response({'error': 'dept parameter required'}, status=400)
+
+        import re
+        dept_code = re.sub(r'[^A-Z0-9]', '', ''.join(
+            w[0] for w in re.sub(r'[^A-Z0-9 ]', '', dept.upper()).split() if w
+        ))[:4] or dept[:3].upper()
+
+        prefix = f'T-{dept_code}'
+
+        used_seqs = set()
+
+        # Teacher table check
+        for eid in Teacher.objects.filter(
+            employee_id__istartswith=prefix
+        ).values_list('employee_id', flat=True):
+            try:
+                used_seqs.add(int(eid.upper()[len(prefix):]))
+            except ValueError:
+                pass
+
+        # User table check — orphan users
+        for uname in User.objects.filter(
+            username__istartswith=prefix
+        ).values_list('username', flat=True):
+            try:
+                used_seqs.add(int(uname.upper()[len(prefix):]))
+            except ValueError:
+                pass
+
+        seq = 1
+        while seq in used_seqs:
+            seq += 1
+
+        return Response({
+            'employee_id': f'{prefix}{str(seq).zfill(3)}',
         })

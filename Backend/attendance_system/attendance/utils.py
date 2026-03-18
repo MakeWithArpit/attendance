@@ -41,28 +41,55 @@ def get_student_attendance_summary(student_id, semester: int, academic_year: str
     from .models import Attendance
     from academics.models import CourseRegistration
 
-    # FIX: academic_year bhi filter karo taaki purane semester ke subjects na aayein
+    # FIX: Also filter by academic_year to exclude subjects from previous semesters
     registrations = CourseRegistration.objects.filter(
         student_id=student_id, semester=semester
     ).select_related('subject')
 
+    from .models import AttendanceSession
+
+    # Get student's branch+section from their profile for session matching
+    try:
+        from accounts.models import Student
+        _stu = Student.objects.select_related('profile').get(pk=student_id)
+        s_branch  = _stu.profile.branch_id if hasattr(_stu, 'profile') else None
+        s_section = _stu.profile.section.strip().upper() if (hasattr(_stu, 'profile') and _stu.profile.section) else None
+    except Exception:
+        s_branch = s_section = None
+
     summary = []
     for reg in registrations:
-        records  = Attendance.objects.filter(
+        # total_classes = closed sessions for this subject/semester/branch/section/year
+        # This is the authoritative count — doesn't depend on absent records existing
+        session_qs = AttendanceSession.objects.filter(
+            subject=reg.subject,
+            semester=semester,
+            academic_year=academic_year,
+            status='closed',
+        )
+        if s_branch:
+            session_qs = session_qs.filter(branch_id=s_branch)
+        if s_section:
+            session_qs = session_qs.filter(section=s_section)
+        total = session_qs.count()
+
+        # attended = sessions where student has is_present=True
+        attended = Attendance.objects.filter(
             student_id=student_id,
             subject=reg.subject,
             semester=semester,
             academic_year=academic_year,
-        )
-        total    = records.count()
-        attended = records.filter(is_present=True).count()
-        pct      = calculate_attendance_percentage(total, attended)
+            is_present=True,
+        ).count()
 
-        # Agar is subject mein koi class hi nahi hui toh skip karo
-        # (enrollment hai lekin abhi tak koi session nahi hua)
-        # Uncomment karo agar empty subjects hide karne hain:
-        # if total == 0:
-        #     continue
+        # attended can never exceed total (guard against stale data)
+        attended = min(attended, total)
+
+        pct = calculate_attendance_percentage(total, attended)
+
+        # Skip subjects where no classes have been held yet
+        if total == 0:
+            continue
 
         if pct >= 75:
             status = 'safe'
@@ -77,9 +104,7 @@ def get_student_attendance_summary(student_id, semester: int, academic_year: str
             'total_classes': total,
             'attended':      attended,
             'percentage':    pct,
-            'status':        status,  # 'safe' | 'warning' | 'critical'
-            # Note: 0 total_classes → 0% → 'critical' — thoda misleading hai
-            # lekin student ko pata hoga ki classes abhi shuru nahi hui
+            'status':        status,
         })
     return summary
 
@@ -149,8 +174,8 @@ def get_students_by_attendance_threshold(subject_id, semester: int, academic_yea
             'percentage':        pct,
         }
 
-        # FIX: Mutually exclusive categories — student sirf ek list mein hoga
-        # below_75 mein sirf 60-75 wale hain, below_60 mein sirf 50-60 wale
+        # FIX: Mutually exclusive categories — each student appears in only one list
+        # below_75 contains students in the 60–75 range; below_60 for those under 60
         if pct >= 75:
             result['above_75'].append(student_info)
         elif pct >= 60:
@@ -159,8 +184,8 @@ def get_students_by_attendance_threshold(subject_id, semester: int, academic_yea
             result['below_60'].append(student_info)   # 50-59.99%
         else:
             result['below_50'].append(student_info)   # < 50%
-            result['below_60'].append(student_info)   # below_60 mein bhi rakhte hain (cumulative)
-            result['below_75'].append(student_info)   # aur below_75 mein bhi
+            result['below_60'].append(student_info)   # also in below_60 (cumulative)
+            result['below_75'].append(student_info)   # and in below_75 as well
 
     return result
 
@@ -224,20 +249,20 @@ def apply_approved_leave_to_attendance(leave_request):
 # ─────────────────────────────────────────────
 #
 # PURANI LIBRARY (face_recognition):
-#   ❌ dlib install karna padta tha — C++ compiler + CMake chahiye
-#   ❌ Server par deploy karna bahut mushkil
-#   ❌ numpy array bytes mein DB mein store karna padta tha
+#   ❌ dlib required a C++ compiler and CMake — difficult to install
+#   ❌ Very difficult to deploy on a server
+#   ❌ Required storing numpy array bytes in the database
 #
 # NAYI LIBRARY (DeepFace):
 #   ✅ sirf: pip install deepface
-#   ✅ koi C++ nahi, koi CMake nahi
-#   ✅ sirf photo store karo — encoding ki zarurat nahi
-#   ✅ face_recognition se zyada accurate
+#   ✅ No C++ compiler or CMake required
+#   ✅ Only the photo is stored — no face encoding needed
+#   ✅ More accurate than the face_recognition library
 #   ✅ multiple models support: Facenet, VGG-Face, ArcFace, etc.
 #
 # Install:
 #   pip install deepface
-#   (pehli baar run hoga tab model weights automatically download honge ~100MB)
+#   (model weights (~100 MB) will be downloaded automatically on first run)
 # ─────────────────────────────────────────────
 
 def register_face_photo(student, image_path: str) -> bool:
@@ -258,8 +283,8 @@ def register_face_photo(student, image_path: str) -> bool:
     try:
         from deepface import DeepFace
 
-        # Pehle verify karo ki image mein face hai
-        # enforce_detection=True → agar face nahi mila to exception
+        # First verify that the image contains a face
+        # enforce_detection=True → raises an exception if no face is detected
         DeepFace.extract_faces(
             img_path=image_path,
             detector_backend='opencv',   # fast detector
@@ -269,7 +294,7 @@ def register_face_photo(student, image_path: str) -> bool:
         return True
 
     except ValueError:
-        # Face detect nahi hua image mein
+        # No face detected in the image
         return False
     except Exception as e:
         raise Exception(f"Face validation error: {str(e)}")
@@ -297,15 +322,15 @@ def verify_face(student, uploaded_image_path: str) -> bool:
     try:
         from deepface import DeepFace
 
-        # Registered photo exist karti hai?
+        # Does the student have a registered photo?
         if not student.registered_photo:
             return False
 
         stored_photo_path = student.registered_photo.path
 
         result = DeepFace.verify(
-            img1_path=stored_photo_path,    # DB mein stored photo
-            img2_path=uploaded_image_path,  # Student ki selfie
+            img1_path=stored_photo_path,    # photo stored in DB
+            img2_path=uploaded_image_path,  # student's live selfie
 
             # Model options:
             # "Facenet"  → best balance of speed and accuracy (recommended)
@@ -318,7 +343,7 @@ def verify_face(student, uploaded_image_path: str) -> bool:
             # "retinaface" → accurate, thoda slow
             detector_backend="opencv",
 
-            # enforce_detection=True → agar kisi bhi image mein face nahi mila
+            # enforce_detection=True → raises an exception if no face found in either image
             # to ValueError raise hogi (False return karenge)
             enforce_detection=True,
         )
@@ -333,10 +358,10 @@ def verify_face(student, uploaded_image_path: str) -> bool:
         return result["verified"]
 
     except ValueError:
-        # Face detect nahi hua kisi bhi image mein
+        # No face detected in one or both images
         return False
     except Exception as e:
-        # Koi aur error — log karo aur False return karo
+        # Any other error — log it and return False
         import logging
         logging.getLogger(__name__).error(f"Face verification error: {str(e)}")
         return False
@@ -351,7 +376,7 @@ def calculate_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float
     lat1, lon1 = student ki current location
     lat2, lon2 = college campus ka center point
     """
-    R = 6371000  # Earth ka radius meters mein
+    R = 6371000  # Earth's radius in metres
 
     phi1    = math.radians(lat1)
     phi2    = math.radians(lat2)
@@ -363,7 +388,7 @@ def calculate_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    return R * c   # meters mein distance
+    return R * c   # distance in metres
 
 
 def verify_student_location(session, student_lat: float, student_lon: float) -> dict:

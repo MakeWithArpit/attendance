@@ -13,12 +13,12 @@ from accounts.permissions import IsAdmin, IsTeacherOrAdmin
 
 
 class SubjectListCreateView(generics.ListCreateAPIView):
-    queryset = Subject.objects.select_related('assigned_teacher').all()
+    queryset = Subject.objects.select_related('assigned_teacher').order_by('subject_code')
     serializer_class = SubjectSerializer
     permission_classes = [IsTeacherOrAdmin]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['subject_code', 'subject_name']
-    filterset_fields = ['subject_type', 'subject_classification']
+    filterset_fields = ['subject_type', 'subject_classification', 'branch', 'semester']
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -27,7 +27,7 @@ class SubjectListCreateView(generics.ListCreateAPIView):
 
 
 class SubjectDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Subject.objects.all()
+    queryset = Subject.objects.order_by('subject_code')
     serializer_class = SubjectSerializer
     permission_classes = [IsAdmin]
 
