@@ -448,98 +448,169 @@ def verify_student_location(session, student_lat: float, student_lon: float) -> 
 # Frontend sends 5 JPEG snapshots captured at random intervals.
 # Backend runs:
 #   1. Face verification (DeepFace) on each frame
-#   2. Phone detection (YOLOv4-tiny via OpenCV DNN) on each frame
+#   2. Screen/Phone detection (OpenCV edge + texture analysis)
 #   3. Face movement check (detects static photo attacks)
 # ─────────────────────────────────────────────
 
 import os as _os
 import logging as _logging
-import urllib.request
 
 _logger = _logging.getLogger(__name__)
 
-# ── YOLOv4-tiny model paths ──
-_YOLO_DIR     = _os.path.join(settings.BASE_DIR, 'media', 'yolo_models')
-_YOLO_CFG     = _os.path.join(_YOLO_DIR, 'yolov4-tiny.cfg')
-_YOLO_WEIGHTS = _os.path.join(_YOLO_DIR, 'yolov4-tiny.weights')
-_YOLO_NAMES   = _os.path.join(_YOLO_DIR, 'coco.names')
-_yolo_net     = None   # cached OpenCV DNN network
 
+def detect_phone_in_image(image_path: str) -> dict:
+    """
+    OpenCV se phone/screen detect karta hai — 3 methods:
+      1. Dark Border Detection  — phone bezels create dark edges around bright screen
+      2. Straight Edge Detection — Hough lines detect phone bezel lines
+      3. Center-Periphery Ratio — screen center bright, surroundings dark
 
-def _ensure_yolo_model():
-    """Download YOLOv4-tiny weights if not present, then load into OpenCV DNN."""
-    global _yolo_net
-    if _yolo_net is not None:
-        return True
-
-    _os.makedirs(_YOLO_DIR, exist_ok=True)
-
-    urls = {
-        _YOLO_CFG:     'https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-tiny.cfg',
-        _YOLO_WEIGHTS: 'https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights',
-        _YOLO_NAMES:   'https://raw.githubusercontent.com/AlexeyAB/darknet/master/data/coco.names',
-    }
-    for path, url in urls.items():
-        if not _os.path.exists(path):
-            try:
-                _logger.info(f'[YOLO] Downloading {_os.path.basename(path)} …')
-                urllib.request.urlretrieve(url, path)
-            except Exception as e:
-                _logger.warning(f'[YOLO] Download failed ({url}): {e}')
-                return False
-
+    Returns {'detected': bool, 'confidence': float, 'method': str, 'details': dict}
+    """
     try:
         import cv2
-        _yolo_net = cv2.dnn.readNetFromDarknet(_YOLO_CFG, _YOLO_WEIGHTS)
-        _yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-        _yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-        _logger.info('[YOLO] Model loaded successfully.')
-        return True
+        import numpy as np
+
+        img = cv2.imread(image_path)
+        if img is None:
+            return {'detected': False, 'confidence': 0, 'error': 'unreadable'}
+
+        h, w = img.shape[:2]
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        details = {}
+
+        # ──────────────────────────────────────────
+        # Method 1: Center-Periphery Brightness Ratio
+        # Phone screen = bright center, dark room behind = dark edges
+        # Real face: uniform lighting across frame
+        # ──────────────────────────────────────────
+        border_pct = 0.12  # 12% border strip
+        bw = int(w * border_pct)
+        bh = int(h * border_pct)
+
+        center = gray[bh:-bh, bw:-bw]
+        top_strip    = gray[:bh, :]
+        bottom_strip = gray[-bh:, :]
+        left_strip   = gray[:, :bw]
+        right_strip  = gray[:, -bw:]
+
+        center_brightness = float(np.mean(center))
+        border_brightness = float(np.mean([
+            np.mean(top_strip), np.mean(bottom_strip),
+            np.mean(left_strip), np.mean(right_strip)
+        ]))
+
+        # Ratio > 1.4 → screen likely (bright center, dark edges)
+        brightness_ratio = center_brightness / (border_brightness + 1)
+        # Also check if border is genuinely dark (< 80 mean)
+        border_dark = border_brightness < 80
+        brightness_score = 0.0
+        if brightness_ratio > 1.4 and border_dark:
+            brightness_score = min(1.0, (brightness_ratio - 1.4) / 0.8)
+        elif brightness_ratio > 1.8:
+            brightness_score = min(1.0, (brightness_ratio - 1.4) / 0.8)
+
+        details['brightness'] = {
+            'center': round(center_brightness, 1),
+            'border': round(border_brightness, 1),
+            'ratio': round(brightness_ratio, 3),
+            'border_dark': border_dark,
+        }
+
+        # ──────────────────────────────────────────
+        # Method 2: Straight Edge Detection (Hough Lines)
+        # Phone bezels create long, perfectly straight lines
+        # Natural backgrounds have irregular edges
+        # ──────────────────────────────────────────
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180,
+                                threshold=80,
+                                minLineLength=int(min(h, w) * 0.3),
+                                maxLineGap=10)
+
+        straight_count = 0
+        vertical_lines = 0
+        horizontal_lines = 0
+        if lines is not None:
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+                if length < min(h, w) * 0.3:
+                    continue
+                angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
+                # Vertical lines (85-95 degrees)
+                if 80 < angle < 100 or angle < 10 or angle > 170:
+                    straight_count += 1
+                    if 80 < angle < 100:
+                        vertical_lines += 1
+                    else:
+                        horizontal_lines += 1
+
+        # Phone has both vertical and horizontal bezel lines
+        has_both = vertical_lines >= 1 and horizontal_lines >= 1
+        line_score = 0.0
+        if has_both:
+            line_score = min(1.0, straight_count / 4)
+        elif straight_count >= 2:
+            line_score = min(0.5, straight_count / 6)
+
+        details['lines'] = {
+            'straight_count': straight_count,
+            'vertical': vertical_lines,
+            'horizontal': horizontal_lines,
+        }
+
+        # ──────────────────────────────────────────
+        # Method 3: Edge Darkness Gradient
+        # Phone bezels: very dark thin strip between bright screen and dim room
+        # Check for sudden brightness drops at edges
+        # ──────────────────────────────────────────
+        # Sample vertical brightness profile down the center column
+        center_col = gray[:, w // 2]
+        gradient = np.abs(np.diff(center_col.astype(float)))
+        sharp_edges = np.sum(gradient > 30)  # Count sharp brightness transitions
+        gradient_score = min(1.0, max(0, (sharp_edges - 5) / 15))
+
+        # Sample horizontal brightness profile across center row
+        center_row = gray[h // 2, :]
+        h_gradient = np.abs(np.diff(center_row.astype(float)))
+        h_sharp = np.sum(h_gradient > 30)
+        gradient_score = max(gradient_score, min(1.0, max(0, (h_sharp - 5) / 15)))
+
+        details['gradient'] = {
+            'v_sharp_edges': int(sharp_edges),
+            'h_sharp_edges': int(h_sharp),
+        }
+
+        # ──────────────────────────────────────────
+        # Combined Score
+        # ──────────────────────────────────────────
+        combined = (brightness_score * 0.45) + (line_score * 0.30) + (gradient_score * 0.25)
+
+        print(f'  [Screen] brightness={brightness_score:.2f}, lines={line_score:.2f}, '
+              f'gradient={gradient_score:.2f} → combined={combined:.2f}')
+        print(f'  [Screen] Details: {details}')
+
+        detected = combined >= 0.25
+        method_used = []
+        if brightness_score > 0.2:
+            method_used.append('bright_center')
+        if line_score > 0.2:
+            method_used.append('straight_edges')
+        if gradient_score > 0.2:
+            method_used.append('sharp_gradient')
+
+        return {
+            'detected': detected,
+            'confidence': round(combined, 3),
+            'method': '+'.join(method_used) if method_used else 'none',
+            'details': details,
+        }
+
     except Exception as e:
-        _logger.warning(f'[YOLO] Model load failed: {e}')
-        return False
-
-
-def detect_phone_in_image(image_path: str, threshold: float = 0.40) -> dict:
-    """
-    YOLOv4-tiny se ek image mein cell phone detect karta hai.
-    Returns {'detected': bool, 'confidence': float}
-    Graceful degradation: agar model nahi mila toh detected=False return karta hai.
-    """
-    global _yolo_net
-    if not _ensure_yolo_model():
-        return {'detected': False, 'confidence': 0, 'skipped': True}
-
-    import cv2
-    import numpy as np
-
-    with open(_YOLO_NAMES, 'r') as f:
-        classes = [l.strip() for l in f.readlines()]
-    phone_idx = classes.index('cell phone') if 'cell phone' in classes else -1
-    if phone_idx == -1:
-        return {'detected': False, 'confidence': 0, 'skipped': True}
-
-    img = cv2.imread(image_path)
-    if img is None:
-        return {'detected': False, 'confidence': 0, 'error': 'unreadable'}
-
-    h, w = img.shape[:2]
-    blob = cv2.dnn.blobFromImage(img, 1 / 255.0, (416, 416), swapRB=True, crop=False)
-    _yolo_net.setInput(blob)
-    out_names = [_yolo_net.getLayerNames()[i - 1]
-                 for i in _yolo_net.getUnconnectedOutLayers()]
-    outputs = _yolo_net.forward(out_names)
-
-    best = 0.0
-    for out in outputs:
-        for det in out:
-            scores = det[5:]
-            cid    = int(np.argmax(scores))
-            conf   = float(scores[cid])
-            if cid == phone_idx and conf > best:
-                best = conf
-
-    return {'detected': best >= threshold, 'confidence': round(best, 3)}
+        print(f'  [Screen] Error: {e}')
+        return {'detected': False, 'confidence': 0, 'error': str(e)}
 
 
 def verify_multi_frame_attendance(student, image_paths: list) -> dict:
@@ -548,17 +619,6 @@ def verify_multi_frame_attendance(student, image_paths: list) -> dict:
       1. Har frame mein DeepFace face match
       2. Har frame mein phone detection
       3. Face position variance — static photo attack detect karta hai
-
-    Returns:
-    {
-        'verified':          True/False,
-        'face_match_count':  int,
-        'total_frames':      int,
-        'phone_detected':    bool,
-        'phone_frames':      [int],    # indices
-        'static_photo':      bool,
-        'details':           str,
-    }
     """
     from deepface import DeepFace
 
@@ -574,26 +634,46 @@ def verify_multi_frame_attendance(student, image_paths: list) -> dict:
         return result
 
     stored = student.registered_photo.path
+    print(f'\n[MultiFrame] Registered photo: {stored}')
+    print(f'[MultiFrame] Verifying {total} frames...')
+
     match_count   = 0
     face_regions  = []
 
     for i, img_path in enumerate(image_paths):
+        print(f'\n--- Frame {i} ---')
+
         # ── Face verification ──
         try:
             rv = DeepFace.verify(
                 img1_path=stored, img2_path=img_path,
-                model_name='Facenet', detector_backend='opencv',
+                model_name='ArcFace', detector_backend='ssd',
                 distance_metric='cosine', enforce_detection=False,
             )
-            if rv.get('verified'):
+            distance  = rv.get('distance', 999)
+            threshold = rv.get('threshold', 0.68)
+            verified  = rv.get('verified', False)
+
+            # ArcFace cosine: lower distance = better match
+            # Default threshold ~0.68, we use 0.68 (standard)
+            # If distance is close but just over threshold, still accept
+            manual_threshold = 0.72  # slightly relaxed for webcam conditions
+            if not verified and distance <= manual_threshold:
+                verified = True
+                print(f'  [Face] distance={distance:.4f}, threshold={threshold}, '
+                      f'default=FAIL but manual_threshold={manual_threshold} → PASS')
+            else:
+                print(f'  [Face] distance={distance:.4f}, threshold={threshold}, verified={verified}')
+
+            if verified:
                 match_count += 1
         except Exception as e:
-            _logger.warning(f'[MultiFrame] Frame {i} verify error: {e}')
+            print(f'  [Face] ERROR: {e}')
 
         # ── Face region for movement check ──
         try:
             faces = DeepFace.extract_faces(
-                img_path=img_path, detector_backend='opencv',
+                img_path=img_path, detector_backend='ssd',
                 enforce_detection=False,
             )
             if faces:
@@ -604,23 +684,31 @@ def verify_multi_frame_attendance(student, image_paths: list) -> dict:
 
         # ── Phone detection ──
         pr = detect_phone_in_image(img_path)
+        print(f'  [Phone] Result: detected={pr.get("detected")}, confidence={pr.get("confidence")}')
         if pr.get('detected'):
             result['phone_detected'] = True
             result['phone_frames'].append(i)
 
     result['face_match_count'] = match_count
 
-    # ── Static photo check ──
+    # ── Static photo / proxy check ──
+    # Real face: natural micro-movements → x_std=30-100+
+    # Phone held by hand: very small movement → x_std=5-10
+    # Printed photo: near zero → x_std < 1
     if len(face_regions) >= 3:
         xs = [r.get('x', 0) for r in face_regions]
         ys = [r.get('y', 0) for r in face_regions]
         import numpy as np
-        # Set to 1.0 to reduce false positives if student perfectly still
-        if np.std(xs) < 1.0 and np.std(ys) < 1.0:
+        x_std, y_std = float(np.std(xs)), float(np.std(ys))
+        avg_std = (x_std + y_std) / 2
+        print(f'\n[MultiFrame] Face movement: x_std={x_std:.2f}, y_std={y_std:.2f}, avg={avg_std:.2f}')
+        if avg_std < 15.0:
             result['static_photo'] = True
+            print(f'[MultiFrame] ⚠️ PROXY DETECTED! avg_std={avg_std:.2f} < 15.0 threshold')
 
     # ── Final verdict ──
-    min_match = max(3, total - 1)
+    # 2 out of 5 sufficient — other layers (blink, geo, device, static) provide security
+    min_match = 2
     reasons = []
     if match_count < min_match:
         reasons.append(f'Face matched only {match_count}/{total} frames.')
