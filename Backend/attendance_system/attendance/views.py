@@ -606,9 +606,14 @@ class FacialAttendanceView(APIView):
             })
 
         except ImportError as e:
-            return Response({'error': str(e)}, status=500)
+            return Response({'error': f'DeepFace library install nahi hai: {str(e)}'}, status=500)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Face attendance error: {str(e)}")
+            return Response({'error': 'Face verification mein error aaya. Dobara try karo.'}, status=500)
         finally:
-            os.unlink(tmp_path)
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
 
 # ─────────────────────────────────────────────
