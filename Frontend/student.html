@@ -6,13 +6,10 @@
 <title>Student — Prahari | Invertis University</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<!-- Facial liveness detection libraries -->
-<!-- MediaPipe — face detection (WebAssembly, no TF.js) -->
+<!-- Facial liveness detection — MediaPipe FaceMesh (WASM, fast) -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-<!-- TF.js + COCO-SSD — phone detection only -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+<!-- NOTE: TF.js + COCO-SSD REMOVED — phone detection now handled by backend (YOLOv4-tiny) -->
 <style>
     /* ── Liveness check cards ── */
     .lv-item{background:var(--surface-2);border:1.5px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;transition:all .25s;}
@@ -49,8 +46,7 @@
     .fm-modal-wrap{display:flex;flex-direction:column;background:var(--surface);border-radius:16px;width:100%;max-width:520px;max-height:94vh;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35);}
     .fm-modal-body{flex:1;overflow-y:auto;padding-bottom:4px;}
     .fm-modal-footer{padding:12px 18px 16px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;flex-shrink:0;}
-    /* ── Video opacity transition for phone pause ── */
-    #fm-video{transition:opacity .3s;}
+
     </style>
 </head>
 <body>
@@ -396,48 +392,24 @@
 
   /* ══ FACIAL LIVENESS MODAL ══ */
 
-
   /* ══════════════════════════════════════════════════════
-     FACE LIVENESS DETECTION — MediaPipe FaceMesh
-     Replaces face-api.js + TF.js (hung on WebGL on this device)
-     MediaPipe uses WebAssembly — fast & reliable on all devices
+     FACE LIVENESS — MediaPipe FaceMesh (WASM)
+     Phone detection REMOVED from frontend → now on backend
+     Multi-frame capture → 5 photos sent to backend for analysis
   ══════════════════════════════════════════════════════ */
 
   let _faceSessionId   = null;
   let _faceStream      = null;
-  let _mpCamera        = null;   // MediaPipe Camera instance
-  let _faceMesh        = null;   // MediaPipe FaceMesh instance
+  let _mpCamera        = null;
+  let _faceMesh        = null;
   let _mpReady         = false;
   let _blinkCount      = 0;
-  let _phoneDetected   = false;  // current frame phone state
-  let _phoneConsec     = 0;      // consecutive detection frames (for fast confirm)
-  let _phoneClearConsec= 0;      // consecutive clear frames (for fast dismiss)
-  let _phoneWarnCount  = 0;      // how many warnings shown (max 2 → auto absent)
-  let _phoneAbsent     = false;  // true after 2 warnings → mark absent on submit
-  let _cocoRunning     = false;  // prevents overlapping COCO inferences (lag fix)
-  let _frameCount      = 0;      // for frame-skip throttle (lag fix)
   let _eyeWasClosed    = false;
   let _geoVerified     = false;
   let _geoLat = null, _geoLng = null;
-  let _lastLandmarks   = null;   // latest landmarks from MediaPipe callback
-  let _cocoModel       = null;   // COCO-SSD for phone detection
-  let _cocoTimer       = null;
-
-  async function loadAIModels() {
-    // MediaPipe initializes lazily on first send() — nothing to pre-load
-    _mpReady = true;
-    console.log('[FaceAI] MediaPipe ready (lazy init)');
-    // Load COCO-SSD for phone detection — force CPU (WebGL hangs on this device)
-    if (!_cocoModel) {
-      tf.setBackend('cpu').then(() => tf.ready()).then(() => {
-        console.log('[FaceAI] TF CPU backend set for COCO-SSD');
-        return cocoSsd.load();
-      }).then(model => {
-        _cocoModel = model;
-        console.log('[FaceAI] COCO-SSD loaded — phone detection active');
-      }).catch(e => console.warn('[FaceAI] COCO-SSD failed:', e));
-    }
-  }
+  let _lastLandmarks   = null;
+  let _capturedFrames  = [];     // Array of Blob (5 JPEGs)
+  let _captureState    = 'blink_check';  // blink_check | capturing | ready | submitting
 
   async function openFaceModal(sessionId, subjectName, hasFaceRegistered) {
     if (!hasFaceRegistered) {
@@ -448,19 +420,16 @@
     }
 
     _faceSessionId = sessionId;
-    _blinkCount = 0; _phoneDetected = false; _phoneConsec = 0; _phoneClearConsec = 0;
-    _phoneWarnCount = 0; _phoneAbsent = false; _cocoRunning = false; _frameCount = 0;
-    _eyeWasClosed = false; _geoVerified = false; _geoLat = null; _geoLng = null;
-    _lastLandmarks = null;
+    _blinkCount = 0; _eyeWasClosed = false;
+    _geoVerified = false; _geoLat = null; _geoLng = null;
+    _lastLandmarks = null; _capturedFrames = [];
+    _captureState = 'blink_check';
 
     document.getElementById('face-modal-overlay').style.display = 'flex';
     document.getElementById('fm-subject-lbl').textContent = '— ' + subjectName;
     document.getElementById('fm-submit-btn').disabled = true;
     resetLivenessUI();
     showFaceLoading('Initializing camera…');
-
-    // Load COCO-SSD in background (non-blocking — phone detection activates when ready)
-    loadAIModels();
 
     // Geo check
     const session = window._activeSessions && window._activeSessions[sessionId];
@@ -475,142 +444,63 @@
       locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
     });
     _faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      maxNumFaces: 1, refineLandmarks: true,
+      minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
     });
     _faceMesh.onResults(onFaceMeshResults);
 
-    // Start camera via MediaPipe Camera utils
+    // Start camera — no COCO-SSD, no frame-skip needed → every frame processed
     const video = document.getElementById('fm-video');
     _mpCamera = new Camera(video, {
       onFrame: async () => {
-        // Process every 2nd frame only — halves CPU load significantly (lag fix)
-        if (++_frameCount % 2 !== 0) return;
         if (_faceMesh) await _faceMesh.send({ image: video });
       },
-      width: 640,
-      height: 480
+      width: 640, height: 480
     });
 
     try {
       await _mpCamera.start();
       hideFaceLoading();
       updateHint();
-      console.log('[FaceAI] MediaPipe camera started');
-      // Start phone detection loop (runs separately from face mesh)
-      startPhoneDetection();
+      console.log('[FaceAI] Camera started (MediaPipe only — no COCO-SSD)');
     } catch(e) {
       showFaceLoading('❌ Camera access denied. Browser settings mein camera allow karo.');
       console.error('Camera error:', e);
     }
   }
 
-  function startPhoneDetection() {
-    if (_cocoTimer) { clearInterval(_cocoTimer); _cocoTimer = null; }
-    const video = document.getElementById('fm-video');
+  /* ── Multi-Frame Capture — after blink check passes ── */
+  async function startMultiFrameCapture() {
+    if (_captureState !== 'blink_check') return;
+    _captureState = 'capturing';
+    _capturedFrames = [];
+    setLivenessState('lv-capture', 'active');
+    updateHint();
 
-    // Run every 700ms — fast enough to feel instant, slow enough to not lag
-    _cocoTimer = setInterval(async () => {
-      // Guard: skip if COCO already running (prevents queue buildup = main lag cause)
-      if (_cocoRunning || !_cocoModel || !video || video.videoWidth === 0) return;
-      _cocoRunning = true;
-      try {
-        const preds   = await _cocoModel.detect(video);
-        const hasPhone = preds.some(p => p.class === 'cell phone' && p.score > 0.45);
+    const video  = document.getElementById('fm-video');
+    const canvas = document.getElementById('fm-canvas');
+    const total  = 5;
 
-        if (hasPhone) {
-          _phoneClearConsec = 0;
-          _phoneConsec      = Math.min(_phoneConsec + 1, 2);
+    for (let i = 0; i < total; i++) {
+      // Random delay 350-650ms between frames
+      const delay = 350 + Math.random() * 300;
+      await new Promise(r => setTimeout(r, delay));
 
-          // Require 2 consecutive detections before triggering (eliminates false positives)
-          if (_phoneConsec >= 2 && !_phoneDetected) {
-            _phoneDetected = true;
-            handlePhoneDetected();
-          }
-        } else {
-          _phoneConsec = 0;
-          _phoneClearConsec = Math.min(_phoneClearConsec + 1, 2);
+      canvas.width  = video.videoWidth  || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+      _capturedFrames.push(blob);
 
-          // Require 2 consecutive clear frames before removing warning (no flicker)
-          if (_phoneClearConsec >= 2 && _phoneDetected) {
-            _phoneDetected = false;
-            handlePhoneCleared();
-          }
-        }
-      } catch(e) { console.warn('[FaceAI] COCO error:', e); }
-      finally   { _cocoRunning = false; }
-    }, 700);
-  }
-
-  function handlePhoneDetected() {
-    _phoneWarnCount++;
-    console.log(`[FaceAI] Phone warning ${_phoneWarnCount}/2`);
-
-    // Pause video feed — camera keeps running for re-detection
-    const video = document.getElementById('fm-video');
-    if (video) video.style.opacity = '0.08';
-
-    const phoneBanner = document.getElementById('fm-phone-banner');
-
-    if (_phoneWarnCount >= 2) {
-      // 2nd warning — will be marked absent on submit
-      _phoneAbsent = true;
-      if (phoneBanner) {
-        phoneBanner.style.display = 'flex';
-        phoneBanner.innerHTML = `
-          <i class="fa-solid fa-mobile-screen" style="font-size:36px;color:#fff;"></i>
-          <div style="color:#fff;font-weight:700;font-size:15px;text-align:center;padding:0 20px;line-height:1.6;">
-            ⚠️ Warning 2/2 — Final Warning!<br>
-            <span style="font-size:12px;font-weight:400;">Phone hatao — next submit pe attendance ABSENT mark hogi.</span>
-          </div>
-          <button onclick="dismissPhoneWarning()" style="margin-top:6px;padding:8px 24px;border-radius:8px;border:2px solid #fff;background:transparent;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">✓ Phone Hata Diya — Samajh Gaya</button>`;
-      }
-    } else {
-      // 1st warning
-      if (phoneBanner) {
-        phoneBanner.style.display = 'flex';
-        phoneBanner.innerHTML = `
-          <i class="fa-solid fa-mobile-screen" style="font-size:36px;color:#fff;"></i>
-          <div style="color:#fff;font-weight:700;font-size:15px;text-align:center;padding:0 20px;line-height:1.6;">
-            📵 Warning 1/2 — Phone Detected!<br>
-            <span style="font-size:12px;font-weight:400;">Frame se phone hatao. 2 warnings ke baad attendance ABSENT mark hogi.</span>
-          </div>
-          <button onclick="dismissPhoneWarning()" style="margin-top:6px;padding:8px 24px;border-radius:8px;border:2px solid #fff;background:transparent;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">✓ Phone Hata Diya</button>`;
-      }
+      // Update UI
+      const countEl = document.getElementById('lv-capture-count');
+      if (countEl) countEl.textContent = _capturedFrames.length;
+      console.log(`[MultiFrame] Captured frame ${i + 1}/${total}`);
     }
-    setLivenessState('lv-phone', 'fail');
-    const phoneLabel = document.getElementById('lv-phone-label');
-    if (phoneLabel) phoneLabel.textContent = `Warning ${_phoneWarnCount}/2`;
-    const phoneBar = document.getElementById('lv-phone-bar');
-    if (phoneBar) { phoneBar.style.width = (_phoneWarnCount >= 2 ? '100%' : '50%'); phoneBar.style.background = '#DC2626'; }
-    document.getElementById('fm-submit-btn').disabled = true;
-    updateHint();
-  }
 
-  function dismissPhoneWarning() {
-    // User acknowledged — hide banner, resume video (camera still detecting)
-    const phoneBanner = document.getElementById('fm-phone-banner');
-    if (phoneBanner) phoneBanner.style.display = 'none';
-    const video = document.getElementById('fm-video');
-    if (video) video.style.opacity = '1';
-    // Reset consecutive counter so phone must be re-detected to show next warning
-    _phoneConsec  = 0;
-    _phoneDetected = false;
-    updateHint();
-  }
-
-  function handlePhoneCleared() {
-    const phoneBanner = document.getElementById('fm-phone-banner');
-    if (phoneBanner) phoneBanner.style.display = 'none';
-    const video = document.getElementById('fm-video');
-    if (video) video.style.opacity = '1';
-    setLivenessState('lv-phone', _phoneAbsent ? 'warn' : 'done');
-    const phoneLabel = document.getElementById('lv-phone-label');
-    if (phoneLabel) phoneLabel.textContent = _phoneAbsent ? 'Absent Flagged' : 'No Phone';
-    const phoneBar = document.getElementById('lv-phone-bar');
-    if (phoneBar) { phoneBar.style.width = '100%'; phoneBar.style.background = _phoneAbsent ? '#D97706' : '#16A34A'; }
+    _captureState = 'ready';
+    setLivenessState('lv-capture', 'done');
+    popCard('lv-capture');
     updateHint();
   }
 
@@ -650,8 +540,8 @@
 
     if (pill) pill.textContent = `EAR:${ear.toFixed(2)}`;
 
-    // ── Blink ──
-    if (_blinkCount < 2) {
+    // ── Blink detection ──
+    if (_blinkCount < 2 && _captureState === 'blink_check') {
       if (ear < 0.20) {
         if (!_eyeWasClosed) {
           _eyeWasClosed = true;
@@ -663,8 +553,13 @@
           _blinkCount = Math.min(_blinkCount + 1, 2);
           document.getElementById('lv-blink-count').textContent = _blinkCount;
           console.log('[FaceAI] Blink', _blinkCount, 'EAR was', ear.toFixed(3));
-          if (_blinkCount >= 2) { setLivenessState('lv-blink', 'done'); popCard('lv-blink'); }
-          else setLivenessState('lv-blink', '');
+          if (_blinkCount >= 2) {
+            setLivenessState('lv-blink', 'done'); popCard('lv-blink');
+            // Auto-start multi-frame capture after blinks pass
+            startMultiFrameCapture();
+          } else {
+            setLivenessState('lv-blink', '');
+          }
         }
       }
     }
@@ -740,7 +635,6 @@
   function stopDetectLoop() {
     if (_mpCamera)  { try { _mpCamera.stop(); } catch(e) {} _mpCamera = null; }
     if (_faceMesh)  { try { _faceMesh.close(); } catch(e) {} _faceMesh = null; }
-    if (_cocoTimer) { clearInterval(_cocoTimer); _cocoTimer = null; }
     _lastLandmarks = null;
   }
 
@@ -783,17 +677,11 @@
   }
 
   function resetLivenessUI() {
-    ['lv-blink','lv-phone'].forEach(id => setLivenessState(id, ''));
+    ['lv-blink','lv-capture'].forEach(id => setLivenessState(id, ''));
     document.getElementById('lv-blink-count').textContent = '0';
+    const captureCount = document.getElementById('lv-capture-count');
+    if (captureCount) captureCount.textContent = '0';
     document.getElementById('fm-geo-status').style.display = 'none';
-    const phoneBanner = document.getElementById('fm-phone-banner');
-    if (phoneBanner) { phoneBanner.style.display = 'none'; phoneBanner.innerHTML = ''; }
-    const video = document.getElementById('fm-video');
-    if (video) video.style.opacity = '1';
-    const phoneLabel = document.getElementById('lv-phone-label');
-    if (phoneLabel) phoneLabel.textContent = 'No Phone';
-    const phoneBar = document.getElementById('lv-phone-bar');
-    if (phoneBar) { phoneBar.style.width = '100%'; phoneBar.style.background = '#16A34A'; }
     updateScoreBar('ear-bar', 0, '#94A3B8');
     const wrap = document.getElementById('fm-video-wrap');
     if (wrap) wrap.className = 'fm-video-wrap';
@@ -803,8 +691,6 @@
     if (pill) pill.textContent = '';
     const oc = document.getElementById('fm-overlay-canvas');
     if (oc) clearOverlay(oc);
-    // Reset lv-phone to done (no phone at start)
-    setLivenessState('lv-phone', 'done');
   }
 
   function updateHint() {
@@ -814,25 +700,26 @@
     const session    = window._activeSessions && window._activeSessions[_faceSessionId];
     const geoRequired = session && session.geo_fencing_enabled && session.campus_latitude;
 
-    if (_phoneDetected) {
-      hint.textContent = '⚠️ Phone detected! Frame se hatao.';
-      submitBtn.disabled = true; return;
-    }
-    if (_phoneAbsent) {
-      hint.innerHTML = '🚫 <strong>2 warnings mil chuki hain.</strong> Submit karne pe attendance ABSENT mark hogi.';
-      submitBtn.disabled = false; // Allow submit — will be absent
-      return;
-    }
     if (geoRequired && !_geoVerified) {
       hint.textContent = '📍 Waiting for location verification…';
       submitBtn.disabled = true; return;
     }
-    if (_blinkCount < 2) {
+    if (_captureState === 'blink_check') {
       hint.textContent = `👁️ Blink your eyes slowly… (${_blinkCount}/2 detected)`;
       submitBtn.disabled = true; return;
     }
-    hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Capture & Submit".';
-    submitBtn.disabled = false;
+    if (_captureState === 'capturing') {
+      hint.innerHTML = `📸 Capturing verification frames… <strong>${_capturedFrames.length}/5</strong>`;
+      submitBtn.disabled = true; return;
+    }
+    if (_captureState === 'submitting') {
+      hint.innerHTML = '⏳ <strong>Server is analyzing your frames…</strong> Please wait.';
+      submitBtn.disabled = true; return;
+    }
+    if (_captureState === 'ready') {
+      hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Submit Attendance".';
+      submitBtn.disabled = false; return;
+    }
   }
 
   function showFaceLoading(txt) {
@@ -854,45 +741,38 @@
   async function submitFaceAttendance() {
     const btn = document.getElementById('fm-submit-btn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing…';
+    _captureState = 'submitting';
+    updateHint();
 
-    // Capture current video frame BEFORE stopping the camera
-    const video  = document.getElementById('fm-video');
-    const canvas = document.getElementById('fm-canvas');
-    canvas.width  = video.videoWidth  || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Stop camera only after frame is captured
+    // Stop camera
     stopDetectLoop();
 
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+    // Build FormData with all captured frames
     const fd = new FormData();
-    fd.append('session_id',    _faceSessionId);
-    fd.append('photo',         blob, 'selfie.jpg');
-    fd.append('device_id',      getDeviceId());
-    fd.append('phone_detected', _phoneAbsent ? 'true' : 'false');
+    fd.append('session_id',  _faceSessionId);
+    fd.append('blink_count', _blinkCount);
+    fd.append('device_id',   getDeviceId());
     if (_geoLat && _geoLng) { fd.append('latitude', _geoLat); fd.append('longitude', _geoLng); }
+    _capturedFrames.forEach((blob, i) => fd.append('photos', blob, `frame_${i}.jpg`));
 
     const r = await FORM('attendance/face/mark/', fd);
 
     if (r?.data?.code === 'PHONE_DETECTED') {
       closeFaceModal();
-      toast('📵 Phone detected — Attendance marked ABSENT.', 'error'); loadSessions(); return;
+      toast('📵 Phone detected by server — Attendance marked ABSENT.', 'error');
+      loadSessions(); return;
     }
     if (!r || !r.ok) {
-      // On failure: re-enable button and restart camera so user can retry
-      toast(r?.data?.error || 'Face match failed. Try again.', 'error');
+      // Failure: restart camera for retry
+      toast(r?.data?.error || 'Verification failed. Try again.', 'error');
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-camera"></i> Capture & Submit';
-      // Restart the camera for retry
-      const sessionId = _faceSessionId;
-      const session   = window._activeSessions && window._activeSessions[sessionId];
-      const subjectName = session ? session.subject_name : '';
-      _blinkCount = 0; _phoneDetected = false;
-      _eyeWasClosed = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Attendance';
+      _blinkCount = 0; _eyeWasClosed = false;
+      _capturedFrames = []; _captureState = 'blink_check';
       _lastLandmarks = null;
       resetLivenessUI();
+      const video = document.getElementById('fm-video');
       _faceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
       _faceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
       _faceMesh.onResults(onFaceMeshResults);
@@ -900,12 +780,12 @@
         onFrame: async () => { if (_faceMesh) await _faceMesh.send({ image: video }); },
         width: 640, height: 480
       });
-      _mpCamera.start().then(() => { updateHint(); startPhoneDetection(); })
+      _mpCamera.start().then(() => updateHint())
         .catch(e => { showFaceLoading('❌ Camera restart failed. Close and try again.'); console.error(e); });
       return;
     }
     closeFaceModal();
-    toast('✅ Attendance marked via Face Recognition!', 'success');
+    toast('✅ Attendance verified & marked — Multi-Frame Analysis!', 'success');
     loadSessions();
   }
 
@@ -1060,8 +940,7 @@
               <canvas id="fm-overlay-canvas" width="640" height="480"></canvas>
               <div id="fm-face-status-badge"></div>
               <div class="dbg-pill" id="fm-dbg-pill"></div>
-              <!-- Phone warning overlay (injected dynamically) -->
-              <div id="fm-phone-banner" style="display:none;position:absolute;inset:0;background:rgba(185,28,28,.92);align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px;text-align:center;"></div>
+
               <!-- Loading overlay -->
               <div id="fm-loading" style="position:absolute;inset:0;background:rgba(10,20,40,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:#fff;"></i>
@@ -1077,23 +956,24 @@
               <div class="lv-label">Blink <span id="lv-blink-count">0</span>/2</div>
               <div class="score-bar-wrap"><div class="score-bar" id="ear-bar" style="width:0%;"></div></div>
             </div>
-            <div id="lv-phone" class="lv-item">
-              <div class="lv-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
-              <div id="lv-phone-label" class="lv-label">No Phone</div>
-              <div class="score-bar-wrap"><div id="lv-phone-bar" class="score-bar" style="width:100%;background:#16A34A;"></div></div>
+            <div id="lv-capture" class="lv-item">
+              <div class="lv-icon"><i class="fa-solid fa-camera-rotate"></i></div>
+              <div class="lv-label">Frames <span id="lv-capture-count">0</span>/5</div>
+              <div class="score-bar-wrap"><div class="score-bar" id="capture-bar" style="width:0%;"></div></div>
             </div>
           </div>
 
           <!-- Hint / status strip -->
           <div id="fm-hint" style="margin:8px 16px 0;font-size:12.5px;color:var(--text-3);text-align:center;background:var(--surface-2);border-radius:8px;padding:8px 12px;min-height:36px;display:flex;align-items:center;justify-content:center;"></div>
 
-          <!-- Instructions — compact horizontal list -->
+          <!-- Instructions -->
           <div style="margin:8px 16px 10px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;">
-            <div style="font-size:10.5px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;"><i class="fa-solid fa-circle-info"></i> Steps</div>
+            <div style="font-size:10.5px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;"><i class="fa-solid fa-circle-info"></i> How it works</div>
             <div style="display:flex;flex-direction:column;gap:4px;">
               <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">1</span> Face seedha rakhein, achi roshni mein</div>
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span> Slowly 2 baar aankhein jhapkaein</div>
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span> Phone frame se bahar rakhein</div>
+              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span> Slowly 2 baar aankhein jhapkaein (liveness check)</div>
+              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span> 5 photos auto-capture hongi → server verify karega</div>
+              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">4</span> Server: face match + phone detection + anti-proxy check</div>
             </div>
           </div>
 
@@ -1105,7 +985,7 @@
         <!-- ── Sticky footer with action buttons ── -->
         <div class="fm-modal-footer">
           <button id="fm-submit-btn" class="btn btn-navy" style="flex:1;font-size:14px;padding:11px 0;" onclick="submitFaceAttendance()" disabled>
-            <i class="fa-solid fa-camera"></i>&nbsp; Capture &amp; Submit
+            <i class="fa-solid fa-paper-plane"></i>&nbsp; Submit Attendance
           </button>
           <button onclick="closeFaceModal()" style="padding:11px 18px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
             <i class="fa-solid fa-xmark"></i> Cancel

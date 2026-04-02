@@ -8,3 +8,4 @@ Pillow
 reportlab
 openpyxl
 tf-keras
+opencv-python-headless

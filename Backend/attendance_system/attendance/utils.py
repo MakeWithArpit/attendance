@@ -439,3 +439,199 @@ def verify_student_location(session, student_lat: float, student_lon: float) -> 
             f'Sirf {allowed_radius}m ke andar se attendance mark ho sakti hai.'
         ),
     }
+
+
+# ─────────────────────────────────────────────
+# Multi-Frame Attendance Verification
+# ─────────────────────────────────────────────
+#
+# Frontend sends 5 JPEG snapshots captured at random intervals.
+# Backend runs:
+#   1. Face verification (DeepFace) on each frame
+#   2. Phone detection (YOLOv4-tiny via OpenCV DNN) on each frame
+#   3. Face movement check (detects static photo attacks)
+# ─────────────────────────────────────────────
+
+import os as _os
+import logging as _logging
+import urllib.request
+
+_logger = _logging.getLogger(__name__)
+
+# ── YOLOv4-tiny model paths ──
+_YOLO_DIR     = _os.path.join(settings.BASE_DIR, 'media', 'yolo_models')
+_YOLO_CFG     = _os.path.join(_YOLO_DIR, 'yolov4-tiny.cfg')
+_YOLO_WEIGHTS = _os.path.join(_YOLO_DIR, 'yolov4-tiny.weights')
+_YOLO_NAMES   = _os.path.join(_YOLO_DIR, 'coco.names')
+_yolo_net     = None   # cached OpenCV DNN network
+
+
+def _ensure_yolo_model():
+    """Download YOLOv4-tiny weights if not present, then load into OpenCV DNN."""
+    global _yolo_net
+    if _yolo_net is not None:
+        return True
+
+    _os.makedirs(_YOLO_DIR, exist_ok=True)
+
+    urls = {
+        _YOLO_CFG:     'https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-tiny.cfg',
+        _YOLO_WEIGHTS: 'https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights',
+        _YOLO_NAMES:   'https://raw.githubusercontent.com/AlexeyAB/darknet/master/data/coco.names',
+    }
+    for path, url in urls.items():
+        if not _os.path.exists(path):
+            try:
+                _logger.info(f'[YOLO] Downloading {_os.path.basename(path)} …')
+                urllib.request.urlretrieve(url, path)
+            except Exception as e:
+                _logger.warning(f'[YOLO] Download failed ({url}): {e}')
+                return False
+
+    try:
+        import cv2
+        _yolo_net = cv2.dnn.readNetFromDarknet(_YOLO_CFG, _YOLO_WEIGHTS)
+        _yolo_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        _yolo_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+        _logger.info('[YOLO] Model loaded successfully.')
+        return True
+    except Exception as e:
+        _logger.warning(f'[YOLO] Model load failed: {e}')
+        return False
+
+
+def detect_phone_in_image(image_path: str, threshold: float = 0.40) -> dict:
+    """
+    YOLOv4-tiny se ek image mein cell phone detect karta hai.
+    Returns {'detected': bool, 'confidence': float}
+    Graceful degradation: agar model nahi mila toh detected=False return karta hai.
+    """
+    global _yolo_net
+    if not _ensure_yolo_model():
+        return {'detected': False, 'confidence': 0, 'skipped': True}
+
+    import cv2
+    import numpy as np
+
+    with open(_YOLO_NAMES, 'r') as f:
+        classes = [l.strip() for l in f.readlines()]
+    phone_idx = classes.index('cell phone') if 'cell phone' in classes else -1
+    if phone_idx == -1:
+        return {'detected': False, 'confidence': 0, 'skipped': True}
+
+    img = cv2.imread(image_path)
+    if img is None:
+        return {'detected': False, 'confidence': 0, 'error': 'unreadable'}
+
+    h, w = img.shape[:2]
+    blob = cv2.dnn.blobFromImage(img, 1 / 255.0, (416, 416), swapRB=True, crop=False)
+    _yolo_net.setInput(blob)
+    out_names = [_yolo_net.getLayerNames()[i - 1]
+                 for i in _yolo_net.getUnconnectedOutLayers()]
+    outputs = _yolo_net.forward(out_names)
+
+    best = 0.0
+    for out in outputs:
+        for det in out:
+            scores = det[5:]
+            cid    = int(np.argmax(scores))
+            conf   = float(scores[cid])
+            if cid == phone_idx and conf > best:
+                best = conf
+
+    return {'detected': best >= threshold, 'confidence': round(best, 3)}
+
+
+def verify_multi_frame_attendance(student, image_paths: list) -> dict:
+    """
+    5 JPEG frames ko verify karta hai:
+      1. Har frame mein DeepFace face match
+      2. Har frame mein phone detection
+      3. Face position variance — static photo attack detect karta hai
+
+    Returns:
+    {
+        'verified':          True/False,
+        'face_match_count':  int,
+        'total_frames':      int,
+        'phone_detected':    bool,
+        'phone_frames':      [int],    # indices
+        'static_photo':      bool,
+        'details':           str,
+    }
+    """
+    from deepface import DeepFace
+
+    total = len(image_paths)
+    result = {
+        'verified': False, 'face_match_count': 0, 'total_frames': total,
+        'phone_detected': False, 'phone_frames': [], 'static_photo': False,
+        'details': '',
+    }
+
+    if not student.registered_photo:
+        result['details'] = 'Face not registered with admin.'
+        return result
+
+    stored = student.registered_photo.path
+    match_count   = 0
+    face_regions  = []
+
+    for i, img_path in enumerate(image_paths):
+        # ── Face verification ──
+        try:
+            rv = DeepFace.verify(
+                img1_path=stored, img2_path=img_path,
+                model_name='Facenet', detector_backend='opencv',
+                distance_metric='cosine', enforce_detection=False,
+            )
+            if rv.get('verified'):
+                match_count += 1
+        except Exception as e:
+            _logger.warning(f'[MultiFrame] Frame {i} verify error: {e}')
+
+        # ── Face region for movement check ──
+        try:
+            faces = DeepFace.extract_faces(
+                img_path=img_path, detector_backend='opencv',
+                enforce_detection=False,
+            )
+            if faces:
+                region = faces[0].get('facial_area', {})
+                face_regions.append(region)
+        except Exception:
+            pass
+
+        # ── Phone detection ──
+        pr = detect_phone_in_image(img_path)
+        if pr.get('detected'):
+            result['phone_detected'] = True
+            result['phone_frames'].append(i)
+
+    result['face_match_count'] = match_count
+
+    # ── Static photo check ──
+    if len(face_regions) >= 3:
+        xs = [r.get('x', 0) for r in face_regions]
+        ys = [r.get('y', 0) for r in face_regions]
+        import numpy as np
+        if np.std(xs) < 2 and np.std(ys) < 2:
+            result['static_photo'] = True
+
+    # ── Final verdict ──
+    min_match = max(3, total - 1)
+    reasons = []
+    if match_count < min_match:
+        reasons.append(f'Face matched only {match_count}/{total} frames.')
+    if result['phone_detected']:
+        reasons.append(f'Phone detected in frame(s) {result["phone_frames"]}.')
+    if result['static_photo']:
+        reasons.append('Static photo detected — no face movement.')
+
+    if reasons:
+        result['details'] = ' '.join(reasons)
+    else:
+        result['verified'] = True
+        result['details'] = f'Verified: {match_count}/{total} frames matched.'
+
+    return result

@@ -448,69 +448,55 @@ class ActiveSessionsForStudentView(APIView):
 class FacialAttendanceView(APIView):
     """
     POST /api/attendance/face/mark/
-    Student uploads a selfie → face is matched → attendance is recorded.
+    Multi-frame attendance — student sends 3-5 JPEG snapshots.
 
     Body (multipart form):
-        photo      → selfie image file
+        photos[]   → 3-5 JPEG images captured at random intervals during liveness check
         session_id → the ID of the session started by the teacher
+        blink_count → number of eye blinks detected on frontend (must be >= 2)
         latitude   → student ki current latitude  (geo-fencing ke liye)
-        longitude  → student ki current longitude (geo-fencing ke liye)
+        longitude  → student ki current longitude
+        device_id  → browser fingerprint
 
-    The following checks are performed in sequence:
+    Backend checks:
         1. Session active hai?
-        2. Is session mein facial_enabled = True hai?
-        3. Student is subject mein enrolled hai?
-        4. Geo-fencing enable hai toh location campus ke andar hai?
-        5. Student ka face registered hai?
-        6. Uploaded selfie se face match hota hai?
+        2. Facial_enabled = True hai?
+        3. Student enrolled hai?
+        4. Geo-fencing (if enabled)
+        5. Blink count >= 2 (frontend liveness)
+        6. Multi-frame verification:
+           a. DeepFace face match on all frames
+           b. Phone detection (YOLOv4-tiny) on all frames
+           c. Static photo detection (face movement variance)
     """
     permission_classes = [IsStudent]
 
     def post(self, request):
-        session_id     = request.data.get('session_id')
-        photo          = request.FILES.get('photo')
-        latitude       = request.data.get('latitude')
-        longitude      = request.data.get('longitude')
-        phone_detected = str(request.data.get('phone_detected', 'false')).lower() == 'true'
+        session_id = request.data.get('session_id')
+        latitude   = request.data.get('latitude')
+        longitude  = request.data.get('longitude')
+        blink_count = int(request.data.get('blink_count', 0))
 
-        if not photo:
-            return Response({'error': 'Photo is required.'}, status=400)
+        # ── Accept multi-frame (photos[]) or legacy single photo ──
+        photos = request.FILES.getlist('photos')
+        if not photos:
+            single = request.FILES.get('photo')
+            if single:
+                photos = [single]
+
+        if not photos:
+            return Response({'error': 'At least one photo is required.'}, status=400)
         if not session_id:
             return Response({'error': 'session_id is required.'}, status=400)
 
         student = get_object_or_404(Student, user=request.user)
         session = get_object_or_404(AttendanceSession, id=session_id, status='active')
 
-        # ── Check 0a: Session expired? ──
+        # ── Check: Session expired? ──
         if session.is_expired:
-            return Response(
-                {'error': 'Session expired. Contact your teacher.'},
-                status=400
-            )
+            return Response({'error': 'Session expired. Contact your teacher.'}, status=400)
 
-        # ── Check 0b: Phone detected → mark absent ──
-        if phone_detected:
-            Attendance.objects.update_or_create(
-                student=student,
-                subject=session.subject,
-                date=session.date,
-                session=session,          # ← session FK in lookup — stale records se protect
-                defaults={
-                    'is_present':    False,
-                    'day':           session.date.strftime('%A'),
-                    'semester':      session.semester,
-                    'academic_year': session.academic_year,
-                    'marked_by':     session.teacher,
-                    'method':        'facial',
-                }
-            )
-            return Response({
-                'error': 'Mobile phone detected in camera. Attendance marked ABSENT as per anti-proxy policy.',
-                'code':  'PHONE_DETECTED',
-                'marked_absent': True,
-            }, status=403)
-
-        # ── Check 0b: Device validation ──
+        # ── Check: Device validation ──
         device_id = request.data.get('device_id', '').strip()
         if device_id:
             from accounts.models import DeviceToken
@@ -521,99 +507,124 @@ class FacialAttendanceView(APIView):
                     'code':  'DEVICE_MISMATCH',
                 }, status=403)
 
-        # ── Check 1: Is facial recognition enabled for this session? ──
+        # ── Check: Facial recognition enabled? ──
         if not session.facial_enabled:
             return Response({
-                'error': 'Is session mein facial recognition se attendance allowed nahi hai. '
-                         'Teacher se contact karo.'
+                'error': 'Is session mein facial recognition allowed nahi hai. Teacher se contact karo.'
             }, status=403)
 
-        # ── Check 2: Is the student enrolled in this subject? ──
+        # ── Check: Enrolled? ──
         from academics.models import CourseRegistration
         enrolled = CourseRegistration.objects.filter(
-            student=student,
-            subject=session.subject,
-            semester=session.semester,
+            student=student, subject=session.subject, semester=session.semester,
         ).exists()
         if not enrolled:
             return Response({'error': 'You are not enrolled in this subject.'}, status=403)
 
-        # ── Check 3: Geo-fencing check (if enabled) ──
+        # ── Check: Geo-fencing ──
         location_verified = False
         if session.geo_fencing_enabled:
             if not latitude or not longitude:
                 return Response({
-                    'error': 'Is session mein location verification required hai. '
-                             'Location permission allow karo aur dobara try karo.'
+                    'error': 'Location permission required. Allow karo aur dobara try karo.'
                 }, status=400)
-
             geo_result = verify_student_location(session, float(latitude), float(longitude))
             if not geo_result['allowed']:
                 return Response({
-                    'error':            geo_result['message'],
-                    'distance_meters':  geo_result['distance_meters'],
-                    'allowed_radius':   geo_result['allowed_radius'],
+                    'error':           geo_result['message'],
+                    'distance_meters': geo_result['distance_meters'],
+                    'allowed_radius':  geo_result['allowed_radius'],
                 }, status=403)
-
             location_verified = True
 
-        # ── Check 4: Does the student have a registered face photo? ──
+        # ── Check: Blink count (frontend liveness) ──
+        if blink_count < 2:
+            return Response({
+                'error': 'Liveness check incomplete — at least 2 blinks required.',
+                'code':  'BLINK_INSUFFICIENT',
+            }, status=403)
+
+        # ── Check: Face registered? ──
         if not student.registered_photo:
             return Response({
                 'error': 'Aapka face registered nahi hai. Admin se contact karo.'
             }, status=400)
 
-        # ── Check 5: Face match ──
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
-            for chunk in photo.chunks():
-                tmp.write(chunk)
-            tmp_path = tmp.name
-
+        # ── Save all uploaded photos to temp files ──
+        temp_paths = []
         try:
-            match = verify_face(student, tmp_path)
-            if not match:
+            for photo in photos:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                    for chunk in photo.chunks():
+                        tmp.write(chunk)
+                    temp_paths.append(tmp.name)
+
+            # ── Multi-frame verification ──
+            from .utils import verify_multi_frame_attendance
+            mf_result = verify_multi_frame_attendance(student, temp_paths)
+
+            # ── Phone detected → mark absent ──
+            if mf_result['phone_detected']:
+                Attendance.objects.update_or_create(
+                    student=student, subject=session.subject,
+                    date=session.date, session=session,
+                    defaults={
+                        'is_present': False, 'day': session.date.strftime('%A'),
+                        'semester': session.semester,
+                        'academic_year': session.academic_year,
+                        'marked_by': session.teacher, 'method': 'facial',
+                    }
+                )
                 return Response({
-                    'error': 'Face match nahi hua. Dobara try karo ya teacher se contact karo.'
+                    'error': 'Mobile phone detected in camera frames. Attendance marked ABSENT.',
+                    'code':  'PHONE_DETECTED',
+                    'marked_absent': True,
+                    'analysis': mf_result,
                 }, status=403)
 
-            # ── All checks passed — mark attendance ──
-            # Use update_or_create with session in lookup — prevents stale records
-            # (old get_or_create with only student+subject+date was matching records
-            #  with session=None and method='manual' default, causing false "Teacher ne Marked")
+            # ── Verification failed ──
+            if not mf_result['verified']:
+                return Response({
+                    'error': mf_result['details'],
+                    'code':  'VERIFICATION_FAILED',
+                    'analysis': mf_result,
+                }, status=403)
+
+            # ── All checks passed — mark present ──
             attendance, created = Attendance.objects.update_or_create(
-                student=student,
-                subject=session.subject,
-                date=session.date,
-                session=session,          # ← session FK in lookup — KEY FIX
+                student=student, subject=session.subject,
+                date=session.date, session=session,
                 defaults={
-                    'is_present':         True,
-                    'day':                session.date.strftime('%A'),
-                    'semester':           session.semester,
-                    'academic_year':      session.academic_year or _auto_academic_year(),
-                    'marked_by':          session.teacher,
-                    'method':             'facial',
-                    'latitude':           latitude,
-                    'longitude':          longitude,
-                    'location_verified':  location_verified,
+                    'is_present':        True,
+                    'day':               session.date.strftime('%A'),
+                    'semester':          session.semester,
+                    'academic_year':     session.academic_year or _auto_academic_year(),
+                    'marked_by':         session.teacher,
+                    'method':            'facial',
+                    'latitude':          latitude,
+                    'longitude':         longitude,
+                    'location_verified': location_verified,
                 }
             )
 
             return Response({
-                'message':          'Attendance successfully mark ho gayi — Face Recognition',
-                'subject':          session.subject.subject_name,
-                'date':             str(session.date),
+                'message':           'Attendance successfully marked — Multi-Frame Verified ✅',
+                'subject':           session.subject.subject_name,
+                'date':              str(session.date),
                 'location_verified': location_verified,
+                'analysis':          mf_result,
             })
 
         except ImportError as e:
-            return Response({'error': f'DeepFace library install nahi hai: {str(e)}'}, status=500)
+            return Response({'error': f'Required library missing: {str(e)}'}, status=500)
         except Exception as e:
             import logging
-            logging.getLogger(__name__).error(f"Face attendance error: {str(e)}")
-            return Response({'error': 'Face verification mein error aaya. Dobara try karo.'}, status=500)
+            logging.getLogger(__name__).error(f"Multi-frame attendance error: {str(e)}")
+            return Response({'error': 'Verification mein error aaya. Dobara try karo.'}, status=500)
         finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+            for path in temp_paths:
+                if os.path.exists(path):
+                    os.unlink(path)
 
 
 # ─────────────────────────────────────────────
