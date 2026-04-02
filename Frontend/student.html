@@ -403,7 +403,6 @@
   let _faceMesh      = null;   // MediaPipe FaceMesh instance
   let _mpReady       = false;
   let _blinkCount    = 0;
-  let _smileDone     = false;
   let _phoneDetected = false;
   let _eyeWasClosed  = false;
   let _geoVerified   = false;
@@ -437,7 +436,7 @@
     }
 
     _faceSessionId = sessionId;
-    _blinkCount = 0; _smileDone = false; _phoneDetected = false;
+    _blinkCount = 0; _phoneDetected = false;
     _eyeWasClosed = false; _geoVerified = false; _geoLat = null; _geoLng = null;
     _lastLandmarks = null;
 
@@ -531,7 +530,6 @@
       if (overlayC) clearOverlay(overlayC);
       if (pill) pill.textContent = '⚠ No face';
       updateScoreBar('ear-bar', 0, '#94A3B8');
-      updateScoreBar('smile-bar', 0, '#94A3B8');
       updateHint();
       return;
     }
@@ -549,14 +547,11 @@
 
     // EAR — MediaPipe 468-point mesh
     const ear   = calcEAR(lm, W, H);
-    // Smile — mouth corner lift ratio
-    const smile = calcSmile(lm, W, H);
 
     // Score bars
-    updateScoreBar('ear-bar',   Math.max(0, Math.min(1, (0.40 - ear) / 0.28)), ear < 0.20 ? '#2563EB' : '#94A3B8');
-    updateScoreBar('smile-bar', Math.min(smile / 0.12, 1),                      smile > 0.03 ? '#16A34A' : '#94A3B8');
+    updateScoreBar('ear-bar', Math.max(0, Math.min(1, (0.40 - ear) / 0.28)), ear < 0.20 ? '#2563EB' : '#94A3B8');
 
-    if (pill) pill.textContent = `EAR:${ear.toFixed(2)} 😊:${smile.toFixed(2)}`;
+    if (pill) pill.textContent = `EAR:${ear.toFixed(2)}`;
 
     // ── Blink ──
     if (_blinkCount < 2) {
@@ -577,16 +572,6 @@
       }
     }
 
-    // ── Smile ──
-    if (!_smileDone && smile > 0.03) {
-      _smileDone = true;
-      console.log('[FaceAI] Smile detected, ratio=', smile.toFixed(3));
-      setLivenessState('lv-smile', 'done');
-      popCard('lv-smile');
-    } else if (!_smileDone) {
-      setLivenessState('lv-smile', smile > 0.015 ? 'active' : '');
-    }
-
     updateHint();
   }
 
@@ -602,23 +587,6 @@
     const rv = (d(386,374) + d(385,380) + d(384,381)) / 3;
     const rh = d(362, 263);
     return ((lv/lh) + (rv/rh)) / 2;
-  }
-
-  /* ── Smile: mouth corner lift relative to face height ── */
-  function calcSmile(lm, W, H) {
-    function d(a, b) {
-      return Math.sqrt(((lm[a].x - lm[b].x)*W)**2 + ((lm[a].y - lm[b].y)*H)**2);
-    }
-    // Mouth corner elevation: corners 61 & 291 vs upper lip center 13
-    // When smiling, corners go UP (lower y) relative to lip center
-    const lipCenterY  = lm[13].y * H;
-    const leftCornerY  = lm[61].y  * H;
-    const rightCornerY = lm[291].y * H;
-    const faceHeight   = d(10, 152); // forehead to chin
-    if (faceHeight < 1) return 0;
-    // Positive = corners above lip center = smile
-    const lift = ((lipCenterY - leftCornerY) + (lipCenterY - rightCornerY)) / 2;
-    return Math.max(0, lift / faceHeight);
   }
 
   /* ── Draw MediaPipe face overlay ── */
@@ -718,12 +686,11 @@
   }
 
   function resetLivenessUI() {
-    ['lv-blink','lv-smile','lv-phone'].forEach(id => setLivenessState(id, ''));
+    ['lv-blink','lv-phone'].forEach(id => setLivenessState(id, ''));
     document.getElementById('lv-blink-count').textContent = '0';
     document.getElementById('fm-geo-status').style.display = 'none';
     document.getElementById('fm-phone-banner').style.display = 'none';
     updateScoreBar('ear-bar', 0, '#94A3B8');
-    updateScoreBar('smile-bar', 0, '#94A3B8');
     const wrap = document.getElementById('fm-video-wrap');
     if (wrap) wrap.className = 'fm-video-wrap';
     const badge = document.getElementById('fm-face-status-badge');
@@ -755,10 +722,6 @@
       hint.textContent = `👁️ Blink your eyes slowly… (${_blinkCount}/2 detected)`;
       submitBtn.disabled = true; return;
     }
-    if (!_smileDone) {
-      hint.textContent = '😊 Great! Now smile (daant dikhao)…';
-      submitBtn.disabled = true; return;
-    }
     hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Capture & Submit".';
     submitBtn.disabled = false;
   }
@@ -780,17 +743,19 @@
   }
 
   async function submitFaceAttendance() {
-    stopDetectLoop();
     const btn = document.getElementById('fm-submit-btn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…';
 
-    // Capture current video frame
+    // Capture current video frame BEFORE stopping the camera
     const video  = document.getElementById('fm-video');
     const canvas = document.getElementById('fm-canvas');
     canvas.width  = video.videoWidth  || 640;
     canvas.height = video.videoHeight || 480;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Stop camera only after frame is captured
+    stopDetectLoop();
 
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
     const fd = new FormData();
@@ -801,12 +766,36 @@
     if (_geoLat && _geoLng) { fd.append('latitude', _geoLat); fd.append('longitude', _geoLng); }
 
     const r = await FORM('attendance/face/mark/', fd);
-    closeFaceModal();
 
     if (r?.data?.code === 'PHONE_DETECTED') {
+      closeFaceModal();
       toast('📵 Phone detected — Attendance marked ABSENT.', 'error'); loadSessions(); return;
     }
-    if (!r || !r.ok) { toast(r?.data?.error || 'Face match failed. Try again.', 'error'); return; }
+    if (!r || !r.ok) {
+      // On failure: re-enable button and restart camera so user can retry
+      toast(r?.data?.error || 'Face match failed. Try again.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-camera"></i> Capture & Submit';
+      // Restart the camera for retry
+      const sessionId = _faceSessionId;
+      const session   = window._activeSessions && window._activeSessions[sessionId];
+      const subjectName = session ? session.subject_name : '';
+      _blinkCount = 0; _phoneDetected = false;
+      _eyeWasClosed = false;
+      _lastLandmarks = null;
+      resetLivenessUI();
+      _faceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+      _faceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
+      _faceMesh.onResults(onFaceMeshResults);
+      _mpCamera = new Camera(video, {
+        onFrame: async () => { if (_faceMesh) await _faceMesh.send({ image: video }); },
+        width: 640, height: 480
+      });
+      _mpCamera.start().then(() => { updateHint(); startPhoneDetection(); })
+        .catch(e => { showFaceLoading('❌ Camera restart failed. Close and try again.'); console.error(e); });
+      return;
+    }
+    closeFaceModal();
     toast('✅ Attendance marked via Face Recognition!', 'success');
     loadSessions();
   }
@@ -965,7 +954,7 @@
           <canvas id="fm-overlay-canvas" width="640" height="480"></canvas>
           <!-- Face detected badge -->
           <div id="fm-face-status-badge"></div>
-          <!-- Debug pill — EAR + smile score live -->
+          <!-- Debug pill — EAR score live -->
           <div class="dbg-pill" id="fm-dbg-pill"></div>
           <!-- Phone detected overlay -->
           <div id="fm-phone-banner" style="display:none;position:absolute;inset:0;background:rgba(220,38,38,.88);align-items:center;justify-content:center;flex-direction:column;gap:8px;">
@@ -980,20 +969,13 @@
         </div>
 
         <!-- Liveness check cards -->
-        <div style="margin:12px 22px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="margin:12px 22px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
 
           <!-- Blink card -->
           <div id="lv-blink" class="lv-item">
             <div class="lv-icon"><i class="fa-solid fa-eye"></i></div>
             <div class="lv-label">Blink <span id="lv-blink-count">0</span>/2</div>
             <div class="score-bar-wrap"><div class="score-bar" id="ear-bar" style="width:0%;"></div></div>
-          </div>
-
-          <!-- Smile card -->
-          <div id="lv-smile" class="lv-item">
-            <div class="lv-icon"><i class="fa-solid fa-face-smile"></i></div>
-            <div class="lv-label">Smile</div>
-            <div class="score-bar-wrap"><div class="score-bar" id="smile-bar" style="width:0%;"></div></div>
           </div>
 
           <!-- No phone card -->
