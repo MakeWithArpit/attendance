@@ -174,18 +174,17 @@ def get_students_by_attendance_threshold(subject_id, semester: int, academic_yea
             'percentage':        pct,
         }
 
-        # FIX: Mutually exclusive categories — each student appears in only one list
-        # below_75 contains students in the 60–75 range; below_60 for those under 60
+        # Cumulative categories — below_75 includes ALL students below 75%.
+        # This ensures total_students = above_75 + below_75 is always accurate.
+        # below_60 and below_50 are subsets (for risk analytics).
         if pct >= 75:
             result['above_75'].append(student_info)
-        elif pct >= 60:
-            result['below_75'].append(student_info)   # 60-74.99%
-        elif pct >= 50:
-            result['below_60'].append(student_info)   # 50-59.99%
         else:
-            result['below_50'].append(student_info)   # < 50%
-            result['below_60'].append(student_info)   # also in below_60 (cumulative)
-            result['below_75'].append(student_info)   # and in below_75 as well
+            result['below_75'].append(student_info)   # ALL < 75% (at risk)
+            if pct < 60:
+                result['below_60'].append(student_info)   # < 60% (warning)
+            if pct < 50:
+                result['below_50'].append(student_info)   # < 50% (critical)
 
     return result
 
@@ -339,13 +338,16 @@ def verify_face(student, uploaded_image_path: str) -> bool:
             model_name="Facenet",
 
             # Detector options:
-            # "opencv"   → fast, basic
+            # "opencv"     → fast, basic
             # "retinaface" → accurate, thoda slow
             detector_backend="opencv",
 
-            # enforce_detection=True → raises an exception if no face found in either image
-            # to ValueError raise hogi (False return karenge)
-            enforce_detection=True,
+            # distance_metric: "cosine" is more reliable than euclidean for Facenet
+            distance_metric="cosine",
+
+            # enforce_detection=False → agar face clearly visible na ho tab bhi try karo
+            # (True pe ValueError aata hai partial/blurry face pe — user experience kharab hota)
+            enforce_detection=False,
         )
 
         # result = {
