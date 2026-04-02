@@ -1,368 +1,600 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Student — Prahari | Invertis University</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<!-- Facial liveness detection — MediaPipe FaceMesh (WASM, fast) -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-<!-- NOTE: TF.js + COCO-SSD REMOVED — phone detection now handled by backend (YOLOv4-tiny) -->
-<style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student — Prahari | Invertis University</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Facial liveness detection — MediaPipe FaceMesh (WASM, fast) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <!-- NOTE: TF.js + COCO-SSD REMOVED — phone detection now handled by backend (YOLOv4-tiny) -->
+  <style>
     /* ── Liveness check cards ── */
-    .lv-item{background:var(--surface-2);border:1.5px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;transition:all .25s;}
-    .lv-item.done{background:#F0FDF4;border-color:#86EFAC;}
-    .lv-item.fail{background:#FEF2F2;border-color:#FECACA;animation:lv-shake .3s;}
-    .lv-item.warn{background:#FFF7ED;border-color:#FED7AA;}
-    .lv-item.active{background:#EBF4FF;border-color:#93C5FD;box-shadow:0 0 0 3px rgba(59,130,246,.12);}
-    @keyframes lv-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
-    @keyframes lv-pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
-    .lv-item.pop{animation:lv-pop .3s;}
-    .lv-icon{font-size:18px;margin-bottom:4px;color:var(--text-3);}
-    .lv-item.done .lv-icon{color:#16A34A;}
-    .lv-item.fail .lv-icon{color:#DC2626;}
-    .lv-item.active .lv-icon{color:#2563EB;}
-    .lv-label{font-size:11px;font-weight:600;color:var(--text-2);}
-    /* ── Score bar ── */
-    .score-bar-wrap{height:4px;background:#E2E8F0;border-radius:2px;margin-top:5px;overflow:hidden;}
-    .score-bar{height:100%;border-radius:2px;transition:width .15s,background .15s;}
-    /* ── Face ring on video ── */
-    .fm-video-wrap{position:relative;border-radius:12px;overflow:hidden;background:#0a1428;aspect-ratio:4/3;}
-    .fm-video-wrap.face-ok{box-shadow:0 0 0 3px #16A34A, 0 0 20px rgba(22,163,74,.4);}
-    .fm-video-wrap.face-none{box-shadow:0 0 0 3px #DC2626;}
-    /* ── Debug pill ── */
-    .dbg-pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;font-family:monospace;padding:2px 8px;border-radius:20px;background:rgba(0,0,0,.5);color:#fff;position:absolute;top:8px;right:8px;}
-    /* ── Canvas overlay ── */
-    #fm-overlay-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1);}
-    /* ── Session countdown ── */
-    .session-countdown{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#F5F3FF;color:#7C3AED;font-family:monospace;margin-left:6px;}
-    .session-countdown.warn{background:#FEF3C7;color:#D97706;}
-    .session-countdown.danger{background:#FEF2F2;color:#DC2626;}
-    /* ── Status badge inside video ── */
-    #fm-face-status-badge{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px;white-space:nowrap;transition:all .2s;}
-    /* ── Face Modal layout ── */
-    .fm-modal-wrap{display:flex;flex-direction:column;background:var(--surface);border-radius:16px;width:100%;max-width:520px;max-height:94vh;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35);}
-    .fm-modal-body{flex:1;overflow-y:auto;padding-bottom:4px;}
-    .fm-modal-footer{padding:12px 18px 16px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;flex-shrink:0;}
+    .lv-item {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      transition: all .25s;
+    }
 
-    </style>
-</head>
-<body>
-<div id="toast-container"></div>
+    .lv-item.done {
+      background: #F0FDF4;
+      border-color: #86EFAC;
+    }
 
-<div class="app">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sb-head">
-      <div class="sb-brand">
-        <svg class="iu-globe" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <defs><clipPath id="g"><circle cx="50" cy="50" r="44"/></clipPath></defs>
-          <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.15"/>
-          <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#g)"/>
-          <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#fff" stroke-width="7" opacity="0.5" stroke-linecap="round" clip-path="url(#g)"/>
-          <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="8" stroke-linecap="round" clip-path="url(#g)"/>
-          <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
-        </svg>
-        <div><div class="sb-brand-name">Prahari</div><div class="sb-brand-sub">Invertis University</div></div>
-      </div>
-    </div>
-    <div class="sb-user">
-      <div class="sb-user-name" id="sb-name">—</div>
-      <div class="sb-user-role"><i class="fa-solid fa-circle" style="color:#4ADE80;"></i> Student Portal</div>
-    </div>
-    <nav style="flex:1;">
-      <div class="nav-section">Navigation</div>
-      <button class="nav-item active" onclick="go('dashboard',this)"><i class="fa-solid fa-chart-pie"></i> My Attendance</button>
-      <button class="nav-item" onclick="go('sessions',this)"><i class="fa-solid fa-location-dot"></i> Active Sessions</button>
-      <button class="nav-item" onclick="go('leaves',this)"><i class="fa-solid fa-file-signature"></i> Leave Requests</button>
-      <button class="nav-item" onclick="go('profile',this)"><i class="fa-solid fa-circle-user"></i> My Profile</button>
-    </nav>
-    <div class="sb-footer">
-      <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
-    </div>
-  </aside>
+    .lv-item.fail {
+      background: #FEF2F2;
+      border-color: #FECACA;
+      animation: lv-shake .3s;
+    }
 
-  <!-- Main -->
-  <main class="main">
+    .lv-item.warn {
+      background: #FFF7ED;
+      border-color: #FED7AA;
+    }
 
-    <!-- Attendance Dashboard -->
-    <div id="sec-dashboard" class="section active">
-      <div class="page-header">
-        <h1 class="page-title">My Attendance <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Subject-wise attendance summary for your enrolled courses</p>
-      </div>
+    .lv-item.active {
+      background: #EBF4FF;
+      border-color: #93C5FD;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+    }
 
-      <div class="card card-accent">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/my-summary/</span></div>
-        <div class="filters">
-          <div class="filter-group">
-            <label><i class="fa-solid fa-layer-group"></i> Semester</label>
-            <select id="f-sem" style="width:130px;"><option value="">Select</option>
-              <option>1</option><option>2</option><option>3</option><option>4</option>
-              <option>5</option><option>6</option><option>7</option><option>8</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label><i class="fa-solid fa-calendar-days"></i> Academic Year</label>
-            <select id="f-year" style="width:150px;"><option value="">Select</option></select>
-          </div>
-          <div class="filter-group"><label style="visibility:hidden;">x</label>
-            <button class="btn btn-navy btn-sm" onclick="loadSummary()"><i class="fa-solid fa-magnifying-glass"></i> Load</button>
-          </div>
-        </div>
-      </div>
+    @keyframes lv-shake {
 
-      <div class="stats-grid" id="stats-row" style="display:none;">
-        <div class="stat-card" style="--stat-bg:#EBF0FD;--stat-color:var(--blue);">
-          <div class="stat-icon"><i class="fa-solid fa-chalkboard"></i></div>
-          <div class="stat-val" id="st-total">—</div><div class="stat-lbl">Total Classes</div>
-        </div>
-        <div class="stat-card" style="--stat-bg:var(--green-dim);--stat-color:var(--green);">
-          <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
-          <div class="stat-val" id="st-attended">—</div><div class="stat-lbl">Classes Attended</div>
-        </div>
-        <div class="stat-card" style="--stat-bg:var(--gold-dim);--stat-color:var(--gold);">
-          <div class="stat-icon"><i class="fa-solid fa-percent"></i></div>
-          <div class="stat-val" id="st-pct">—</div><div class="stat-lbl">Overall %</div>
-        </div>
-        <div class="stat-card" style="--stat-bg:#F5F3FF;--stat-color:#7C3AED;">
-          <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
-          <div class="stat-val" id="st-subjects">—</div><div class="stat-lbl">Subjects</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-table-list"></i> Subject-wise Breakdown</div></div>
-        <div id="summary-body">
-          <div class="empty"><i class="fa-solid fa-chart-bar"></i><p>Select semester and year to view your attendance.</p></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Active Sessions -->
-    <div id="sec-sessions" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Active Sessions <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Today's live attendance sessions for your enrolled subjects</p>
-      </div>
-      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/sessions/active/</span></div>
-
-      <!-- Face not registered error banner (shown when clicked without registered face) -->
-      <div id="face-not-reg-error" style="display:none;margin-bottom:14px;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px 16px;align-items:flex-start;gap:13px;">
-        <i class="fa-solid fa-face-frown" style="font-size:22px;color:#DC2626;margin-top:2px;flex-shrink:0;"></i>
-        <div>
-          <div style="font-weight:700;color:#DC2626;font-size:13.5px;margin-bottom:3px;">Face Not Registered</div>
-          <div style="font-size:12.5px;color:#7F1D1D;line-height:1.6;">
-            Aapka face system mein registered nahi hai. Face Attendance use karne ke liye pehle admin se apna face register karwao.<br>
-            <span style="font-size:11.5px;color:#991B1B;">My Profile → Face Recognition section check karo.</span>
-          </div>
-        </div>
-        <button onclick="document.getElementById('face-not-reg-error').style.display='none'" style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:16px;margin-left:auto;flex-shrink:0;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-
-      <div id="sessions-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading active sessions…</div></div>
-    </div>
-
-
-    <!-- Leave Requests -->
-    <div id="sec-leaves" class="section">
-      <div class="page-header">
-        <h1 class="page-title">Leave Requests <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Apply for leave and track your applications</p>
-      </div>
-
-      <div class="card card-accent">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-file-signature"></i> New Leave Application</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/leaves/</span></div>
-        <div class="form-row-2">
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-regular fa-calendar"></i> From Date</label>
-            <input type="date" id="l-from">
-          </div>
-          <div class="form-group" style="margin:0;">
-            <label><i class="fa-regular fa-calendar"></i> To Date</label>
-            <input type="date" id="l-to">
-          </div>
-        </div>
-        <div class="form-group">
-          <label><i class="fa-solid fa-pen-to-square"></i> Reason</label>
-          <textarea id="l-reason" placeholder="Describe the reason for your leave request…"></textarea>
-        </div>
-        <button class="btn btn-navy" onclick="applyLeave()"><i class="fa-solid fa-paper-plane"></i> Submit Application</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">
-          <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> Leave History</div>
-          <button class="btn btn-outline btn-sm" onclick="loadLeaves()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
-        </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/leaves/</span></div>
-        <div id="leaves-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
-      </div>
-    </div>
-
-    <!-- Profile -->
-    <div id="sec-profile" class="section">
-      <div class="page-header">
-        <h1 class="page-title">My Profile <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Your personal and academic details</p>
-      </div>
-      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/me/</span></div>
-      <div class="card"><div id="profile-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
-    </div>
-
-  </main>
-</div>
-
-<script src="api.js"></script>
-<script>
-  if (!Auth.isLoggedIn()||Auth.getRole()!=='student') window.location.href='login.html';
-  document.getElementById('sb-name').textContent=Auth.getName()||Auth.getUsername();
-
-  // ── Auto-populate academic year dropdown ──
-  (function populateYears(){
-    const now   = new Date();
-    const month = now.getMonth(); // 0-indexed
-    const y     = now.getFullYear();
-    const cur   = month >= 6 ? `${y}-${y+1}` : `${y-1}-${y}`;
-    const years = [
-      `${y-2}-${y-1}`, `${y-1}-${y}`, `${y}-${y+1}`, `${y+1}-${y+2}`
-    ];
-    const sel = document.getElementById('f-year');
-    years.forEach(yr => {
-      const opt = document.createElement('option');
-      opt.value = yr; opt.textContent = yr;
-      if(yr === cur) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  })();
-
-  // Pre-load profile silently to auto-select semester in summary filter
-  (async function preloadSemester(){
-    try {
-      const r = await GET('auth/me/');
-      if(r?.ok && r.data?.profile?.current_semester) {
-        const s = document.getElementById('f-sem');
-        if(s && !s.value) s.value = String(r.data.profile.current_semester);
+      0%,
+      100% {
+        transform: translateX(0)
       }
-    } catch(e) {}
-  })();
 
-  function go(id,el){
-    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    document.getElementById('sec-'+id).classList.add('active');
-    el.classList.add('active');
-    if(id==='sessions')loadSessions();
-    if(id==='leaves')  loadLeaves();
-    if(id==='profile') loadProfile();
-  }
+      25% {
+        transform: translateX(-3px)
+      }
 
-  async function loadSummary(){
-    const sem=document.getElementById('f-sem').value;
-    const year=document.getElementById('f-year').value;
-    if(!sem||!year){toast('Select semester and year','error');return;}
-    document.getElementById('summary-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET(`attendance/my-summary/?semester=${sem}&academic_year=${encodeURIComponent(year)}`);
-    if(!r||!r.ok){document.getElementById('summary-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load data.</p></div>';return;}
-    const summary=r.data.summary||[];
-    document.getElementById('stats-row').style.display='grid';
-    const total=summary.reduce((a,s)=>a+s.total_classes,0);
-    const attended=summary.reduce((a,s)=>a+s.attended,0);
-    const pct=total?((attended/total)*100).toFixed(1):'0.0';
-    document.getElementById('st-total').textContent=total;
-    document.getElementById('st-attended').textContent=attended;
-    document.getElementById('st-pct').textContent=pct+'%';
-    document.getElementById('st-subjects').textContent=summary.length;
-    if(!summary.length){document.getElementById('summary-body').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No data found for this semester.</p></div>';return;}
-    let html='<div class="table-wrap"><table><thead><tr><th>Subject</th><th>Code</th><th>Classes</th><th>Attended</th><th>Percentage</th><th>Status</th></tr></thead><tbody>';
-    summary.forEach(s=>{
-      const cls=s.percentage>=75?'safe':s.percentage>=60?'warn':'crit';
-      const pColor=s.percentage>=75?'var(--green)':s.percentage>=60?'var(--gold)':'var(--red)';
-      const ico=cls==='safe'?'fa-circle-check':cls==='warn'?'fa-triangle-exclamation':'fa-circle-xmark';
-      html+=`<tr>
+      75% {
+        transform: translateX(3px)
+      }
+    }
+
+    @keyframes lv-pop {
+      0% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.15)
+      }
+
+      100% {
+        transform: scale(1)
+      }
+    }
+
+    .lv-item.pop {
+      animation: lv-pop .3s;
+    }
+
+    .lv-icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+      color: var(--text-3);
+    }
+
+    .lv-item.done .lv-icon {
+      color: #16A34A;
+    }
+
+    .lv-item.fail .lv-icon {
+      color: #DC2626;
+    }
+
+    .lv-item.active .lv-icon {
+      color: #2563EB;
+    }
+
+    .lv-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+
+    /* ── Score bar ── */
+    .score-bar-wrap {
+      height: 4px;
+      background: #E2E8F0;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .score-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .15s, background .15s;
+    }
+
+    /* ── Face ring on video ── */
+    .fm-video-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0a1428;
+      aspect-ratio: 4/3;
+    }
+
+    .fm-video-wrap.face-ok {
+      box-shadow: 0 0 0 3px #16A34A, 0 0 20px rgba(22, 163, 74, .4);
+    }
+
+    .fm-video-wrap.face-none {
+      box-shadow: 0 0 0 3px #DC2626;
+    }
+
+    /* ── Debug pill ── */
+    .dbg-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 600;
+      font-family: monospace;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, .5);
+      color: #fff;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+    }
+
+    /* ── Canvas overlay ── */
+    #fm-overlay-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      transform: scaleX(-1);
+    }
+
+    /* ── Session countdown ── */
+    .session-countdown {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #F5F3FF;
+      color: #7C3AED;
+      font-family: monospace;
+      margin-left: 6px;
+    }
+
+    .session-countdown.warn {
+      background: #FEF3C7;
+      color: #D97706;
+    }
+
+    .session-countdown.danger {
+      background: #FEF2F2;
+      color: #DC2626;
+    }
+
+    /* ── Status badge inside video ── */
+    #fm-face-status-badge {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+
+    /* ── Face Modal layout ── */
+    .fm-modal-wrap {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 94vh;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .35);
+    }
+
+    .fm-modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 4px;
+    }
+
+    .fm-modal-footer {
+      padding: 12px 18px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toast-container"></div>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-head">
+        <div class="sb-brand">
+          <svg class="iu-globe" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="g">
+                <circle cx="50" cy="50" r="44" />
+              </clipPath>
+            </defs>
+            <circle cx="50" cy="50" r="44" fill="#1A56DB" opacity="0.15" />
+            <path d="M8,38 Q30,20 50,38 Q70,56 92,38" fill="none" stroke="#EA580C" stroke-width="8"
+              stroke-linecap="round" clip-path="url(#g)" />
+            <path d="M8,50 Q30,32 50,50 Q70,68 92,50" fill="none" stroke="#fff" stroke-width="7" opacity="0.5"
+              stroke-linecap="round" clip-path="url(#g)" />
+            <path d="M8,62 Q30,44 50,62 Q70,80 92,62" fill="none" stroke="#EA580C" stroke-width="8"
+              stroke-linecap="round" clip-path="url(#g)" />
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" />
+          </svg>
+          <div>
+            <div class="sb-brand-name">Prahari</div>
+            <div class="sb-brand-sub">Invertis University</div>
+          </div>
+        </div>
+      </div>
+      <div class="sb-user">
+        <div class="sb-user-name" id="sb-name">—</div>
+        <div class="sb-user-role"><i class="fa-solid fa-circle" style="color:#4ADE80;"></i> Student Portal</div>
+      </div>
+      <nav style="flex:1;">
+        <div class="nav-section">Navigation</div>
+        <button class="nav-item active" onclick="go('dashboard',this)"><i class="fa-solid fa-chart-pie"></i> My
+          Attendance</button>
+        <button class="nav-item" onclick="go('sessions',this)"><i class="fa-solid fa-location-dot"></i> Active
+          Sessions</button>
+        <button class="nav-item" onclick="go('leaves',this)"><i class="fa-solid fa-file-signature"></i> Leave
+          Requests</button>
+        <button class="nav-item" onclick="go('profile',this)"><i class="fa-solid fa-circle-user"></i> My
+          Profile</button>
+      </nav>
+      <div class="sb-footer">
+        <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+
+      <!-- Attendance Dashboard -->
+      <div id="sec-dashboard" class="section active">
+        <div class="page-header">
+          <h1 class="page-title">My Attendance <span class="page-title-rule"></span></h1>
+          <p class="page-sub">Subject-wise attendance summary for your enrolled courses</p>
+        </div>
+
+        <div class="card card-accent">
+          <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
+              class="api-ep">/api/attendance/my-summary/</span></div>
+          <div class="filters">
+            <div class="filter-group">
+              <label><i class="fa-solid fa-layer-group"></i> Semester</label>
+              <select id="f-sem" style="width:130px;">
+                <option value="">Select</option>
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+                <option>8</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label><i class="fa-solid fa-calendar-days"></i> Academic Year</label>
+              <select id="f-year" style="width:150px;">
+                <option value="">Select</option>
+              </select>
+            </div>
+            <div class="filter-group"><label style="visibility:hidden;">x</label>
+              <button class="btn btn-navy btn-sm" onclick="loadSummary()"><i class="fa-solid fa-magnifying-glass"></i>
+                Load</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="stats-row" style="display:none;">
+          <div class="stat-card" style="--stat-bg:#EBF0FD;--stat-color:var(--blue);">
+            <div class="stat-icon"><i class="fa-solid fa-chalkboard"></i></div>
+            <div class="stat-val" id="st-total">—</div>
+            <div class="stat-lbl">Total Classes</div>
+          </div>
+          <div class="stat-card" style="--stat-bg:var(--green-dim);--stat-color:var(--green);">
+            <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="stat-val" id="st-attended">—</div>
+            <div class="stat-lbl">Classes Attended</div>
+          </div>
+          <div class="stat-card" style="--stat-bg:var(--gold-dim);--stat-color:var(--gold);">
+            <div class="stat-icon"><i class="fa-solid fa-percent"></i></div>
+            <div class="stat-val" id="st-pct">—</div>
+            <div class="stat-lbl">Overall %</div>
+          </div>
+          <div class="stat-card" style="--stat-bg:#F5F3FF;--stat-color:#7C3AED;">
+            <div class="stat-icon"><i class="fa-solid fa-book-open"></i></div>
+            <div class="stat-val" id="st-subjects">—</div>
+            <div class="stat-lbl">Subjects</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-left"><i class="fa-solid fa-table-list"></i> Subject-wise Breakdown</div>
+          </div>
+          <div id="summary-body">
+            <div class="empty"><i class="fa-solid fa-chart-bar"></i>
+              <p>Select semester and year to view your attendance.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Sessions -->
+      <div id="sec-sessions" class="section">
+        <div class="page-header">
+          <h1 class="page-title">Active Sessions <span class="page-title-rule"></span></h1>
+          <p class="page-sub">Today's live attendance sessions for your enrolled subjects</p>
+        </div>
+        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
+            class="api-ep">/api/attendance/sessions/active/</span></div>
+
+        <!-- Face not registered error banner (shown when clicked without registered face) -->
+        <div id="face-not-reg-error"
+          style="display:none;margin-bottom:14px;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px 16px;align-items:flex-start;gap:13px;">
+          <i class="fa-solid fa-face-frown" style="font-size:22px;color:#DC2626;margin-top:2px;flex-shrink:0;"></i>
+          <div>
+            <div style="font-weight:700;color:#DC2626;font-size:13.5px;margin-bottom:3px;">Face Not Registered</div>
+            <div style="font-size:12.5px;color:#7F1D1D;line-height:1.6;">
+              Aapka face system mein registered nahi hai. Face Attendance use karne ke liye pehle admin se apna face
+              register karwao.<br>
+              <span style="font-size:11.5px;color:#991B1B;">My Profile → Face Recognition section check karo.</span>
+            </div>
+          </div>
+          <button onclick="document.getElementById('face-not-reg-error').style.display='none'"
+            style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:16px;margin-left:auto;flex-shrink:0;"><i
+              class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div id="sessions-list">
+          <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading active sessions…</div>
+        </div>
+      </div>
+
+
+      <!-- Leave Requests -->
+      <div id="sec-leaves" class="section">
+        <div class="page-header">
+          <h1 class="page-title">Leave Requests <span class="page-title-rule"></span></h1>
+          <p class="page-sub">Apply for leave and track your applications</p>
+        </div>
+
+        <div class="card card-accent">
+          <div class="card-title">
+            <div class="card-title-left"><i class="fa-solid fa-file-signature"></i> New Leave Application</div>
+          </div>
+          <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span
+              class="api-ep">/api/attendance/leaves/</span></div>
+          <div class="form-row-2">
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-regular fa-calendar"></i> From Date</label>
+              <input type="date" id="l-from">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label><i class="fa-regular fa-calendar"></i> To Date</label>
+              <input type="date" id="l-to">
+            </div>
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-pen-to-square"></i> Reason</label>
+            <textarea id="l-reason" placeholder="Describe the reason for your leave request…"></textarea>
+          </div>
+          <button class="btn btn-navy" onclick="applyLeave()"><i class="fa-solid fa-paper-plane"></i> Submit
+            Application</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> Leave History</div>
+            <button class="btn btn-outline btn-sm" onclick="loadLeaves()"><i class="fa-solid fa-rotate-right"></i>
+              Refresh</button>
+          </div>
+          <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
+              class="api-ep">/api/attendance/leaves/</span></div>
+          <div id="leaves-body">
+            <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile -->
+      <div id="sec-profile" class="section">
+        <div class="page-header">
+          <h1 class="page-title">My Profile <span class="page-title-rule"></span></h1>
+          <p class="page-sub">Your personal and academic details</p>
+        </div>
+        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
+            class="api-ep">/api/auth/me/</span></div>
+        <div class="card">
+          <div id="profile-body">
+            <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    if (!Auth.isLoggedIn() || Auth.getRole() !== 'student') window.location.href = 'login.html';
+    document.getElementById('sb-name').textContent = Auth.getName() || Auth.getUsername();
+
+    // ── Auto-populate academic year dropdown ──
+    (function populateYears() {
+      const now = new Date();
+      const month = now.getMonth(); // 0-indexed
+      const y = now.getFullYear();
+      const cur = month >= 6 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+      const years = [
+        `${y - 2}-${y - 1}`, `${y - 1}-${y}`, `${y}-${y + 1}`, `${y + 1}-${y + 2}`
+      ];
+      const sel = document.getElementById('f-year');
+      years.forEach(yr => {
+        const opt = document.createElement('option');
+        opt.value = yr; opt.textContent = yr;
+        if (yr === cur) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    })();
+
+    // Pre-load profile silently to auto-select semester in summary filter
+    (async function preloadSemester() {
+      try {
+        const r = await GET('auth/me/');
+        if (r?.ok && r.data?.profile?.current_semester) {
+          const s = document.getElementById('f-sem');
+          if (s && !s.value) s.value = String(r.data.profile.current_semester);
+        }
+      } catch (e) { }
+    })();
+
+    function go(id, el) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('sec-' + id).classList.add('active');
+      el.classList.add('active');
+      if (id === 'sessions') loadSessions();
+      if (id === 'leaves') loadLeaves();
+      if (id === 'profile') loadProfile();
+    }
+
+    async function loadSummary() {
+      const sem = document.getElementById('f-sem').value;
+      const year = document.getElementById('f-year').value;
+      if (!sem || !year) { toast('Select semester and year', 'error'); return; }
+      document.getElementById('summary-body').innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+      const r = await GET(`attendance/my-summary/?semester=${sem}&academic_year=${encodeURIComponent(year)}`);
+      if (!r || !r.ok) { document.getElementById('summary-body').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load data.</p></div>'; return; }
+      const summary = r.data.summary || [];
+      document.getElementById('stats-row').style.display = 'grid';
+      const total = summary.reduce((a, s) => a + s.total_classes, 0);
+      const attended = summary.reduce((a, s) => a + s.attended, 0);
+      const pct = total ? ((attended / total) * 100).toFixed(1) : '0.0';
+      document.getElementById('st-total').textContent = total;
+      document.getElementById('st-attended').textContent = attended;
+      document.getElementById('st-pct').textContent = pct + '%';
+      document.getElementById('st-subjects').textContent = summary.length;
+      if (!summary.length) { document.getElementById('summary-body').innerHTML = '<div class="empty"><i class="fa-solid fa-inbox"></i><p>No data found for this semester.</p></div>'; return; }
+      let html = '<div class="table-wrap"><table><thead><tr><th>Subject</th><th>Code</th><th>Classes</th><th>Attended</th><th>Percentage</th><th>Status</th></tr></thead><tbody>';
+      summary.forEach(s => {
+        const cls = s.percentage >= 75 ? 'safe' : s.percentage >= 60 ? 'warn' : 'crit';
+        const pColor = s.percentage >= 75 ? 'var(--green)' : s.percentage >= 60 ? 'var(--gold)' : 'var(--red)';
+        const ico = cls === 'safe' ? 'fa-circle-check' : cls === 'warn' ? 'fa-triangle-exclamation' : 'fa-circle-xmark';
+        html += `<tr>
         <td><strong>${s.subject_name}</strong><div class="prog-wrap" style="width:100px;"><div class="prog-bar" style="width:${s.percentage}%;background:${pColor};"></div></div></td>
         <td><code>${s.subject_code}</code></td>
         <td>${s.total_classes}</td><td>${s.attended}</td>
         <td><span class="badge badge-${cls}">${s.percentage.toFixed(1)}%</span></td>
-        <td><span style="color:${pColor};font-size:12px;display:flex;align-items:center;gap:5px;"><i class="fa-solid ${ico}" style="font-size:11px;"></i>${cls==='safe'?'Safe':cls==='warn'?'At Risk':'Critical'}</span></td>
+        <td><span style="color:${pColor};font-size:12px;display:flex;align-items:center;gap:5px;"><i class="fa-solid ${ico}" style="font-size:11px;"></i>${cls === 'safe' ? 'Safe' : cls === 'warn' ? 'At Risk' : 'Critical'}</span></td>
       </tr>`;
-    });
-    document.getElementById('summary-body').innerHTML=html+'</tbody></table></div>';
-  }
-
-  /* ══════════════════════════════════════════════
-     ACTIVE SESSIONS + FACIAL LIVENESS DETECTION
-  ══════════════════════════════════════════════ */
-
-  // ── Countdown timers per session ──
-  const _sessionTimers = {};
-  function startSessionCountdown(sessionId, expiresAtISO) {
-    if (_sessionTimers[sessionId]) clearInterval(_sessionTimers[sessionId]);
-    const el = document.getElementById(`sc-${sessionId}`);
-    if (!el || !expiresAtISO) return;
-    const expiresAt = new Date(expiresAtISO).getTime();
-    function tick() {
-      const el2 = document.getElementById(`sc-${sessionId}`);
-      if (!el2) { clearInterval(_sessionTimers[sessionId]); return; }
-      const rem = expiresAt - Date.now();
-      if (rem <= 0) {
-        clearInterval(_sessionTimers[sessionId]);
-        // Session expire — 3 sec baad list refresh karo taaki card disappear ho jaye
-        if (el2) { el2.textContent = '⏰ Expired'; el2.className = 'session-countdown danger'; }
-        setTimeout(() => loadSessions(), 3000);
-        return;
-      }
-      const ts = Math.floor(rem / 1000);
-      const h  = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), s = ts % 60;
-      el2.textContent = h > 0
-        ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} left`
-        : `${m}:${String(s).padStart(2,'0')} left`;
-      el2.className = 'session-countdown' + (ts <= 60 ? ' danger' : ts <= 300 ? ' warn' : '');
+      });
+      document.getElementById('summary-body').innerHTML = html + '</tbody></table></div>';
     }
-    tick();
-    _sessionTimers[sessionId] = setInterval(tick, 1000);
-  }
 
-  async function loadSessions(){
-    document.getElementById('sessions-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading sessions…</div>';
-    const r=await GET('attendance/sessions/active/');
-    if(!r||!r.ok){document.getElementById('sessions-list').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load.</p></div>';return;}
-    const sessions=r.data.active_sessions||[];
-    if(!sessions.length){document.getElementById('sessions-list').innerHTML='<div class="empty"><i class="fa-regular fa-clock"></i><p>No active sessions right now. Check back later.</p></div>';return;}
-    window._activeSessions = {};
-    sessions.forEach(s => { window._activeSessions[s.session_id] = s; });
+    /* ══════════════════════════════════════════════
+       ACTIVE SESSIONS + FACIAL LIVENESS DETECTION
+    ══════════════════════════════════════════════ */
 
-    document.getElementById('sessions-list').innerHTML = sessions.map(s => {
-      const hasFace = s.has_face_registered === true;
-      const faceWarning = !hasFace
-        ? `<div style="margin-top:6px;font-size:11.5px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:5px 10px;display:inline-flex;align-items:center;gap:6px;">
+    // ── Countdown timers per session ──
+    const _sessionTimers = {};
+    function startSessionCountdown(sessionId, expiresAtISO) {
+      if (_sessionTimers[sessionId]) clearInterval(_sessionTimers[sessionId]);
+      const el = document.getElementById(`sc-${sessionId}`);
+      if (!el || !expiresAtISO) return;
+      const expiresAt = new Date(expiresAtISO).getTime();
+      function tick() {
+        const el2 = document.getElementById(`sc-${sessionId}`);
+        if (!el2) { clearInterval(_sessionTimers[sessionId]); return; }
+        const rem = expiresAt - Date.now();
+        if (rem <= 0) {
+          clearInterval(_sessionTimers[sessionId]);
+          // Session expire — 3 sec baad list refresh karo taaki card disappear ho jaye
+          if (el2) { el2.textContent = '⏰ Expired'; el2.className = 'session-countdown danger'; }
+          setTimeout(() => loadSessions(), 3000);
+          return;
+        }
+        const ts = Math.floor(rem / 1000);
+        const h = Math.floor(ts / 3600), m = Math.floor((ts % 3600) / 60), s = ts % 60;
+        el2.textContent = h > 0
+          ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} left`
+          : `${m}:${String(s).padStart(2, '0')} left`;
+        el2.className = 'session-countdown' + (ts <= 60 ? ' danger' : ts <= 300 ? ' warn' : '');
+      }
+      tick();
+      _sessionTimers[sessionId] = setInterval(tick, 1000);
+    }
+
+    async function loadSessions() {
+      document.getElementById('sessions-list').innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading sessions…</div>';
+      const r = await GET('attendance/sessions/active/');
+      if (!r || !r.ok) { document.getElementById('sessions-list').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load.</p></div>'; return; }
+      const sessions = r.data.active_sessions || [];
+      if (!sessions.length) { document.getElementById('sessions-list').innerHTML = '<div class="empty"><i class="fa-regular fa-clock"></i><p>No active sessions right now. Check back later.</p></div>'; return; }
+      window._activeSessions = {};
+      sessions.forEach(s => { window._activeSessions[s.session_id] = s; });
+
+      document.getElementById('sessions-list').innerHTML = sessions.map(s => {
+        const hasFace = s.has_face_registered === true;
+        const faceWarning = !hasFace
+          ? `<div style="margin-top:6px;font-size:11.5px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:5px 10px;display:inline-flex;align-items:center;gap:6px;">
              <i class="fa-solid fa-triangle-exclamation"></i> Face not registered — contact admin to register your face first.
            </div>`
-        : '';
+          : '';
 
-      // Method-aware badge
-      let actionBtn;
-      if (s.already_marked) {
-        const methodLabel = {
-          'facial':   '📷 Face se Marked',
-          'manual':   '✋ Teacher ne Marked',
-          'rfid':     '🔖 RFID se Marked',
-          'qr':       '📱 QR se Marked',
-        }[s.marked_method] || '✅ Marked';
-        actionBtn = `<span class="btn-marked" title="Method: ${s.marked_method||'unknown'}"><i class="fa-solid fa-circle-check"></i> ${methodLabel}</span>`;
-      } else if (s.facial_enabled) {
-        actionBtn = `<button class="btn btn-blue btn-sm" onclick="openFaceModal(${s.session_id},'${s.subject_name.replace(/'/g,"\\'")}',${hasFace})">
+        // Method-aware badge
+        let actionBtn;
+        if (s.already_marked) {
+          const methodLabel = {
+            'facial': '📷 Face se Marked',
+            'manual': '✋ Teacher ne Marked',
+            'rfid': '🔖 RFID se Marked',
+            'qr': '📱 QR se Marked',
+          }[s.marked_method] || '✅ Marked';
+          actionBtn = `<span class="btn-marked" title="Method: ${s.marked_method || 'unknown'}"><i class="fa-solid fa-circle-check"></i> ${methodLabel}</span>`;
+        } else if (s.facial_enabled) {
+          actionBtn = `<button class="btn btn-blue btn-sm" onclick="openFaceModal(${s.session_id},'${s.subject_name.replace(/'/g, "\\'")}',${hasFace})">
                        <i class="fa-solid fa-camera"></i> Face Attendance
                      </button>`;
-      } else {
-        actionBtn = '<span class="badge badge-neutral"><i class="fa-solid fa-hand-pointer"></i> Manual only</span>';
-      }
+        } else {
+          actionBtn = '<span class="badge badge-neutral"><i class="fa-solid fa-hand-pointer"></i> Manual only</span>';
+        }
 
-      return `
-      <div class="session-card ${s.already_marked?'marked':''}">
+        return `
+      <div class="session-card ${s.already_marked ? 'marked' : ''}">
         <div class="session-info" style="flex:1;">
           <h4>${s.subject_name} <code>${s.subject_code}</code></h4>
           <p>
@@ -376,624 +608,644 @@
         </div>
         <div style="flex-shrink:0;margin-left:12px;">${actionBtn}</div>
       </div>`;
-    }).join('');
+      }).join('');
 
-    // Start countdown timers
-    sessions.forEach(s => { if (s.expires_at) startSessionCountdown(s.session_id, s.expires_at); });
-  }
-
-  /* ── Haversine distance ── */
-  function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R=6371000, toRad=x=>x*Math.PI/180;
-    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-    const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  }
-
-  /* ══ FACIAL LIVENESS MODAL ══ */
-
-  /* ══════════════════════════════════════════════════════
-     FACE LIVENESS — MediaPipe FaceMesh (WASM)
-     Phone detection REMOVED from frontend → now on backend
-     Multi-frame capture → 5 photos sent to backend for analysis
-  ══════════════════════════════════════════════════════ */
-
-  let _faceSessionId   = null;
-  let _faceStream      = null;
-  let _mpCamera        = null;
-  let _faceMesh        = null;
-  let _mpReady         = false;
-  let _blinkCount      = 0;
-  let _eyeWasClosed    = false;
-  let _geoVerified     = false;
-  let _geoLat = null, _geoLng = null;
-  let _lastLandmarks   = null;
-  let _capturedFrames  = [];     // Array of Blob (5 JPEGs)
-  let _captureState    = 'blink_check';  // blink_check | capturing | ready | submitting
-
-  async function openFaceModal(sessionId, subjectName, hasFaceRegistered) {
-    if (!hasFaceRegistered) {
-      const errDiv = document.getElementById('face-not-reg-error');
-      if (errDiv) { errDiv.style.display='flex'; setTimeout(()=>errDiv.style.display='none',6000); }
-      toast('❌ Face registered nahi hai. Admin se contact karo.', 'error');
-      return;
+      // Start countdown timers
+      sessions.forEach(s => { if (s.expires_at) startSessionCountdown(s.session_id, s.expires_at); });
     }
 
-    _faceSessionId = sessionId;
-    _blinkCount = 0; _eyeWasClosed = false;
-    _geoVerified = false; _geoLat = null; _geoLng = null;
-    _lastLandmarks = null; _capturedFrames = [];
-    _captureState = 'blink_check';
-
-    document.getElementById('face-modal-overlay').style.display = 'flex';
-    document.getElementById('fm-subject-lbl').textContent = '— ' + subjectName;
-    document.getElementById('fm-submit-btn').disabled = true;
-    resetLivenessUI();
-    showFaceLoading('Initializing camera…');
-
-    // Geo check
-    const session = window._activeSessions && window._activeSessions[sessionId];
-    if (session && session.geo_fencing_enabled && session.campus_latitude) {
-      doGeoCheck(session);
-    } else {
-      _geoVerified = true;
+    /* ── Haversine distance ── */
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000, toRad = x => x * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    // Init MediaPipe FaceMesh
-    _faceMesh = new FaceMesh({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-    });
-    _faceMesh.setOptions({
-      maxNumFaces: 1, refineLandmarks: true,
-      minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
-    });
-    _faceMesh.onResults(onFaceMeshResults);
+    /* ══ FACIAL LIVENESS MODAL ══ */
 
-    // Start camera — no COCO-SSD, no frame-skip needed → every frame processed
-    const video = document.getElementById('fm-video');
-    _mpCamera = new Camera(video, {
-      onFrame: async () => {
-        if (_faceMesh) await _faceMesh.send({ image: video });
-      },
-      width: 640, height: 480
-    });
+    /* ══════════════════════════════════════════════════════
+       FACE LIVENESS — MediaPipe FaceMesh (WASM)
+       Phone detection REMOVED from frontend → now on backend
+       Multi-frame capture → 5 photos sent to backend for analysis
+    ══════════════════════════════════════════════════════ */
 
-    try {
-      await _mpCamera.start();
-      hideFaceLoading();
-      updateHint();
-      console.log('[FaceAI] Camera started (MediaPipe only — no COCO-SSD)');
-    } catch(e) {
-      showFaceLoading('❌ Camera access denied. Browser settings mein camera allow karo.');
-      console.error('Camera error:', e);
-    }
-  }
+    let _faceSessionId = null;
+    let _faceStream = null;
+    let _mpCamera = null;
+    let _faceMesh = null;
+    let _mpReady = false;
+    let _blinkCount = 0;
+    let _eyeWasClosed = false;
+    let _geoVerified = false;
+    let _geoLat = null, _geoLng = null;
+    let _lastLandmarks = null;
+    let _capturedFrames = [];     // Array of Blob (5 JPEGs)
+    let _captureState = 'blink_check';  // blink_check | capturing | ready | submitting
 
-  /* ── Multi-Frame Capture — after blink check passes ── */
-  async function startMultiFrameCapture() {
-    if (_captureState !== 'blink_check') return;
-    _captureState = 'capturing';
-    _capturedFrames = [];
-    setLivenessState('lv-capture', 'active');
-    updateHint();
+    async function openFaceModal(sessionId, subjectName, hasFaceRegistered) {
+      if (!hasFaceRegistered) {
+        const errDiv = document.getElementById('face-not-reg-error');
+        if (errDiv) { errDiv.style.display = 'flex'; setTimeout(() => errDiv.style.display = 'none', 6000); }
+        toast('❌ Face registered nahi hai. Admin se contact karo.', 'error');
+        return;
+      }
 
-    const video  = document.getElementById('fm-video');
-    const canvas = document.getElementById('fm-canvas');
-    const total  = 5;
+      _faceSessionId = sessionId;
+      _blinkCount = 0; _eyeWasClosed = false;
+      _geoVerified = false; _geoLat = null; _geoLng = null;
+      _lastLandmarks = null; _capturedFrames = [];
+      _captureState = 'blink_check';
 
-    for (let i = 0; i < total; i++) {
-      // Random delay 350-650ms between frames
-      const delay = 350 + Math.random() * 300;
-      await new Promise(r => setTimeout(r, delay));
+      document.getElementById('face-modal-overlay').style.display = 'flex';
+      document.getElementById('fm-subject-lbl').textContent = '— ' + subjectName;
+      document.getElementById('fm-submit-btn').disabled = true;
+      resetLivenessUI();
+      showFaceLoading('Initializing camera…');
 
-      canvas.width  = video.videoWidth  || 640;
-      canvas.height = video.videoHeight || 480;
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
-      _capturedFrames.push(blob);
-
-      // Update UI
-      const countEl = document.getElementById('lv-capture-count');
-      if (countEl) countEl.textContent = _capturedFrames.length;
-      console.log(`[MultiFrame] Captured frame ${i + 1}/${total}`);
-    }
-
-    _captureState = 'ready';
-    setLivenessState('lv-capture', 'done');
-    popCard('lv-capture');
-    updateHint();
-  }
-
-  function onFaceMeshResults(results) {
-    const wrap     = document.getElementById('fm-video-wrap');
-    const overlayC = document.getElementById('fm-overlay-canvas');
-    const pill     = document.getElementById('fm-dbg-pill');
-    const video    = document.getElementById('fm-video');
-
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-      _lastLandmarks = null;
-      if (wrap)    wrap.className = 'fm-video-wrap face-none';
-      setFaceBadge(false);
-      if (overlayC) clearOverlay(overlayC);
-      if (pill) pill.textContent = '⚠ No face';
-      updateScoreBar('ear-bar', 0, '#94A3B8');
-      updateHint();
-      return;
-    }
-
-    const lm = results.multiFaceLandmarks[0];
-    _lastLandmarks = lm;
-
-    const W = video.videoWidth  || 640;
-    const H = video.videoHeight || 480;
-
-    // Draw overlay
-    if (overlayC) drawMediaPipeOverlay(lm, W, H, overlayC);
-    if (wrap) wrap.className = 'fm-video-wrap face-ok';
-    setFaceBadge(true);
-
-    // EAR — MediaPipe 468-point mesh
-    const ear   = calcEAR(lm, W, H);
-
-    // Score bars
-    updateScoreBar('ear-bar', Math.max(0, Math.min(1, (0.40 - ear) / 0.28)), ear < 0.20 ? '#2563EB' : '#94A3B8');
-
-    if (pill) pill.textContent = `EAR:${ear.toFixed(2)}`;
-
-    // ── Blink detection ──
-    if (_blinkCount < 2 && _captureState === 'blink_check') {
-      if (ear < 0.20) {
-        if (!_eyeWasClosed) {
-          _eyeWasClosed = true;
-          setLivenessState('lv-blink', 'active');
-        }
+      // Geo check
+      const session = window._activeSessions && window._activeSessions[sessionId];
+      if (session && session.geo_fencing_enabled && session.campus_latitude) {
+        doGeoCheck(session);
       } else {
-        if (_eyeWasClosed) {
-          _eyeWasClosed = false;
-          _blinkCount = Math.min(_blinkCount + 1, 2);
-          document.getElementById('lv-blink-count').textContent = _blinkCount;
-          console.log('[FaceAI] Blink', _blinkCount, 'EAR was', ear.toFixed(3));
-          if (_blinkCount >= 2) {
-            setLivenessState('lv-blink', 'done'); popCard('lv-blink');
-            // Auto-start multi-frame capture after blinks pass
-            startMultiFrameCapture();
-          } else {
-            setLivenessState('lv-blink', '');
+        _geoVerified = true;
+      }
+
+      // Init MediaPipe FaceMesh
+      _faceMesh = new FaceMesh({
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+      });
+      _faceMesh.setOptions({
+        maxNumFaces: 1, refineLandmarks: true,
+        minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+      });
+      _faceMesh.onResults(onFaceMeshResults);
+
+      // Start camera — no COCO-SSD, no frame-skip needed → every frame processed
+      const video = document.getElementById('fm-video');
+      _mpCamera = new Camera(video, {
+        onFrame: async () => {
+          if (_faceMesh) await _faceMesh.send({ image: video });
+        },
+        width: 640, height: 480
+      });
+
+      try {
+        await _mpCamera.start();
+        hideFaceLoading();
+        updateHint();
+        console.log('[FaceAI] Camera started (MediaPipe only — no COCO-SSD)');
+      } catch (e) {
+        showFaceLoading('❌ Camera access denied. Browser settings mein camera allow karo.');
+        console.error('Camera error:', e);
+      }
+    }
+
+    /* ── Multi-Frame Capture — after blink check passes ── */
+    async function startMultiFrameCapture() {
+      if (_captureState !== 'blink_check') return;
+      _captureState = 'capturing';
+      _capturedFrames = [];
+      setLivenessState('lv-capture', 'active');
+      updateHint();
+
+      const video = document.getElementById('fm-video');
+      const canvas = document.getElementById('fm-canvas');
+      const total = 5;
+
+      for (let i = 0; i < total; i++) {
+        // Random delay 350-650ms between frames
+        const delay = 350 + Math.random() * 300;
+        await new Promise(r => setTimeout(r, delay));
+
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+        _capturedFrames.push(blob);
+
+        // Update UI
+        const countEl = document.getElementById('lv-capture-count');
+        if (countEl) countEl.textContent = _capturedFrames.length;
+        console.log(`[MultiFrame] Captured frame ${i + 1}/${total}`);
+      }
+
+      _captureState = 'ready';
+      setLivenessState('lv-capture', 'done');
+      popCard('lv-capture');
+      updateHint();
+    }
+
+    function onFaceMeshResults(results) {
+      const wrap = document.getElementById('fm-video-wrap');
+      const overlayC = document.getElementById('fm-overlay-canvas');
+      const pill = document.getElementById('fm-dbg-pill');
+      const video = document.getElementById('fm-video');
+
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        _lastLandmarks = null;
+        if (wrap) wrap.className = 'fm-video-wrap face-none';
+        setFaceBadge(false);
+        if (overlayC) clearOverlay(overlayC);
+        if (pill) pill.textContent = '⚠ No face';
+        updateScoreBar('ear-bar', 0, '#94A3B8');
+        updateHint();
+        return;
+      }
+
+      const lm = results.multiFaceLandmarks[0];
+      _lastLandmarks = lm;
+
+      const W = video.videoWidth || 640;
+      const H = video.videoHeight || 480;
+
+      // Overlay hidden — user requested clean video without blue/green lines
+      if (overlayC) clearOverlay(overlayC);
+      if (wrap) wrap.className = 'fm-video-wrap face-ok';
+      setFaceBadge(true);
+
+      // EAR — MediaPipe 468-point mesh
+      const ear = calcEAR(lm, W, H);
+
+      // Score bars
+      updateScoreBar('ear-bar', Math.max(0, Math.min(1, (0.40 - ear) / 0.28)), ear < 0.20 ? '#2563EB' : '#94A3B8');
+
+      if (pill) pill.textContent = `EAR:${ear.toFixed(2)}`;
+
+      // ── Blink detection ──
+      if (_blinkCount < 2 && _captureState === 'blink_check') {
+        if (ear < 0.20) {
+          if (!_eyeWasClosed) {
+            _eyeWasClosed = true;
+            setLivenessState('lv-blink', 'active');
+          }
+        } else {
+          if (_eyeWasClosed) {
+            _eyeWasClosed = false;
+            _blinkCount = Math.min(_blinkCount + 1, 2);
+            document.getElementById('lv-blink-count').textContent = _blinkCount;
+            console.log('[FaceAI] Blink', _blinkCount, 'EAR was', ear.toFixed(3));
+            if (_blinkCount >= 2) {
+              setLivenessState('lv-blink', 'done'); popCard('lv-blink');
+              // Auto-start multi-frame capture after blinks pass
+              startMultiFrameCapture();
+            } else {
+              setLivenessState('lv-blink', '');
+            }
           }
         }
       }
+
+      updateHint();
     }
 
-    updateHint();
-  }
-
-  /* ── MediaPipe EAR: 468-point mesh eye landmarks ── */
-  function calcEAR(lm, W, H) {
-    function d(a, b) {
-      return Math.sqrt(((lm[a].x - lm[b].x)*W)**2 + ((lm[a].y - lm[b].y)*H)**2);
-    }
-    // Left eye:  top=159, bottom=145, h-left=33, h-right=133, extra: 158-153, 157-154
-    const lv = (d(159,145) + d(158,153) + d(157,154)) / 3;
-    const lh = d(33, 133);
-    // Right eye: top=386, bottom=374, h-left=362, h-right=263, extra: 385-380, 384-381
-    const rv = (d(386,374) + d(385,380) + d(384,381)) / 3;
-    const rh = d(362, 263);
-    return ((lv/lh) + (rv/rh)) / 2;
-  }
-
-  /* ── Draw MediaPipe face overlay ── */
-  function drawMediaPipeOverlay(lm, W, H, canvas) {
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
-
-    // Eye landmarks (blue dots)
-    ctx.fillStyle = 'rgba(59,130,246,0.8)';
-    [33,7,163,144,145,153,154,155,133,
-     362,382,381,380,374,373,390,249,263].forEach(i => {
-      if (!lm[i]) return;
-      ctx.beginPath(); ctx.arc(lm[i].x*W, lm[i].y*H, 2, 0, Math.PI*2); ctx.fill();
-    });
-
-    // Mouth (green)
-    ctx.strokeStyle = 'rgba(34,197,94,0.7)'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    [61,84,17,314,405,320,307,375,321,375,314,17,84,61].forEach((i,idx) => {
-      if (!lm[i]) return;
-      idx === 0 ? ctx.moveTo(lm[i].x*W, lm[i].y*H) : ctx.lineTo(lm[i].x*W, lm[i].y*H);
-    });
-    ctx.stroke();
-  }
-
-  function doGeoCheck(session) {
-    const el = document.getElementById('fm-geo-status');
-    el.style.display = 'block';
-    el.innerHTML = '<div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400E;"><i class="fa-solid fa-spinner fa-spin"></i> Verifying your location…</div>';
-    _geoVerified = false;
-    if (!navigator.geolocation) {
-      el.innerHTML = '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> Geolocation not supported. Contact teacher.</div>';
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(pos => {
-      const dist = Math.round(haversineDistance(pos.coords.latitude, pos.coords.longitude, parseFloat(session.campus_latitude), parseFloat(session.campus_longitude)));
-      const radius = session.allowed_radius_meters || 200;
-      if (dist <= radius) {
-        _geoVerified = true; _geoLat = pos.coords.latitude; _geoLng = pos.coords.longitude;
-        el.innerHTML = `<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#15803D;"><i class="fa-solid fa-circle-check"></i> Location verified (${dist}m within ${radius}m zone)</div>`;
-        updateHint();
-      } else {
-        el.innerHTML = `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> Outside campus zone (${dist}m away, limit: ${radius}m). Contact teacher.</div>`;
-        document.getElementById('fm-submit-btn').disabled = true;
+    /* ── MediaPipe EAR: 468-point mesh eye landmarks ── */
+    function calcEAR(lm, W, H) {
+      function d(a, b) {
+        return Math.sqrt(((lm[a].x - lm[b].x) * W) ** 2 + ((lm[a].y - lm[b].y) * H) ** 2);
       }
-    }, err => {
-      const msgs={1:'Location permission denied.',2:'Location unavailable.',3:'Location timeout.'};
-      el.innerHTML = `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> ${msgs[err.code]||'Location error.'} Contact teacher.</div>`;
-    }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
-  }
-
-  function stopDetectLoop() {
-    if (_mpCamera)  { try { _mpCamera.stop(); } catch(e) {} _mpCamera = null; }
-    if (_faceMesh)  { try { _faceMesh.close(); } catch(e) {} _faceMesh = null; }
-    _lastLandmarks = null;
-  }
-
-  function clearOverlay(canvas) {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  function setFaceBadge(detected) {
-    const badge = document.getElementById('fm-face-status-badge');
-    if (!badge) return;
-    if (detected) {
-      badge.textContent = '✓ Face Detected';
-      badge.style.background = 'rgba(22,163,74,.85)';
-      badge.style.color = '#fff';
-    } else {
-      badge.textContent = '⚠ No Face — Adjust Position';
-      badge.style.background = 'rgba(220,38,38,.85)';
-      badge.style.color = '#fff';
+      // Left eye:  top=159, bottom=145, h-left=33, h-right=133, extra: 158-153, 157-154
+      const lv = (d(159, 145) + d(158, 153) + d(157, 154)) / 3;
+      const lh = d(33, 133);
+      // Right eye: top=386, bottom=374, h-left=362, h-right=263, extra: 385-380, 384-381
+      const rv = (d(386, 374) + d(385, 380) + d(384, 381)) / 3;
+      const rh = d(362, 263);
+      return ((lv / lh) + (rv / rh)) / 2;
     }
-  }
 
-  function updateScoreBar(id, pct, color) {
-    const bar = document.getElementById(id);
-    if (bar) { bar.style.width = (Math.min(pct*100,100))+'%'; bar.style.background = color; }
-  }
+    /* ── Draw MediaPipe face overlay ── */
+    function drawMediaPipeOverlay(lm, W, H, canvas) {
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
 
-  function popCard(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.add('pop');
-    setTimeout(() => el.classList.remove('pop'), 400);
-  }
+      // Eye landmarks (blue dots)
+      ctx.fillStyle = 'rgba(59,130,246,0.8)';
+      [33, 7, 163, 144, 145, 153, 154, 155, 133,
+        362, 382, 381, 380, 374, 373, 390, 249, 263].forEach(i => {
+          if (!lm[i]) return;
+          ctx.beginPath(); ctx.arc(lm[i].x * W, lm[i].y * H, 2, 0, Math.PI * 2); ctx.fill();
+        });
 
-  function setLivenessState(id, state) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('done','fail','warn','active');
-    if (state) el.classList.add(state);
-  }
-
-  function resetLivenessUI() {
-    ['lv-blink','lv-capture'].forEach(id => setLivenessState(id, ''));
-    document.getElementById('lv-blink-count').textContent = '0';
-    const captureCount = document.getElementById('lv-capture-count');
-    if (captureCount) captureCount.textContent = '0';
-    document.getElementById('fm-geo-status').style.display = 'none';
-    updateScoreBar('ear-bar', 0, '#94A3B8');
-    const wrap = document.getElementById('fm-video-wrap');
-    if (wrap) wrap.className = 'fm-video-wrap';
-    const badge = document.getElementById('fm-face-status-badge');
-    if (badge) { badge.textContent=''; badge.style.background='transparent'; }
-    const pill = document.getElementById('fm-dbg-pill');
-    if (pill) pill.textContent = '';
-    const oc = document.getElementById('fm-overlay-canvas');
-    if (oc) clearOverlay(oc);
-  }
-
-  function updateHint() {
-    const hint      = document.getElementById('fm-hint');
-    const submitBtn = document.getElementById('fm-submit-btn');
-    if (!hint) return;
-    const session    = window._activeSessions && window._activeSessions[_faceSessionId];
-    const geoRequired = session && session.geo_fencing_enabled && session.campus_latitude;
-
-    if (geoRequired && !_geoVerified) {
-      hint.textContent = '📍 Waiting for location verification…';
-      submitBtn.disabled = true; return;
-    }
-    if (_captureState === 'blink_check') {
-      hint.textContent = `👁️ Blink your eyes slowly… (${_blinkCount}/2 detected)`;
-      submitBtn.disabled = true; return;
-    }
-    if (_captureState === 'capturing') {
-      hint.innerHTML = `📸 Capturing verification frames… <strong>${_capturedFrames.length}/5</strong>`;
-      submitBtn.disabled = true; return;
-    }
-    if (_captureState === 'submitting') {
-      hint.innerHTML = '⏳ <strong>Server is analyzing your frames…</strong> Please wait.';
-      submitBtn.disabled = true; return;
-    }
-    if (_captureState === 'ready') {
-      hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Submit Attendance".';
-      submitBtn.disabled = false; return;
-    }
-  }
-
-  function showFaceLoading(txt) {
-    const el = document.getElementById('fm-loading');
-    if (el) { el.style.display='flex'; document.getElementById('fm-loading-txt').textContent=txt; }
-  }
-  function hideFaceLoading() {
-    const el = document.getElementById('fm-loading');
-    if (el) el.style.display = 'none';
-  }
-
-  function closeFaceModal() {
-    stopDetectLoop();
-    document.getElementById('face-modal-overlay').style.display = 'none';
-    const oc = document.getElementById('fm-overlay-canvas');
-    if (oc) clearOverlay(oc);
-  }
-
-  async function submitFaceAttendance() {
-    const btn = document.getElementById('fm-submit-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing…';
-    _captureState = 'submitting';
-    updateHint();
-
-    // Stop camera
-    stopDetectLoop();
-
-    // Build FormData with all captured frames
-    const fd = new FormData();
-    fd.append('session_id',  _faceSessionId);
-    fd.append('blink_count', _blinkCount);
-    fd.append('device_id',   getDeviceId());
-    if (_geoLat && _geoLng) { fd.append('latitude', _geoLat); fd.append('longitude', _geoLng); }
-    _capturedFrames.forEach((blob, i) => fd.append('photos', blob, `frame_${i}.jpg`));
-
-    const r = await FORM('attendance/face/mark/', fd);
-
-    if (r?.data?.code === 'PHONE_DETECTED') {
-      closeFaceModal();
-      toast('📵 Phone detected by server — Attendance marked ABSENT.', 'error');
-      loadSessions(); return;
-    }
-    if (!r || !r.ok) {
-      // Failure: restart camera for retry
-      toast(r?.data?.error || 'Verification failed. Try again.', 'error');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Attendance';
-      _blinkCount = 0; _eyeWasClosed = false;
-      _capturedFrames = []; _captureState = 'blink_check';
-      _lastLandmarks = null;
-      resetLivenessUI();
-      const video = document.getElementById('fm-video');
-      _faceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
-      _faceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
-      _faceMesh.onResults(onFaceMeshResults);
-      _mpCamera = new Camera(video, {
-        onFrame: async () => { if (_faceMesh) await _faceMesh.send({ image: video }); },
-        width: 640, height: 480
+      // Mouth (green)
+      ctx.strokeStyle = 'rgba(34,197,94,0.7)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      [61, 84, 17, 314, 405, 320, 307, 375, 321, 375, 314, 17, 84, 61].forEach((i, idx) => {
+        if (!lm[i]) return;
+        idx === 0 ? ctx.moveTo(lm[i].x * W, lm[i].y * H) : ctx.lineTo(lm[i].x * W, lm[i].y * H);
       });
-      _mpCamera.start().then(() => updateHint())
-        .catch(e => { showFaceLoading('❌ Camera restart failed. Close and try again.'); console.error(e); });
-      return;
-    }
-    closeFaceModal();
-    toast('✅ Attendance verified & marked — Multi-Frame Analysis!', 'success');
-    loadSessions();
-  }
-
-  async function applyLeave(){
-    const from=document.getElementById('l-from').value;
-    const to=document.getElementById('l-to').value;
-    const reason=document.getElementById('l-reason').value.trim();
-    if(!from||!to||!reason){toast('Please fill all fields','error');return;}
-    const r=await POST('attendance/leaves/',{from_date:from,to_date:to,reason});
-    if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
-    toast('Leave application submitted','success');
-    document.getElementById('l-from').value='';document.getElementById('l-to').value='';document.getElementById('l-reason').value='';
-    loadLeaves();
-  }
-  async function loadLeaves(){
-    document.getElementById('leaves-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    const r=await GET('attendance/leaves/');
-    if(!r||!r.ok){document.getElementById('leaves-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed.</p></div>';return;}
-    const leaves=r.data.results||r.data||[];
-    if(!leaves.length){document.getElementById('leaves-body').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No leave requests found.</p></div>';return;}
-    const bMap={pending:'badge-warn',approved:'badge-safe',rejected:'badge-crit'};
-    const iMap={pending:'fa-clock',approved:'fa-circle-check',rejected:'fa-circle-xmark'};
-    let html='<div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Applied On</th></tr></thead><tbody>';
-    leaves.forEach(l=>{html+=`<tr><td>${formatDate(l.from_date)}</td><td>${formatDate(l.to_date)}</td><td style="max-width:200px;font-size:12px;">${l.reason}</td><td><span class="badge ${bMap[l.status]||'badge-neutral'}"><i class="fa-solid ${iMap[l.status]||'fa-circle'}" style="font-size:10px;"></i>${l.status}</span></td><td>${formatDate(l.applied_on)}</td></tr>`;});
-    document.getElementById('leaves-body').innerHTML=html+'</tbody></table></div>';
-  }
-  async function loadProfile(){
-    document.getElementById('profile-body').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading profile…</div>';
-    const r=await GET('auth/me/');
-    if(!r||!r.ok){document.getElementById('profile-body').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load profile.</p></div>';return;}
-    const d=r.data, p=d.profile||{}, par=d.parent_detail||{}, perm=d.permanent_address||{}, pres=d.present_address||{};
-
-    // Auto-select student's current semester in the summary filter
-    if(p.current_semester) {
-      const semSel = document.getElementById('f-sem');
-      if(semSel) semSel.value = String(p.current_semester);
-    }
-    const faceColor=d.has_face_registered?'var(--green)':'var(--red)';
-    const faceIcon=d.has_face_registered?'fa-circle-check':'fa-circle-xmark';
-    const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name||'—') : (p.branch||'—');
-
-    function sec(icon,title,color='var(--blue)'){
-      return `<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin:20px 0 10px;padding-bottom:7px;border-bottom:1px solid #F1F5F9;display:flex;align-items:center;gap:7px;"><i class="fa-solid ${icon}" style="color:${color};"></i>${title}</div>`;
-    }
-    function row(icon,label,val){
-      return `<div class="profile-field"><strong><i class="fa-solid ${icon}"></i> ${label}</strong><span>${val||'—'}</span></div>`;
+      ctx.stroke();
     }
 
-    let html = `<div style="padding:4px 0;">`;
+    function doGeoCheck(session) {
+      const el = document.getElementById('fm-geo-status');
+      el.style.display = 'block';
+      el.innerHTML = '<div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#92400E;"><i class="fa-solid fa-spinner fa-spin"></i> Verifying your location…</div>';
+      _geoVerified = false;
+      if (!navigator.geolocation) {
+        el.innerHTML = '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> Geolocation not supported. Contact teacher.</div>';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(pos => {
+        const dist = Math.round(haversineDistance(pos.coords.latitude, pos.coords.longitude, parseFloat(session.campus_latitude), parseFloat(session.campus_longitude)));
+        const radius = session.allowed_radius_meters || 200;
+        if (dist <= radius) {
+          _geoVerified = true; _geoLat = pos.coords.latitude; _geoLng = pos.coords.longitude;
+          el.innerHTML = `<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#15803D;"><i class="fa-solid fa-circle-check"></i> Location verified (${dist}m within ${radius}m zone)</div>`;
+          updateHint();
+        } else {
+          el.innerHTML = `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> Outside campus zone (${dist}m away, limit: ${radius}m). Contact teacher.</div>`;
+          document.getElementById('fm-submit-btn').disabled = true;
+        }
+      }, err => {
+        const msgs = { 1: 'Location permission denied.', 2: 'Location unavailable.', 3: 'Location timeout.' };
+        el.innerHTML = `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#DC2626;"><i class="fa-solid fa-xmark"></i> ${msgs[err.code] || 'Location error.'} Contact teacher.</div>`;
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    }
 
-    // Account
-    html += sec('lock','Account & Identity');
-    html += `<div class="profile-grid">
-      ${row('id-badge','Student ID', d.student_id)}
-      ${row('hashtag','Enrollment No.', d.enrollment_number)}
-      ${row('list-ol','Roll Number', d.roll_number)}
+    function stopDetectLoop() {
+      if (_mpCamera) { try { _mpCamera.stop(); } catch (e) { } _mpCamera = null; }
+      if (_faceMesh) { try { _faceMesh.close(); } catch (e) { } _faceMesh = null; }
+      _lastLandmarks = null;
+    }
+
+    function clearOverlay(canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function setFaceBadge(detected) {
+      const badge = document.getElementById('fm-face-status-badge');
+      if (!badge) return;
+      if (detected) {
+        badge.textContent = '✓ Face Detected';
+        badge.style.background = 'rgba(22,163,74,.85)';
+        badge.style.color = '#fff';
+      } else {
+        badge.textContent = '⚠ No Face — Adjust Position';
+        badge.style.background = 'rgba(220,38,38,.85)';
+        badge.style.color = '#fff';
+      }
+    }
+
+    function updateScoreBar(id, pct, color) {
+      const bar = document.getElementById(id);
+      if (bar) { bar.style.width = (Math.min(pct * 100, 100)) + '%'; bar.style.background = color; }
+    }
+
+    function popCard(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('pop');
+      setTimeout(() => el.classList.remove('pop'), 400);
+    }
+
+    function setLivenessState(id, state) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('done', 'fail', 'warn', 'active');
+      if (state) el.classList.add(state);
+    }
+
+    function resetLivenessUI() {
+      ['lv-blink', 'lv-capture'].forEach(id => setLivenessState(id, ''));
+      document.getElementById('lv-blink-count').textContent = '0';
+      const captureCount = document.getElementById('lv-capture-count');
+      if (captureCount) captureCount.textContent = '0';
+      document.getElementById('fm-geo-status').style.display = 'none';
+      updateScoreBar('ear-bar', 0, '#94A3B8');
+      const wrap = document.getElementById('fm-video-wrap');
+      if (wrap) wrap.className = 'fm-video-wrap';
+      const badge = document.getElementById('fm-face-status-badge');
+      if (badge) { badge.textContent = ''; badge.style.background = 'transparent'; }
+      const pill = document.getElementById('fm-dbg-pill');
+      if (pill) pill.textContent = '';
+      const oc = document.getElementById('fm-overlay-canvas');
+      if (oc) clearOverlay(oc);
+    }
+
+    function updateHint() {
+      const hint = document.getElementById('fm-hint');
+      const submitBtn = document.getElementById('fm-submit-btn');
+      if (!hint) return;
+      const session = window._activeSessions && window._activeSessions[_faceSessionId];
+      const geoRequired = session && session.geo_fencing_enabled && session.campus_latitude;
+
+      if (geoRequired && !_geoVerified) {
+        hint.textContent = '📍 Waiting for location verification…';
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'blink_check') {
+        hint.textContent = `👁️ Blink your eyes slowly… (${_blinkCount}/2 detected)`;
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'capturing') {
+        hint.innerHTML = `📸 Capturing verification frames… <strong>${_capturedFrames.length}/5</strong>`;
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'submitting') {
+        hint.innerHTML = '⏳ <strong>Server is analyzing your frames…</strong> Please wait.';
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'ready') {
+        hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Submit Attendance".';
+        submitBtn.disabled = false; return;
+      }
+    }
+
+    function showFaceLoading(txt) {
+      const el = document.getElementById('fm-loading');
+      if (el) { el.style.display = 'flex'; document.getElementById('fm-loading-txt').textContent = txt; }
+    }
+    function hideFaceLoading() {
+      const el = document.getElementById('fm-loading');
+      if (el) el.style.display = 'none';
+    }
+
+    function closeFaceModal() {
+      stopDetectLoop();
+      document.getElementById('face-modal-overlay').style.display = 'none';
+      const oc = document.getElementById('fm-overlay-canvas');
+      if (oc) clearOverlay(oc);
+    }
+
+    async function submitFaceAttendance() {
+      const btn = document.getElementById('fm-submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing…';
+      _captureState = 'submitting';
+      updateHint();
+
+      // Do NOT stop camera here! Stopping and recreating FaceMesh causes WASM crash on retry.
+      // The camera will naturally continue feeding frames but we ignore them while state is 'submitting'.
+
+      // Build FormData with all captured frames
+      const fd = new FormData();
+      fd.append('session_id', _faceSessionId);
+      fd.append('blink_count', _blinkCount);
+      fd.append('device_id', getDeviceId());
+      if (_geoLat && _geoLng) { fd.append('latitude', _geoLat); fd.append('longitude', _geoLng); }
+      _capturedFrames.forEach((blob, i) => fd.append('photos', blob, `frame_${i}.jpg`));
+
+      const r = await FORM('attendance/face/mark/', fd);
+
+      if (r?.data?.code === 'PHONE_DETECTED') {
+        closeFaceModal();
+        toast('📵 Phone detected by server — Attendance marked ABSENT.', 'error');
+        loadSessions(); return;
+      }
+      if (!r || !r.ok) {
+        // Failure: reset state machine so blink detection resumes on the running camera
+        toast(r?.data?.error || 'Verification failed. Try again.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Attendance';
+        _blinkCount = 0; _eyeWasClosed = false;
+        _capturedFrames = []; _lastLandmarks = null;
+        // IMPORTANT: set _captureState AFTER clearing other vars so onFaceMeshResults
+        // picks up blink_check state on the very next frame from the still-running camera
+        _captureState = 'blink_check';
+        resetLivenessUI();
+        updateHint();
+        console.log('[FaceAI] Retry: state reset to blink_check, camera still running');
+        return;
+      }
+      closeFaceModal();
+      toast('✅ Attendance verified & marked — Multi-Frame Analysis!', 'success');
+      loadSessions();
+    }
+
+    async function applyLeave() {
+      const from = document.getElementById('l-from').value;
+      const to = document.getElementById('l-to').value;
+      const reason = document.getElementById('l-reason').value.trim();
+      if (!from || !to || !reason) { toast('Please fill all fields', 'error'); return; }
+      const r = await POST('attendance/leaves/', { from_date: from, to_date: to, reason });
+      if (!r || !r.ok) { toast(r?.data?.error || 'Failed to submit', 'error'); return; }
+      toast('Leave application submitted', 'success');
+      document.getElementById('l-from').value = ''; document.getElementById('l-to').value = ''; document.getElementById('l-reason').value = '';
+      loadLeaves();
+    }
+    async function loadLeaves() {
+      document.getElementById('leaves-body').innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+      const r = await GET('attendance/leaves/');
+      if (!r || !r.ok) { document.getElementById('leaves-body').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed.</p></div>'; return; }
+      const leaves = r.data.results || r.data || [];
+      if (!leaves.length) { document.getElementById('leaves-body').innerHTML = '<div class="empty"><i class="fa-solid fa-inbox"></i><p>No leave requests found.</p></div>'; return; }
+      const bMap = { pending: 'badge-warn', approved: 'badge-safe', rejected: 'badge-crit' };
+      const iMap = { pending: 'fa-clock', approved: 'fa-circle-check', rejected: 'fa-circle-xmark' };
+      let html = '<div class="table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Applied On</th></tr></thead><tbody>';
+      leaves.forEach(l => { html += `<tr><td>${formatDate(l.from_date)}</td><td>${formatDate(l.to_date)}</td><td style="max-width:200px;font-size:12px;">${l.reason}</td><td><span class="badge ${bMap[l.status] || 'badge-neutral'}"><i class="fa-solid ${iMap[l.status] || 'fa-circle'}" style="font-size:10px;"></i>${l.status}</span></td><td>${formatDate(l.applied_on)}</td></tr>`; });
+      document.getElementById('leaves-body').innerHTML = html + '</tbody></table></div>';
+    }
+    async function loadProfile() {
+      document.getElementById('profile-body').innerHTML = '<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading profile…</div>';
+      const r = await GET('auth/me/');
+      if (!r || !r.ok) { document.getElementById('profile-body').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load profile.</p></div>'; return; }
+      const d = r.data, p = d.profile || {}, par = d.parent_detail || {}, perm = d.permanent_address || {}, pres = d.present_address || {};
+
+      // Auto-select student's current semester in the summary filter
+      if (p.current_semester) {
+        const semSel = document.getElementById('f-sem');
+        if (semSel) semSel.value = String(p.current_semester);
+      }
+      const faceColor = d.has_face_registered ? 'var(--green)' : 'var(--red)';
+      const faceIcon = d.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
+      const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name || '—') : (p.branch || '—');
+
+      function sec(icon, title, color = 'var(--blue)') {
+        return `<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin:20px 0 10px;padding-bottom:7px;border-bottom:1px solid #F1F5F9;display:flex;align-items:center;gap:7px;"><i class="fa-solid ${icon}" style="color:${color};"></i>${title}</div>`;
+      }
+      function row(icon, label, val) {
+        return `<div class="profile-field"><strong><i class="fa-solid ${icon}"></i> ${label}</strong><span>${val || '—'}</span></div>`;
+      }
+
+      let html = `<div style="padding:4px 0;">`;
+
+      // Account
+      html += sec('lock', 'Account & Identity');
+      html += `<div class="profile-grid">
+      ${row('id-badge', 'Student ID', d.student_id)}
+      ${row('hashtag', 'Enrollment No.', d.enrollment_number)}
+      ${row('list-ol', 'Roll Number', d.roll_number)}
       <div class="profile-field"><strong><i class="fa-solid fa-camera-retro"></i> Face Recognition</strong>
-        <span style="color:${faceColor};font-weight:600;"><i class="fa-solid ${faceIcon}"></i> ${d.has_face_registered?'Registered':'Not Registered'}</span>
+        <span style="color:${faceColor};font-weight:600;"><i class="fa-solid ${faceIcon}"></i> ${d.has_face_registered ? 'Registered' : 'Not Registered'}</span>
       </div>
     </div>`;
 
-    // Personal
-    html += sec('user','Personal Information');
-    html += `<div class="profile-grid">
-      ${row('user','Full Name', p.name)}
-      ${row('cake-candles','Date of Birth', p.dob)}
-      ${row('venus-mars','Gender', p.gender==='M'?'Male':p.gender==='F'?'Female':p.gender||'—')}
-      ${row('phone','Mobile Number', p.mobile_number)}
-      ${row('envelope','Email Address', p.email)}
-      ${row('map-location-dot','Domicile State', p.domicile_state)}
-      ${row('flag','Nationality', p.nationality)}
-      ${row('heart','Marital Status', p.marital_status)}
+      // Personal
+      html += sec('user', 'Personal Information');
+      html += `<div class="profile-grid">
+      ${row('user', 'Full Name', p.name)}
+      ${row('cake-candles', 'Date of Birth', p.dob)}
+      ${row('venus-mars', 'Gender', p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : p.gender || '—')}
+      ${row('phone', 'Mobile Number', p.mobile_number)}
+      ${row('envelope', 'Email Address', p.email)}
+      ${row('map-location-dot', 'Domicile State', p.domicile_state)}
+      ${row('flag', 'Nationality', p.nationality)}
+      ${row('heart', 'Marital Status', p.marital_status)}
     </div>`;
 
-    // Academic
-    html += sec('graduation-cap','Academic Information');
-    html += `<div class="profile-grid">
-      ${row('building-columns','Branch', branchName)}
-      ${row('calendar-days','Academic Year', p.academic_year)}
-      ${row('calendar-check','Date of Joining', p.date_of_joining)}
+      // Academic
+      html += sec('graduation-cap', 'Academic Information');
+      html += `<div class="profile-grid">
+      ${row('building-columns', 'Branch', branchName)}
+      ${row('calendar-days', 'Academic Year', p.academic_year)}
+      ${row('calendar-check', 'Date of Joining', p.date_of_joining)}
     </div>`;
 
-    // Parent / Family
-    if(par.father_name||par.mother_name){
-      html += sec('house-user','Parent & Family Details','#7C3AED');
-      html += `<div class="profile-grid">
-        ${row('person',"Father's Name", par.father_name)}
-        ${row('phone',"Father's Mobile", par.father_mobile)}
-        ${par.father_occupation?row('briefcase',"Father's Occupation", par.father_occupation):''}
-        ${par.father_email?row('envelope',"Father's Email", par.father_email):''}
-        ${row('person-dress',"Mother's Name", par.mother_name)}
-        ${row('phone',"Mother's Mobile", par.mother_mobile)}
-        ${par.mother_occupation?row('briefcase',"Mother's Occupation", par.mother_occupation):''}
+      // Parent / Family
+      if (par.father_name || par.mother_name) {
+        html += sec('house-user', 'Parent & Family Details', '#7C3AED');
+        html += `<div class="profile-grid">
+        ${row('person', "Father's Name", par.father_name)}
+        ${row('phone', "Father's Mobile", par.father_mobile)}
+        ${par.father_occupation ? row('briefcase', "Father's Occupation", par.father_occupation) : ''}
+        ${par.father_email ? row('envelope', "Father's Email", par.father_email) : ''}
+        ${row('person-dress', "Mother's Name", par.mother_name)}
+        ${row('phone', "Mother's Mobile", par.mother_mobile)}
+        ${par.mother_occupation ? row('briefcase', "Mother's Occupation", par.mother_occupation) : ''}
       </div>`;
-    }
+      }
 
-    // Permanent Address
-    if(perm.address_line1){
-      html += sec('location-dot','Permanent Address','#D97706');
-      html += `<div class="profile-grid">
-        ${row('road','Address', [perm.address_line1,perm.address_line2,perm.address_line3].filter(Boolean).join(', '))}
-        ${row('city','Place', perm.place)}
-        ${row('map','State', perm.state)}
-        ${row('signs-post','Pincode', perm.pincode)}
+      // Permanent Address
+      if (perm.address_line1) {
+        html += sec('location-dot', 'Permanent Address', '#D97706');
+        html += `<div class="profile-grid">
+        ${row('road', 'Address', [perm.address_line1, perm.address_line2, perm.address_line3].filter(Boolean).join(', '))}
+        ${row('city', 'Place', perm.place)}
+        ${row('map', 'State', perm.state)}
+        ${row('signs-post', 'Pincode', perm.pincode)}
       </div>`;
-    }
+      }
 
-    // Present Address
-    if(pres.address_line1){
-      html += sec('house','Present / Hostel Address','#16A34A');
-      html += `<div class="profile-grid">
-        ${row('road','Address', [pres.address_line1,pres.address_line2,pres.address_line3].filter(Boolean).join(', '))}
-        ${row('city','Place', pres.place)}
-        ${row('map','State', pres.state)}
-        ${row('signs-post','Pincode', pres.pincode)}
+      // Present Address
+      if (pres.address_line1) {
+        html += sec('house', 'Present / Hostel Address', '#16A34A');
+        html += `<div class="profile-grid">
+        ${row('road', 'Address', [pres.address_line1, pres.address_line2, pres.address_line3].filter(Boolean).join(', '))}
+        ${row('city', 'Place', pres.place)}
+        ${row('map', 'State', pres.state)}
+        ${row('signs-post', 'Pincode', pres.pincode)}
       </div>`;
+      }
+
+      html += `</div>`;
+      document.getElementById('profile-body').innerHTML = html;
     }
+  </script>
 
-    html += `</div>`;
-    document.getElementById('profile-body').innerHTML = html;
-  }
-</script>
+  <!-- FACE ATTENDANCE MODAL -->
+  <div id="face-modal-overlay"
+    style="display:none;position:fixed;inset:0;background:rgba(10,20,40,.75);backdrop-filter:blur(6px);z-index:2000;align-items:center;justify-content:center;padding:12px;">
+    <div class="fm-modal-wrap">
 
-<!-- FACE ATTENDANCE MODAL -->
-    <div id="face-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,20,40,.75);backdrop-filter:blur(6px);z-index:2000;align-items:center;justify-content:center;padding:12px;">
-      <div class="fm-modal-wrap">
-
-        <!-- ── Header (always visible) ── -->
-        <div style="padding:14px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-          <div style="display:flex;align-items:center;gap:9px;">
-            <div style="width:34px;height:34px;border-radius:10px;background:var(--navy);display:flex;align-items:center;justify-content:center;">
-              <i class="fa-solid fa-camera" style="color:#fff;font-size:15px;"></i>
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text);line-height:1.2;">Face Attendance</div>
-              <div id="fm-subject-lbl" style="font-size:11px;color:var(--text-3);font-weight:500;"></div>
-            </div>
+      <!-- ── Header (always visible) ── -->
+      <div
+        style="padding:14px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div
+            style="width:34px;height:34px;border-radius:10px;background:var(--navy);display:flex;align-items:center;justify-content:center;">
+            <i class="fa-solid fa-camera" style="color:#fff;font-size:15px;"></i>
           </div>
-          <button onclick="closeFaceModal()" style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;color:var(--text-3);font-size:15px;display:flex;align-items:center;justify-content:center;">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);line-height:1.2;">Face Attendance</div>
+            <div id="fm-subject-lbl" style="font-size:11px;color:var(--text-3);font-weight:500;"></div>
+          </div>
         </div>
-
-        <!-- ── Scrollable body ── -->
-        <div class="fm-modal-body">
-
-          <!-- Camera feed — compact 4:3 with side padding -->
-          <div style="padding:12px 16px 0;">
-            <div id="fm-video-wrap" class="fm-video-wrap">
-              <video id="fm-video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
-              <canvas id="fm-canvas" style="display:none;"></canvas>
-              <canvas id="fm-overlay-canvas" width="640" height="480"></canvas>
-              <div id="fm-face-status-badge"></div>
-              <div class="dbg-pill" id="fm-dbg-pill"></div>
-
-              <!-- Loading overlay -->
-              <div id="fm-loading" style="position:absolute;inset:0;background:rgba(10,20,40,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:#fff;"></i>
-                <div style="color:#fff;font-size:13px;" id="fm-loading-txt">Initializing camera…</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Liveness cards — 2 column -->
-          <div style="padding:10px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div id="lv-blink" class="lv-item">
-              <div class="lv-icon"><i class="fa-solid fa-eye"></i></div>
-              <div class="lv-label">Blink <span id="lv-blink-count">0</span>/2</div>
-              <div class="score-bar-wrap"><div class="score-bar" id="ear-bar" style="width:0%;"></div></div>
-            </div>
-            <div id="lv-capture" class="lv-item">
-              <div class="lv-icon"><i class="fa-solid fa-camera-rotate"></i></div>
-              <div class="lv-label">Frames <span id="lv-capture-count">0</span>/5</div>
-              <div class="score-bar-wrap"><div class="score-bar" id="capture-bar" style="width:0%;"></div></div>
-            </div>
-          </div>
-
-          <!-- Hint / status strip -->
-          <div id="fm-hint" style="margin:8px 16px 0;font-size:12.5px;color:var(--text-3);text-align:center;background:var(--surface-2);border-radius:8px;padding:8px 12px;min-height:36px;display:flex;align-items:center;justify-content:center;"></div>
-
-          <!-- Instructions -->
-          <div style="margin:8px 16px 10px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;">
-            <div style="font-size:10.5px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;"><i class="fa-solid fa-circle-info"></i> How it works</div>
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">1</span> Face seedha rakhein, achi roshni mein</div>
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span> Slowly 2 baar aankhein jhapkaein (liveness check)</div>
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span> 5 photos auto-capture hongi → server verify karega</div>
-              <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">4</span> Server: face match + phone detection + anti-proxy check</div>
-            </div>
-          </div>
-
-          <!-- Geo status -->
-          <div id="fm-geo-status" style="margin:0 16px 8px;display:none;"></div>
-
-        </div><!-- end fm-modal-body -->
-
-        <!-- ── Sticky footer with action buttons ── -->
-        <div class="fm-modal-footer">
-          <button id="fm-submit-btn" class="btn btn-navy" style="flex:1;font-size:14px;padding:11px 0;" onclick="submitFaceAttendance()" disabled>
-            <i class="fa-solid fa-paper-plane"></i>&nbsp; Submit Attendance
-          </button>
-          <button onclick="closeFaceModal()" style="padding:11px 18px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
-            <i class="fa-solid fa-xmark"></i> Cancel
-          </button>
-        </div>
-
+        <button onclick="closeFaceModal()"
+          style="width:32px;height:32px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;color:var(--text-3);font-size:15px;display:flex;align-items:center;justify-content:center;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
+
+      <!-- ── Scrollable body ── -->
+      <div class="fm-modal-body">
+
+        <!-- Camera feed — compact 4:3 with side padding -->
+        <div style="padding:12px 16px 0;">
+          <div id="fm-video-wrap" class="fm-video-wrap">
+            <video id="fm-video" autoplay muted playsinline
+              style="width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);"></video>
+            <canvas id="fm-canvas" style="display:none;"></canvas>
+            <canvas id="fm-overlay-canvas" width="640" height="480"></canvas>
+            <div id="fm-face-status-badge"></div>
+            <div class="dbg-pill" id="fm-dbg-pill"></div>
+
+            <!-- Loading overlay -->
+            <div id="fm-loading"
+              style="position:absolute;inset:0;background:rgba(10,20,40,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;">
+              <i class="fa-solid fa-spinner fa-spin" style="font-size:26px;color:#fff;"></i>
+              <div style="color:#fff;font-size:13px;" id="fm-loading-txt">Initializing camera…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Liveness cards — 2 column -->
+        <div style="padding:10px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div id="lv-blink" class="lv-item">
+            <div class="lv-icon"><i class="fa-solid fa-eye"></i></div>
+            <div class="lv-label">Blink <span id="lv-blink-count">0</span>/2</div>
+            <div class="score-bar-wrap">
+              <div class="score-bar" id="ear-bar" style="width:0%;"></div>
+            </div>
+          </div>
+          <div id="lv-capture" class="lv-item">
+            <div class="lv-icon"><i class="fa-solid fa-camera-rotate"></i></div>
+            <div class="lv-label">Frames <span id="lv-capture-count">0</span>/5</div>
+            <div class="score-bar-wrap">
+              <div class="score-bar" id="capture-bar" style="width:0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hint / status strip -->
+        <div id="fm-hint"
+          style="margin:8px 16px 0;font-size:12.5px;color:var(--text-3);text-align:center;background:var(--surface-2);border-radius:8px;padding:8px 12px;min-height:36px;display:flex;align-items:center;justify-content:center;">
+        </div>
+
+        <!-- Instructions -->
+        <div
+          style="margin:8px 16px 10px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;">
+          <div
+            style="font-size:10.5px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+            <i class="fa-solid fa-circle-info"></i> How it works</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
+                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
+              Face seedha rakhein, achi roshni mein</div>
+            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
+                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
+              Slowly 2 baar aankhein jhapkaein (liveness check)</div>
+            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
+                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
+              5 photos auto-capture hongi → server verify karega</div>
+            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
+                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">4</span>
+              Server: face match + phone detection + anti-proxy check</div>
+          </div>
+        </div>
+
+        <!-- Geo status -->
+        <div id="fm-geo-status" style="margin:0 16px 8px;display:none;"></div>
+
+      </div><!-- end fm-modal-body -->
+
+      <!-- ── Sticky footer with action buttons ── -->
+      <div class="fm-modal-footer">
+        <button id="fm-submit-btn" class="btn btn-navy" style="flex:1;font-size:14px;padding:11px 0;"
+          onclick="submitFaceAttendance()" disabled>
+          <i class="fa-solid fa-paper-plane"></i>&nbsp; Submit Attendance
+        </button>
+        <button onclick="closeFaceModal()"
+          style="padding:11px 18px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </button>
+      </div>
+
     </div>
+  </div>
 
 </body>
+
 </html>

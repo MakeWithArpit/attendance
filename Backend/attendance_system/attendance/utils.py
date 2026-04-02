@@ -615,7 +615,8 @@ def verify_multi_frame_attendance(student, image_paths: list) -> dict:
         xs = [r.get('x', 0) for r in face_regions]
         ys = [r.get('y', 0) for r in face_regions]
         import numpy as np
-        if np.std(xs) < 2 and np.std(ys) < 2:
+        # Set to 1.0 to reduce false positives if student perfectly still
+        if np.std(xs) < 1.0 and np.std(ys) < 1.0:
             result['static_photo'] = True
 
     # ── Final verdict ──
@@ -634,4 +635,5 @@ def verify_multi_frame_attendance(student, image_paths: list) -> dict:
         result['verified'] = True
         result['details'] = f'Verified: {match_count}/{total} frames matched.'
 
+    print(f"\n[Multi-Frame Verify Backend] Result: {result}\n")
     return result
