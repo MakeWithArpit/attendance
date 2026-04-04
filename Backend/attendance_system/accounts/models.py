@@ -231,7 +231,12 @@ class PasswordResetOTP(models.Model):
 # Device Token
 # ─────────────────────────────────────────────
 class DeviceToken(models.Model):
-
+    """
+    Stores the browser fingerprint (device_id) for each student.
+    First login from a device registers it automatically.
+    New device requires OTP verification before login.
+    Admin can reset (clear) device tokens.
+    """
     student        = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='device_tokens')
     device_id      = models.CharField(max_length=100)
     device_label   = models.CharField(max_length=200, blank=True, help_text='User-Agent snippet')
@@ -291,3 +296,45 @@ class WebAuthnCredential(models.Model):
 
     def __str__(self):
         return f"{self.student_id} — passkey ({self.device_label or 'unknown device'})"
+
+
+# ─────────────────────────────────────────────
+# WebAuthn Pending Challenge (temporary)
+# ─────────────────────────────────────────────
+class WebAuthnChallenge(models.Model):
+    """
+    Short-lived challenge storage for WebAuthn registration and authentication.
+
+    Flow:
+      begin  → generate challenge → save here → send to frontend
+      complete → read challenge from here → verify → delete
+
+    A student can only have ONE pending challenge per purpose at a time.
+    Old challenges (> 5 min) are treated as expired and rejected.
+    The record is deleted after a successful complete step.
+
+    purpose='register' — used during passkey registration (profile page).
+    purpose='auth'     — used during attendance marking.
+    """
+
+    PURPOSE_CHOICES = [
+        ('register', 'Register'),
+        ('auth',     'Auth'),
+    ]
+
+    student    = models.ForeignKey(
+        'Student',
+        on_delete=models.CASCADE,
+        related_name='webauthn_challenges',
+    )
+    challenge  = models.TextField(help_text='base64url-encoded challenge bytes')
+    purpose    = models.CharField(max_length=10, choices=PURPOSE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'webauthn_challenges'
+        # One pending challenge per student per purpose
+        unique_together = ('student', 'purpose')
+
+    def __str__(self):
+        return f"{self.student_id} — {self.purpose} challenge @ {self.created_at}"

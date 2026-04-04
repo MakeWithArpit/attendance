@@ -18,3 +18,6 @@ Pillow
 
 # PDF report generation
 reportlab
+
+# WebAuthn (Passkey) support
+py_webauthn>=2.1.0

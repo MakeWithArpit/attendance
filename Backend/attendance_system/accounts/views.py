@@ -848,3 +848,294 @@ class NextTeacherIdView(APIView):
         return Response({
             'employee_id': f'{prefix}{str(seq).zfill(3)}',
         })
+
+# ═══════════════════════════════════════════════════════════════════
+# WebAuthn (Passkey) Views
+# ═══════════════════════════════════════════════════════════════════
+#
+# Registration flow (one-time, from student profile page):
+#   POST /api/auth/webauthn/register/begin/     → generate options
+#   POST /api/auth/webauthn/register/complete/  → verify + save credential
+#
+# Authentication flow (every attendance marking):
+#   POST /api/auth/webauthn/auth/begin/         → generate challenge
+#   POST /api/auth/webauthn/auth/complete/      → verify + mark attendance
+#
+# Admin:
+#   GET  /api/auth/webauthn/admin/status/       → passkey status for all students
+#
+# ─────────────────────────────────────────────────────────────────
+
+import base64
+import json as _json
+
+from django.conf import settings as django_settings
+from django.utils import timezone as _tz
+
+from .models import WebAuthnCredential, WebAuthnChallenge
+from .permissions import IsStudent
+
+
+# ── Internal helpers ─────────────────────────────────────────────
+
+def _b64url_encode(data: bytes) -> str:
+    """bytes → base64url string without padding."""
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+
+
+def _b64url_decode(s: str) -> bytes:
+    """base64url string → bytes (handles missing = padding)."""
+    s = s + '=' * (4 - len(s) % 4)
+    return base64.urlsafe_b64decode(s)
+
+
+def _get_challenge_or_404(student, purpose):
+    """
+    Retrieve the pending WebAuthnChallenge for this student+purpose.
+    Returns (challenge_bytes, challenge_record) or raises a descriptive error dict.
+    """
+    from datetime import timedelta
+
+    timeout_seconds = getattr(django_settings, 'WEBAUTHN_CHALLENGE_TIMEOUT', 300)
+    cutoff = _tz.now() - timedelta(seconds=timeout_seconds)
+
+    record = WebAuthnChallenge.objects.filter(
+        student=student,
+        purpose=purpose,
+        created_at__gte=cutoff,
+    ).first()
+
+    if not record:
+        return None, None
+
+    return _b64url_decode(record.challenge), record
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 2 — Step A: Register Begin
+# ─────────────────────────────────────────────────────────────────
+
+class WebAuthnRegisterBeginView(APIView):
+    """
+    POST /api/auth/webauthn/register/begin/
+
+    Called when a student clicks "Register Passkey" in their profile.
+    Generates WebAuthn registration options and stores the challenge.
+
+    Returns: PublicKeyCredentialCreationOptions JSON (consumed by
+             navigator.credentials.create() on the frontend).
+
+    Errors:
+      409 — student already has a registered passkey (one-time only).
+      403 — non-student users cannot register passkeys here.
+    """
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        import webauthn
+        from webauthn.helpers.structs import (
+            AuthenticatorSelectionCriteria,
+            AuthenticatorAttachment,
+            ResidentKeyRequirement,
+            UserVerificationRequirement,
+            AttestationConveyancePreference,
+        )
+        from webauthn.helpers.cose import COSEAlgorithmIdentifier
+
+        student = getattr(request.user, 'student', None)
+        if not student:
+            return Response({'error': 'Student profile not found.'}, status=400)
+
+        # Block if already registered — one-time only
+        if hasattr(student, 'webauthn_credential'):
+            return Response(
+                {'error': 'Passkey already registered. Contact admin to reset.'},
+                status=409,
+            )
+
+        # Fetch display name from profile (fallback to student_id)
+        display_name = student.student_id
+        try:
+            display_name = student.profile.name
+        except Exception:
+            pass
+
+        rp_id   = getattr(django_settings, 'WEBAUTHN_RP_ID',   'localhost')
+        rp_name = getattr(django_settings, 'WEBAUTHN_RP_NAME', 'Attendance System')
+
+        # Generate registration options
+        options = webauthn.generate_registration_options(
+            rp_id=rp_id,
+            rp_name=rp_name,
+            user_id=student.student_id.encode('utf-8'),
+            user_name=student.student_id,
+            user_display_name=display_name,
+            attestation=AttestationConveyancePreference.NONE,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                # PLATFORM = on-device biometric/PIN only (no USB security keys)
+                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+                resident_key=ResidentKeyRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
+            ),
+            supported_pub_key_algs=[
+                COSEAlgorithmIdentifier.ECDSA_SHA_256,
+                COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
+            ],
+            timeout=60000,  # 60 seconds for biometric prompt
+        )
+
+        # Store challenge — upsert (delete old, create new)
+        WebAuthnChallenge.objects.filter(
+            student=student, purpose='register'
+        ).delete()
+        WebAuthnChallenge.objects.create(
+            student=student,
+            purpose='register',
+            challenge=_b64url_encode(options.challenge),
+        )
+
+        # Convert options to JSON-serialisable dict for the frontend
+        options_dict = _json.loads(webauthn.options_to_json(options))
+        return Response(options_dict, status=200)
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 2 — Step B: Register Complete
+# ─────────────────────────────────────────────────────────────────
+
+class WebAuthnRegisterCompleteView(APIView):
+    """
+    POST /api/auth/webauthn/register/complete/
+
+    Called after navigator.credentials.create() resolves on the frontend.
+    Body: the PublicKeyCredential JSON returned by the browser.
+
+    Steps:
+      1. Retrieve the pending challenge for this student.
+      2. Verify the registration response using py_webauthn.
+      3. Save WebAuthnCredential (public key + credential ID + sign count).
+      4. Delete the used challenge.
+
+    Returns:
+      200 { success: true, registered_at, device_label }
+      400 { error: ... }   — verification failed or no pending challenge
+      409                  — passkey already registered
+    """
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        import webauthn
+        from webauthn.helpers.structs import RegistrationCredential
+        from webauthn.exceptions import InvalidCBORData, InvalidRegistrationResponse
+
+        student = getattr(request.user, 'student', None)
+        if not student:
+            return Response({'error': 'Student profile not found.'}, status=400)
+
+        # Block double registration
+        if hasattr(student, 'webauthn_credential'):
+            return Response(
+                {'error': 'Passkey already registered. Contact admin to reset.'},
+                status=409,
+            )
+
+        # Retrieve pending challenge
+        challenge_bytes, challenge_record = _get_challenge_or_404(student, 'register')
+        if not challenge_bytes:
+            return Response(
+                {'error': 'No valid registration challenge found. '
+                          'Please start registration again (challenge may have expired).'},
+                status=400,
+            )
+
+        # Parse the browser's credential response
+        try:
+            credential = RegistrationCredential.parse_raw(
+                _json.dumps(request.data)
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Invalid credential format: {str(e)}'},
+                status=400,
+            )
+
+        # Verify with py_webauthn
+        rp_id  = getattr(django_settings, 'WEBAUTHN_RP_ID',  'localhost')
+        origin = getattr(django_settings, 'WEBAUTHN_ORIGIN', 'http://localhost')
+
+        try:
+            verification = webauthn.verify_registration_response(
+                credential=credential,
+                expected_challenge=challenge_bytes,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+                require_user_verification=True,
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Passkey verification failed: {str(e)}'},
+                status=400,
+            )
+
+        # Build device label from User-Agent
+        ua = request.META.get('HTTP_USER_AGENT', '')[:200]
+        device_label = _parse_device_label(ua)
+
+        # Save credential
+        cred = WebAuthnCredential.objects.create(
+            student=student,
+            credential_id=_b64url_encode(verification.credential_id),
+            public_key=_b64url_encode(verification.credential_public_key),
+            sign_count=verification.sign_count,
+            device_label=device_label,
+        )
+
+        # Clean up the used challenge
+        challenge_record.delete()
+
+        return Response({
+            'success':      True,
+            'registered_at': cred.registered_at.isoformat(),
+            'device_label':  cred.device_label,
+        }, status=200)
+
+
+# ── Device label helper ──────────────────────────────────────────
+
+def _parse_device_label(user_agent: str) -> str:
+    """
+    Extract a human-readable device label from User-Agent string.
+    e.g. 'Chrome on Android', 'Safari on iPhone', 'Chrome on Windows'
+    Falls back to a truncated UA string if pattern is not recognised.
+    """
+    ua = user_agent.lower()
+
+    # Browser detection
+    if 'edg/' in ua or 'edge/' in ua:
+        browser = 'Edge'
+    elif 'chrome' in ua and 'safari' in ua:
+        browser = 'Chrome'
+    elif 'firefox' in ua:
+        browser = 'Firefox'
+    elif 'safari' in ua:
+        browser = 'Safari'
+    else:
+        browser = 'Browser'
+
+    # OS / device detection
+    if 'iphone' in ua:
+        os_label = 'iPhone'
+    elif 'ipad' in ua:
+        os_label = 'iPad'
+    elif 'android' in ua:
+        os_label = 'Android'
+    elif 'windows' in ua:
+        os_label = 'Windows'
+    elif 'macintosh' in ua or 'mac os' in ua:
+        os_label = 'Mac'
+    elif 'linux' in ua:
+        os_label = 'Linux'
+    else:
+        os_label = 'Unknown Device'
+
+    return f"{browser} on {os_label}"

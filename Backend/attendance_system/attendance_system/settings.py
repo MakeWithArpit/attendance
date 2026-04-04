@@ -123,3 +123,14 @@ TEMPLATES = [
 ]
 
 CORS_ALLOWED_ORIGINS = ["https://attendance-ashen-ten.vercel.app", "http://localhost:8000"]
+# ─────────────────────────────────────────────
+# WebAuthn (Passkey) Settings
+# ─────────────────────────────────────────────
+# RP ID must match the domain where the frontend is hosted.
+# WebAuthn credentials are bound to this domain.
+# Change WEBAUTHN_ORIGIN if your Vercel URL changes.
+WEBAUTHN_RP_ID     = os.environ.get('WEBAUTHN_RP_ID',     'attendance-ashen-ten.vercel.app')
+WEBAUTHN_RP_NAME   = os.environ.get('WEBAUTHN_RP_NAME',   'Attendance System')
+WEBAUTHN_ORIGIN    = os.environ.get('WEBAUTHN_ORIGIN',    'https://attendance-ashen-ten.vercel.app')
+# Challenge expiry window in seconds (default 5 minutes)
+WEBAUTHN_CHALLENGE_TIMEOUT = int(os.environ.get('WEBAUTHN_CHALLENGE_TIMEOUT', 300))
