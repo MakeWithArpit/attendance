@@ -106,7 +106,7 @@ class Student(models.Model):
 
     @property
     def has_face_registered(self):
-        """Frontend ko batata hai ki face registered hai ya nahi."""
+        """Returns True if the student has a registered face photo."""
         return bool(self.registered_photo)
 
 

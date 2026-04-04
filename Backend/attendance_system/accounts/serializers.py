@@ -254,8 +254,8 @@ class TeacherCreateSerializer(serializers.Serializer):
 # ─────────────────────────────────────────────
 class ForgotPasswordSerializer(serializers.Serializer):
     """
-    Step 1: User apna username bhejta hai.
-    System us user ki registered email dhundta hai aur OTP bhejta hai.
+    Step 1: User submits their username.
+    System looks up the registered email for that user and sends an OTP.
     """
     username = serializers.CharField()
 
@@ -264,18 +264,18 @@ class ForgotPasswordSerializer(serializers.Serializer):
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
-            raise serializers.ValidationError({'error': 'Is username ka koi account nahi mila.'})
+            raise serializers.ValidationError({'error': 'No account found with this username.'})
 
         email = self._get_user_email(user)
         if not email:
             raise serializers.ValidationError({
-                'error': 'Is account mein koi email registered nahi hai. Admin se contact karein.'
+                'error': 'No email address is registered for this account. Please contact the admin.'
             })
         attrs['username'] = username
         return attrs
 
     def validate_username(self, value):
-        return value  # validate() mein handle ho raha hai
+        return value  # handled in validate()
 
     def _get_user_email(self, user):
         if user.role == 'student':
@@ -295,7 +295,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 class VerifyOTPSerializer(serializers.Serializer):
     """
-    Step 2: User OTP + naya password bhejta hai.
+    Step 2: User submits the OTP along with the new password.
     OTP sahi aur valid hona chahiye (10 min ke andar).
     """
     username     = serializers.CharField()

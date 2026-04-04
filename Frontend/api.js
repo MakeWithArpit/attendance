@@ -26,12 +26,12 @@ const Auth = {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.exp && payload.exp * 1000 < Date.now()) {
-        // Token expire ho gaya — clear karo
+        // Token expired — clear auth data
         this.clear();
         return false;
       }
     } catch(e) {
-      // Token malformed — clear karo
+      // Token malformed — clear auth data
       this.clear();
       return false;
     }
@@ -102,7 +102,7 @@ const PUT  = (url,b)   => _fetch(url, {method:'PUT',   body:JSON.stringify(b)});
 const DEL  = url       => _fetch(url, {method:'DELETE'});
 const FORM = (url,fd)  => _fetch(url, {method:'POST',  body:fd});
 
-// Public POST — Authorization header bilkul nahi bhejta
+// Public POST — does not send Authorization header
 // Forgot-password aur reset-password ke liye — expired token se 401 avoid karta hai
 async function POST_PUBLIC(url, body) {
   try {

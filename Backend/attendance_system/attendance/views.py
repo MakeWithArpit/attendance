@@ -108,8 +108,8 @@ class StartAttendanceSessionView(APIView):
         if existing:
             return Response({
                 'error': (
-                    f'Aapki "{existing.subject.subject_name}" ki session abhi bhi active hai '
-                    f'(ID: {existing.id}). Pehle us session ko End Session se close karo, tabhi nayi session start kar sakte ho.'
+                    f'Your "{existing.subject.subject_name}" session is still active '
+                    f'(ID: {existing.id}). Please close it using End Session before starting a new one.'
                 ),
                 'active_session': AttendanceSessionSerializer(existing).data,
             }, status=400)
@@ -197,7 +197,7 @@ class CloseSessionView(APIView):
         session.status = 'closed'
         session.save(update_fields=['status'])
 
-        # ── BUG 2 FIX: Create absent records for students who didn't attend ──
+        # Create absent records for all enrolled students who were not marked present
         # Without this, facial/rfid sessions leave absent students with 0 records,
         # making total_classes=0 for them → wrong percentage in "My Attendance".
         from academics.models import CourseRegistration
@@ -283,8 +283,8 @@ class BulkManualAttendanceView(APIView):
             else:
                 updated_count += 1
 
-        # Session band mat karo — teacher manually End Session button se close karega.
-        # (Pehle yahan session.status='closed' tha — yahi "auto-close" bug tha)
+        # Do not close the session here — teacher closes it manually via End Session.
+        # (Previously session.status was set to 'closed' here — that was the auto-close bug.)
 
         return Response({
             'message':  f'Attendance saved. {created_count} new, {updated_count} updated.',
@@ -337,6 +337,7 @@ class RegisterFaceView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=500)
         finally:
+            import os
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
@@ -349,7 +350,7 @@ class ActiveSessionsForStudentView(APIView):
 
     Response includes:
     - Session details
-    - facial_enabled: True/False  ← show face option only when True
+    - facial_enabled: True/False  — show face option only when True
     - geo_fencing_enabled: True/False
     """
     permission_classes = [IsStudent]
@@ -475,9 +476,16 @@ class FacialAttendanceView(APIView):
         session_id = request.data.get('session_id')
         latitude   = request.data.get('latitude')
         longitude  = request.data.get('longitude')
-        blink_count = int(request.data.get('blink_count', 0))
+        
+        # ── Read Challenge Results ──
+        import json
+        challenge_results_str = request.data.get('challenge_results', '[]')
+        try:
+            challenge_results = json.loads(challenge_results_str)
+        except Exception:
+            challenge_results = []
 
-        # ── Accept multi-frame (photos[]) or legacy single photo ──
+        # ── Accept photos array ──
         photos = request.FILES.getlist('photos')
         if not photos:
             single = request.FILES.get('photo')
@@ -485,7 +493,7 @@ class FacialAttendanceView(APIView):
                 photos = [single]
 
         if not photos:
-            return Response({'error': 'At least one photo is required.'}, status=400)
+            return Response({'error': 'Photos are required.'}, status=400)
         if not session_id:
             return Response({'error': 'session_id is required.'}, status=400)
 
@@ -510,7 +518,7 @@ class FacialAttendanceView(APIView):
         # ── Check: Facial recognition enabled? ──
         if not session.facial_enabled:
             return Response({
-                'error': 'Is session mein facial recognition allowed nahi hai. Teacher se contact karo.'
+                'error': 'Facial recognition is not enabled for this session. Please contact your teacher.'
             }, status=403)
 
         # ── Check: Enrolled? ──
@@ -526,7 +534,7 @@ class FacialAttendanceView(APIView):
         if session.geo_fencing_enabled:
             if not latitude or not longitude:
                 return Response({
-                    'error': 'Location permission required. Allow karo aur dobara try karo.'
+                    'error': 'Location permission is required. Please allow location access and try again.'
                 }, status=400)
             geo_result = verify_student_location(session, float(latitude), float(longitude))
             if not geo_result['allowed']:
@@ -537,17 +545,10 @@ class FacialAttendanceView(APIView):
                 }, status=403)
             location_verified = True
 
-        # ── Check: Blink count (frontend liveness) ──
-        if blink_count < 2:
-            return Response({
-                'error': 'Liveness check incomplete — at least 2 blinks required.',
-                'code':  'BLINK_INSUFFICIENT',
-            }, status=403)
-
         # ── Check: Face registered? ──
         if not student.registered_photo:
             return Response({
-                'error': 'Aapka face registered nahi hai. Admin se contact karo.'
+                'error': 'Your face is not registered. Please contact the admin to register your face photo.'
             }, status=400)
 
         # ── Save all uploaded photos to temp files ──
@@ -561,32 +562,48 @@ class FacialAttendanceView(APIView):
 
             # ── Multi-frame verification ──
             from .utils import verify_multi_frame_attendance
-            mf_result = verify_multi_frame_attendance(student, temp_paths)
+            mf_result = verify_multi_frame_attendance(student, temp_paths, challenge_results)
 
-            # ── Phone detected → mark absent ──
-            if mf_result['phone_detected']:
-                Attendance.objects.update_or_create(
-                    student=student, subject=session.subject,
-                    date=session.date,
-                    defaults={
-                        'session': session,
-                        'is_present': False, 'day': session.date.strftime('%A'),
-                        'semester': session.semester,
-                        'academic_year': session.academic_year,
-                        'marked_by': session.teacher, 'method': 'facial',
-                    }
-                )
-                return Response({
-                    'error': 'Mobile phone detected in camera frames. Attendance marked ABSENT.',
-                    'code':  'PHONE_DETECTED',
-                    'marked_absent': True,
-                    'analysis': mf_result,
-                }, status=403)
+            # ── Phone detected -> Warning/Absent Tracking ──
+            if mf_result.get('phone_detected'):
+                from django.core.cache import cache
+                cache_key = f'phone_warn_{session.id}_{student.id}'
+                warnings = cache.get(cache_key, 0) + 1
+                
+                if warnings >= 2:
+                    # Mark Absent
+                    cache.delete(cache_key)
+                    Attendance.objects.update_or_create(
+                        student=student, subject=session.subject,
+                        date=session.date,
+                        defaults={
+                            'session': session,
+                            'is_present': False, 'day': session.date.strftime('%A'),
+                            'semester': session.semester,
+                            'academic_year': session.academic_year,
+                            'marked_by': session.teacher, 'method': 'facial',
+                        }
+                    )
+                    return Response({
+                        'error': 'Final Warning: Mobile phone detected again! Attendance marked ABSENT.',
+                        'code':  'PHONE_DETECTED',
+                        'marked_absent': True,
+                        'analysis': mf_result,
+                    }, status=403)
+                else:
+                    # Setup warning
+                    cache.set(cache_key, warnings, timeout=3600)  # valid for 1 hour
+                    return Response({
+                        'error': 'WARNING 1/2: Phone is not allowed in the camera frame! Please try again.',
+                        'code': 'PHONE_WARNING',
+                        'analysis': mf_result,
+                    }, status=403)
 
-            # ── Verification failed ──
-            if not mf_result['verified']:
+            # ── Verification failed (challenges failed, face failed, proxy etc) ──
+            if not mf_result.get('verified'):
+                # We do not mark absent entirely here, just tell them to re-capture
                 return Response({
-                    'error': mf_result['details'],
+                    'error': mf_result.get('details', 'Verification failed.'),
                     'code':  'VERIFICATION_FAILED',
                     'analysis': mf_result,
                 }, status=403)
@@ -650,8 +667,6 @@ class FacialAttendanceView(APIView):
                             ))
                     if absent_records:
                         Attendance.objects.bulk_create(absent_records, ignore_conflicts=True)
-
-                    print(f"[Auto-Close] Session {session.id} auto-closed: {marked_count}/{enrolled_count} students marked.")
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"Auto-close check failed: {e}")
@@ -670,7 +685,7 @@ class FacialAttendanceView(APIView):
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Multi-frame attendance error: {str(e)}")
-            return Response({'error': 'Verification mein error aaya. Dobara try karo.'}, status=500)
+            return Response({'error': 'A verification error occurred. Please try again.'}, status=500)
         finally:
             for path in temp_paths:
                 if os.path.exists(path):
@@ -813,7 +828,7 @@ class AttendanceEditView(APIView):
 
         if not record:
             return Response(
-                {'error': f'Record nahi mila: student={student_id}, date={date}, subject={subject_id}'},
+                {'error': f'Attendance record not found: student={student_id}, date={date}, subject={subject_id}'},
                 status=404
             )
 
@@ -924,7 +939,7 @@ class TeacherSessionListView(APIView):
     """
     GET /api/attendance/sessions/
     Teacher ki recent sessions list karta hai (last 60 days).
-    Optional filter: ?student_pk=<pk>  — student ke enrolled subjects se match karega.
+    Optional filter: ?student_pk=<pk>  — filters sessions matching the student's enrolled subjects.
     """
     permission_classes = [IsTeacherOrAdmin]
 
@@ -1189,7 +1204,7 @@ class AdminAttendanceRequestView(APIView):
 class SendParentNotificationView(APIView):
     """
     POST /api/attendance/notify-parent/
-    Admin ya Teacher parent ko attendance alert email bhejta hai.
+    Admin or Teacher sends an attendance alert email to the student's parent.
 
     Body:
     {
@@ -1237,8 +1252,8 @@ class SendParentNotificationView(APIView):
 
         if not parent_email:
             return Response({
-                'error': 'Is student ke parent ka koi email registered nahi hai. '
-                         'Please first student ki family details mein parent email add karo.'
+                'error': 'No parent email is registered for this student. '
+                         'Please add a parent email in the student\'s family details first.'
             }, status=400)
 
         # Calculate attendance percentage

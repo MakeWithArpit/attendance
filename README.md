@@ -1,40 +1,40 @@
 # Prahari — Smart Attendance Management System
 
-Prahari is a full-stack attendance management system built for Invertis University. It supports three user roles (Admin, Teacher, Student) and provides multiple methods of attendance marking including manual, facial recognition, and RFID — alongside leave management, analytics, PDF/CSV exports, and parent notifications.
+Prahari is a full-stack attendance management system built for Invertis University. It supports three user roles (Admin, Teacher, Student) and provides multiple attendance methods including manual/bulk, facial recognition, and RFID — alongside leave management, analytics, PDF/CSV exports, and parent email notifications.
 
 ---
 
 ## Project Structure
 
 ```
-attendance-main/
-|
-|-- Backend/
-|   |-- requirements.txt
-|   `-- attendance_system/
-|       |-- manage.py
-|       |-- db.sqlite3
-|       |-- dummy_subjects.py
-|       |
-|       |-- attendance_system/       # Django project config
-|       |   |-- settings.py
-|       |   |-- urls.py
-|       |   |-- wsgi.py
-|       |   `-- asgi.py
-|       |
-|       |-- accounts/                # Users, Students, Teachers, Device binding
-|       |-- academics/               # Subjects, Timetable, Course Registration
-|       |-- attendance/              # Sessions, Attendance Records, Leave Requests
-|       `-- analytics/               # Reports, PDF/CSV, Email alerts
-|
-`-- Frontend/
-    |-- index.html                   # Landing page (portal selector)
-    |-- login.html                   # Unified login for all roles
-    |-- admin.html                   # Admin dashboard
-    |-- teacher.html                 # Teacher dashboard
-    |-- student.html                 # Student dashboard
-    |-- api.js                       # Centralized API calls
-    `-- styles.css                   # Global stylesheet
+attendance/
+│
+├── Backend/
+│   ├── requirements.txt
+│   └── attendance_system/
+│       ├── manage.py
+│       ├── db.sqlite3
+│       ├── dummy_subjects.py
+│       │
+│       ├── attendance_system/       # Django project config
+│       │   ├── settings.py
+│       │   ├── urls.py
+│       │   ├── wsgi.py
+│       │   └── asgi.py
+│       │
+│       ├── accounts/                # Users, Students, Teachers, Device binding
+│       ├── academics/               # Subjects, Timetable, Course Registration
+│       ├── attendance/              # Sessions, Attendance Records, Leave Requests
+│       └── analytics/               # Reports, PDF/CSV, Email alerts
+│
+└── Frontend/
+    ├── index.html                   # Landing page (portal selector)
+    ├── login.html                   # Unified login for all roles
+    ├── admin.html                   # Admin dashboard
+    ├── teacher.html                 # Teacher dashboard
+    ├── student.html                 # Student dashboard
+    ├── api.js                       # Centralised API call helpers
+    └── styles.css                   # Global stylesheet
 ```
 
 ---
@@ -42,11 +42,14 @@ attendance-main/
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|------------|
 | Backend Framework | Django 4.2.7 + Django REST Framework |
 | Authentication | JWT via `djangorestframework-simplejwt` |
-| Facial Recognition | DeepFace + Pillow |
-| Exports | ReportLab (PDF), OpenPyXL (Excel/CSV) |
+| Facial Recognition | DeepFace + tf-keras |
+| Phone Detection | YOLOv8 (ultralytics) + OpenCV |
+| Image Handling | Pillow (Django ImageField dependency) |
+| PDF Export | ReportLab |
+| CSV Export | Python stdlib `csv` module |
 | Cross-Origin | django-cors-headers |
 | Email | Gmail SMTP |
 | Frontend | Vanilla HTML, CSS, JavaScript |
@@ -74,17 +77,17 @@ attendance-main/
 
 ### Attendance Sessions
 - Teacher starts a session for a specific branch, semester, section, and subject
-- Session supports configurable auto-close timer (in minutes)
+- Session supports a configurable auto-close timer (in minutes)
 - Per-session flags for facial recognition and geo-fencing
 
 ### Attendance Methods
 - **Manual / Bulk**: Teacher marks all students present or absent using checkboxes
-- **Facial Recognition**: Student submits a selfie; DeepFace compares it against the registered photo stored by admin. Liveness detection (blink/smile) is handled on the frontend via face-api.js
+- **Facial Recognition**: Student submits a selfie; DeepFace compares it against the registered photo stored by the admin. Liveness detection (blink/nod) is handled on the frontend via MediaPipe and validated on the backend via a multi-frame challenge-response flow with YOLOv8 phone detection
 - **RFID**: RFID card number linked to student profile
-- **Geo-fencing**: Student's GPS coordinates are verified to be within campus boundary (configurable radius, default 200 m) before attendance is accepted
+- **Geo-fencing**: Student's GPS coordinates are verified to be within the campus boundary (configurable radius, default 200 m) before attendance is accepted
 
 ### Leave and Attendance Requests
-- Students apply for leave with date range, reason, and optional document upload
+- Students apply for leave with a date range, reason, and optional document upload
 - Approved leaves are automatically counted as present in attendance records
 - Teachers can raise an attendance request to admin for a student who could not mark via face/RFID during a session
 - Admin approves or rejects with remarks
@@ -93,8 +96,8 @@ attendance-main/
 - Subject-wise average attendance percentage per class
 - Students below a configurable attendance threshold
 - Monthly attendance trend
-- PDF and CSV/Excel export of attendance reports
-- Parent alert emails via Gmail SMTP when student attendance falls below threshold
+- PDF and CSV export of attendance reports
+- Parent alert emails via Gmail SMTP when student attendance falls below the threshold
 - WhatsApp message link generation for parent notifications
 
 ---
@@ -112,13 +115,13 @@ attendance-main/
 | PermanentAddress / PresentAddress | Student address records |
 | Teacher | Employee ID, department, name, email, designation |
 | DeviceToken | Browser fingerprint per student for device binding |
-| PasswordResetOTP | OTP record with expiry for forgot-password flow |
+| PasswordResetOTP | OTP record with expiry for forgot-password and device-verification flows |
 
 ### academics app
 | Model | Description |
 |-------|-------------|
 | Subject | Subject code, name, type, credits, assigned teacher, branch, semester |
-| CourseRegistration | Links student to subjects for a given semester and section |
+| CourseRegistration | Links a student to subjects for a given semester and section |
 | TimeTable | Weekly period-wise timetable per branch, semester, section |
 
 ### attendance app
@@ -145,26 +148,41 @@ attendance-main/
 
 ## Installation and Setup
 
-**1. Clone and set up the backend**
+**1. Clone the repository**
 
 ```bash
 git clone https://github.com/yourusername/attendance.git
 cd attendance/Backend
+```
+
+**2. Create and activate a virtual environment**
+
+```bash
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+venv\Scripts\activate           # Windows
+```
+
+**3. Install dependencies**
+
+```bash
 pip install -r requirements.txt
 ```
 
-**2. Configure environment**
+> **Note:** DeepFace downloads model weights (~100 MB) automatically on first use. YOLOv8 (`yolov8n.pt`) is included in the repo under `media/` and is loaded at runtime.
+
+**4. Configure environment**
 
 Open `attendance_system/settings.py` and update:
 
 ```python
 SECRET_KEY = 'your-secret-key'
 EMAIL_HOST_USER = 'your-email@gmail.com'
-EMAIL_HOST_PASSWORD = 'your-app-password'
+EMAIL_HOST_PASSWORD = 'your-app-password'   # Gmail App Password
 CORS_ALLOWED_ORIGINS = ['http://localhost:5500']
 ```
 
-**3. Run migrations and start server**
+**5. Run migrations and create a superuser**
 
 ```bash
 cd attendance_system
@@ -173,9 +191,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-**4. Frontend**
+**6. Frontend**
 
-Open any of the HTML files directly in a browser, or serve them with Live Server (VS Code extension). No build step required.
+Open any HTML file in a browser or serve them with Live Server (VS Code). No build step is required.
 
 ---
 
@@ -187,7 +205,10 @@ Open any of the HTML files directly in a browser, or serve them with Live Server
 | Backend | Any WSGI host (Gunicorn + Nginx recommended) |
 | Media files | Served via Django in development; use S3 or similar in production |
 
-In `settings.py`, update `CORS_ALLOWED_ORIGINS` to the deployed frontend URL before going live.
+Before going live, update `settings.py`:
+- Set `DEBUG = False`
+- Set `CORS_ALLOW_ALL_ORIGINS = False` and add your frontend URL to `CORS_ALLOWED_ORIGINS`
+- Rotate `SECRET_KEY`
 
 ---
 
@@ -200,10 +221,11 @@ djangorestframework-simplejwt
 django-cors-headers
 django-filter
 deepface
+tf-keras
+ultralytics
+opencv-python-headless
 Pillow
 reportlab
-openpyxl
-tf-keras
 ```
 
 ---
@@ -216,6 +238,6 @@ This project is licensed under the **MIT License**.
 
 ## Author
 
-**Arpit Gangwar**
-B.Tech Computer Science and Engineering
+**Arpit Gangwar**  
+B.Tech Computer Science and Engineering  
 Invertis University, Bareilly

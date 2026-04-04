@@ -276,11 +276,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
           <i class="fa-solid fa-circle-question"></i> Forgot Password?
         </button>
         <div class="msg hidden" id="login-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
-        <div class="api-tag" style="margin-top:16px;">
-          <span class="api-method" style="background:#16a34a;">POST</span>
-          <span class="api-ep">/api/auth/login/</span>
-        </div>
-      </div>
+</div>
 
       <!-- OTP section -->
       <div class="sub-sec" id="otp-sec">
@@ -294,8 +290,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
         </div>
         <button type="button" class="btn btn-navy" style="width:100%;" onclick="doOTP()"><i class="fa-solid fa-circle-check"></i> Verify & Sign In</button>
         <div class="msg hidden" id="otp-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
-        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/verify-device-otp/</span></div>
-      </div>
+</div>
 
       <!-- Forgot password -->
       <div class="sub-sec" id="forgot-sec">
@@ -307,8 +302,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
         <button type="button" class="btn btn-navy" style="width:100%;" onclick="doForgot()"><i class="fa-solid fa-paper-plane"></i> Send OTP</button>
         <div class="msg hidden" id="fp-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
         <button type="button" onclick="showPanel('login')" style="width:100%;margin-top:10px;background:none;border:none;color:var(--blue);font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
-        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/forgot-password/</span></div>
-      </div>
+</div>
 
       <!-- Reset password -->
       <div class="sub-sec" id="reset-sec">
@@ -325,8 +319,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
         <button type="button" class="btn btn-navy" style="width:100%;" onclick="doReset()"><i class="fa-solid fa-rotate-right"></i> Reset Password</button>
         <div class="msg hidden" id="reset-msg"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
         <button type="button" onclick="showPanel('login')" style="width:100%;margin-top:10px;background:none;border:none;color:var(--blue);font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
-        <div class="api-tag" style="margin-top:16px;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/reset-password/</span></div>
-      </div>
+</div>
 
     </div>
   </div>
@@ -353,7 +346,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
       if (key === 'login') {
         el.style.display = isActive ? '' : 'none';
       } else {
-        // Explicit 'block' — CSS .sub-sec{display:none} conflict se bachata hai
+        // Explicit 'block' — prevents conflict with CSS .sub-sec{display:none}
         el.style.display = isActive ? 'block' : 'none';
         if (isActive) el.classList.add('show');
         else          el.classList.remove('show');
@@ -424,8 +417,8 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
       // Mismatch — clear token and show error
       Auth.clear();
       showMsg('login-msg',
-        `Ye credentials "${roleLabel[selectedRole] || selectedRole}" account ke nahi hain. ` +
-        `Sahi role select karo ya sahi credentials use karo.`
+        `These credentials do not belong to a "${roleLabel[selectedRole] || selectedRole}" account. ` +
+        `Please select the correct role or use the correct credentials.`
       );
       return;
     }
@@ -448,8 +441,8 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
       Auth.clear();
       showPanel('login');
       showMsg('login-msg',
-        `Ye credentials "${roleLabel[selectedRole] || selectedRole}" account ke nahi hain. ` +
-        `Sahi role select karo ya sahi credentials use karo.`
+        `These credentials do not belong to a "${roleLabel[selectedRole] || selectedRole}" account. ` +
+        `Please select the correct role or use the correct credentials.`
       );
       return;
     }
@@ -494,7 +487,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
       const errMsg = errData.error
         || (errData.username && errData.username[0])
         || (errData.non_field_errors && errData.non_field_errors[0])
-        || 'OTP bhejne mein error. Dobara try karein.';
+        || 'Failed to send OTP. Please try again.';
       showMsg('fp-msg', errMsg);
       return;
     }

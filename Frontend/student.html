@@ -288,9 +288,7 @@
         </div>
 
         <div class="card card-accent">
-          <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
-              class="api-ep">/api/attendance/my-summary/</span></div>
-          <div class="filters">
+<div class="filters">
             <div class="filter-group">
               <label><i class="fa-solid fa-layer-group"></i> Semester</label>
               <select id="f-sem" style="width:130px;">
@@ -359,19 +357,16 @@
           <h1 class="page-title">Active Sessions <span class="page-title-rule"></span></h1>
           <p class="page-sub">Today's live attendance sessions for your enrolled subjects</p>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
-            class="api-ep">/api/attendance/sessions/active/</span></div>
-
-        <!-- Face not registered error banner (shown when clicked without registered face) -->
+<!-- Face not registered error banner (shown when clicked without registered face) -->
         <div id="face-not-reg-error"
           style="display:none;margin-bottom:14px;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:10px;padding:14px 16px;align-items:flex-start;gap:13px;">
           <i class="fa-solid fa-face-frown" style="font-size:22px;color:#DC2626;margin-top:2px;flex-shrink:0;"></i>
           <div>
             <div style="font-weight:700;color:#DC2626;font-size:13.5px;margin-bottom:3px;">Face Not Registered</div>
             <div style="font-size:12.5px;color:#7F1D1D;line-height:1.6;">
-              Aapka face system mein registered nahi hai. Face Attendance use karne ke liye pehle admin se apna face
+              Your face is not registered in the system. To use Face Attendance, please ask the admin to register your face
               register karwao.<br>
-              <span style="font-size:11.5px;color:#991B1B;">My Profile → Face Recognition section check karo.</span>
+              <span style="font-size:11.5px;color:#991B1B;">Check My Profile → Face Recognition section.</span>
             </div>
           </div>
           <button onclick="document.getElementById('face-not-reg-error').style.display='none'"
@@ -396,9 +391,7 @@
           <div class="card-title">
             <div class="card-title-left"><i class="fa-solid fa-file-signature"></i> New Leave Application</div>
           </div>
-          <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span
-              class="api-ep">/api/attendance/leaves/</span></div>
-          <div class="form-row-2">
+<div class="form-row-2">
             <div class="form-group" style="margin:0;">
               <label><i class="fa-regular fa-calendar"></i> From Date</label>
               <input type="date" id="l-from">
@@ -422,9 +415,7 @@
             <button class="btn btn-outline btn-sm" onclick="loadLeaves()"><i class="fa-solid fa-rotate-right"></i>
               Refresh</button>
           </div>
-          <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
-              class="api-ep">/api/attendance/leaves/</span></div>
-          <div id="leaves-body">
+<div id="leaves-body">
             <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
           </div>
         </div>
@@ -436,9 +427,7 @@
           <h1 class="page-title">My Profile <span class="page-title-rule"></span></h1>
           <p class="page-sub">Your personal and academic details</p>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span
-            class="api-ep">/api/auth/me/</span></div>
-        <div class="card">
+<div class="card">
           <div id="profile-body">
             <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
           </div>
@@ -542,7 +531,7 @@
         const rem = expiresAt - Date.now();
         if (rem <= 0) {
           clearInterval(_sessionTimers[sessionId]);
-          // Session expire — 3 sec baad list refresh karo taaki card disappear ho jaye
+          // Session expired — refresh the list after 3 sec so the card disappears
           if (el2) { el2.textContent = '⏰ Expired'; el2.className = 'session-countdown danger'; }
           setTimeout(() => loadSessions(), 3000);
           return;
@@ -635,27 +624,88 @@
     let _mpCamera = null;
     let _faceMesh = null;
     let _mpReady = false;
-    let _blinkCount = 0;
     let _eyeWasClosed = false;
     let _geoVerified = false;
     let _geoLat = null, _geoLng = null;
     let _lastLandmarks = null;
-    let _capturedFrames = [];     // Array of Blob (5 JPEGs)
-    let _captureState = 'blink_check';  // blink_check | capturing | ready | submitting
+    let _capturedFrames = [];     // Array of Blob (10 JPEGs)
+    let _challengeResults = [];
+    let _activeChallenges = [];
+    let _currentChallengeIndex = 0;
+    let _captureState = 'init'; // init|capturing|challenge|ready|submitting|retry
+
+    const CHALLENGE_TEXT = {
+      'blink': '👁️ Blink your eyes slowly',
+      'smile': '😊 Please smile brightly',
+      'mouth_open': '😮 Open your mouth wide',
+      'look_left': '👈 Look to your left side',
+      'look_right': '👉 Look to your right side',
+      'look_up': '👆 Look upwards',
+      'nod': '⬇️⬆️ Nod your head up & down'
+    };
+    const CHALLENGE_POOL = Object.keys(CHALLENGE_TEXT);
+
+    function evaluateChallenge(id, lm, W, H) {
+      function d(a, b) { return Math.sqrt(((lm[a].x - lm[b].x)*W)**2 + ((lm[a].y - lm[b].y)*H)**2); }
+      if (id === 'blink') {
+          const ear = calcEAR(lm, W, H);
+          if(ear < 0.20) { _eyeWasClosed = true; }
+          else if(_eyeWasClosed) { _eyeWasClosed = false; return true; }
+          return false;
+      }
+      if (id === 'smile') { return (d(61, 291) / d(234, 454)) > 0.45; }
+      if (id === 'mouth_open') { return (d(13, 14) / d(10, 152)) > 0.12; }
+      if (id === 'look_left') { return Math.abs(lm[1].x - lm[234].x) < (Math.abs(lm[1].x - lm[454].x) * 0.5); }
+      if (id === 'look_right') { return Math.abs(lm[1].x - lm[454].x) < (Math.abs(lm[1].x - lm[234].x) * 0.5); }
+      if (id === 'look_up') {
+          // Mirrors standalone script's _look_up: nose_y relative to eye/mouth range.
+          // Simple absolute Y threshold fails at different camera distances.
+          const eyeY  = (lm[33].y + lm[263].y) / 2;   // avg of L+R outer eye corners
+          const mouthY = lm[14].y;                      // lower lip
+          const noseY  = lm[1].y;
+          const range  = mouthY - eyeY;
+          const ratio  = range > 0.01 ? (noseY - eyeY) / range : 0.5;
+          return ratio < 0.38;   // nose is high relative to eye-mouth span → looking up
+      }
+      if (id === 'nod') {
+          // Use face-height-normalised ratio (mirrors standalone script's _nod method).
+          // Raw Y delta fails when student is close to camera (face fills frame → small delta looks big).
+          // Normalising by face height makes threshold device/distance-independent.
+          const faceH = Math.abs(lm[10].y - lm[152].y);   // forehead → chin (normalised coords)
+          const noseY = lm[1].y;
+          if (window._noseMinY === null || window._noseMinY === undefined) {
+              window._noseMinY = noseY; window._noseMaxY = noseY;
+          }
+          window._noseMinY = Math.min(window._noseMinY, noseY);
+          window._noseMaxY = Math.max(window._noseMaxY, noseY);
+          const ratio = faceH > 0.01 ? (window._noseMaxY - window._noseMinY) / faceH : 0;
+          return ratio > 0.12;   // 12% of face height — same threshold as standalone script
+      }
+      return false;
+    }
 
     async function openFaceModal(sessionId, subjectName, hasFaceRegistered) {
       if (!hasFaceRegistered) {
         const errDiv = document.getElementById('face-not-reg-error');
         if (errDiv) { errDiv.style.display = 'flex'; setTimeout(() => errDiv.style.display = 'none', 6000); }
-        toast('❌ Face registered nahi hai. Admin se contact karo.', 'error');
+        toast('❌ Face not registered. Please contact the admin.', 'error');
         return;
       }
 
       _faceSessionId = sessionId;
-      _blinkCount = 0; _eyeWasClosed = false;
+      _eyeWasClosed = false;
       _geoVerified = false; _geoLat = null; _geoLng = null;
-      _lastLandmarks = null; _capturedFrames = [];
-      _captureState = 'blink_check';
+      _lastLandmarks = null; _capturedFrames = []; _challengeResults = [];
+      _captureState = 'init';
+      
+      let pool = [...CHALLENGE_POOL];
+      _activeChallenges = [];
+      for(let i=0; i<2; i++) {
+        let idx = Math.floor(Math.random() * pool.length);
+        _activeChallenges.push(pool.splice(idx, 1)[0]);
+      }
+      _currentChallengeIndex = 0;
+      window._noseMinY = null; window._noseMaxY = null;
 
       document.getElementById('face-modal-overlay').style.display = 'flex';
       document.getElementById('fm-subject-lbl').textContent = '— ' + subjectName;
@@ -694,46 +744,80 @@
         await _mpCamera.start();
         hideFaceLoading();
         updateHint();
-        console.log('[FaceAI] Camera started (MediaPipe only — no COCO-SSD)');
       } catch (e) {
-        showFaceLoading('❌ Camera access denied. Browser settings mein camera allow karo.');
+        showFaceLoading('❌ Camera access denied. Please allow camera access in your browser settings.');
         console.error('Camera error:', e);
       }
     }
 
-    /* ── Multi-Frame Capture — after blink check passes ── */
+    /* ── Multi-Frame Capture & Challenge Workflow ── */
     async function startMultiFrameCapture() {
-      if (_captureState !== 'blink_check') return;
-      _captureState = 'capturing';
-      _capturedFrames = [];
-      setLivenessState('lv-capture', 'active');
-      updateHint();
-
+      if (_captureState !== 'init' && _captureState !== 'retry') return;
+      _captureState = 'starting'; // ← guard: prevent re-entry while 1s settle-wait runs
+      
       const video = document.getElementById('fm-video');
       const canvas = document.getElementById('fm-canvas');
-      const total = 5;
-
-      for (let i = 0; i < total; i++) {
-        // Random delay 350-650ms between frames
+      
+      // Wait for camera/face to settle
+      await new Promise(r => setTimeout(r, 1000));
+      
+      async function captureFrame() {
         const delay = 350 + Math.random() * 300;
         await new Promise(r => setTimeout(r, delay));
-
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
         _capturedFrames.push(blob);
-
-        // Update UI
         const countEl = document.getElementById('lv-capture-count');
         if (countEl) countEl.textContent = _capturedFrames.length;
-        console.log(`[MultiFrame] Captured frame ${i + 1}/${total}`);
       }
 
-      _captureState = 'ready';
-      setLivenessState('lv-capture', 'done');
-      popCard('lv-capture');
-      updateHint();
+      // Helper: wait for challenge with 8s timeout
+      async function waitForChallenge(idx) {
+        _captureState = 'challenge'; _currentChallengeIndex = idx; updateHint();
+        const _chStart = Date.now();
+        while (_captureState === 'challenge') {
+          await new Promise(r => setTimeout(r, 100));
+          if (Date.now() - _chStart > 8000) {
+            // Timed out — mark failed, continue capture
+            _challengeResults.push({ id: _activeChallenges[idx], passed: false });
+            _captureState = 'capturing';
+            break;
+          }
+        }
+      }
+
+      try {
+        // -- Capture 1 (Frames 1,2,3) --
+        _captureState = 'capturing'; setLivenessState('lv-capture', 'active'); updateHint();
+        for(let i=0; i<3; i++) await captureFrame();
+        
+        // -- Challenge 1 --
+        await waitForChallenge(0);
+        
+        // -- Capture 2 (Frames 4,5,6,7) --
+        _captureState = 'capturing'; updateHint();
+        for(let i=0; i<4; i++) await captureFrame();
+        
+        // -- Challenge 2 --
+        window._noseMinY = null; window._noseMaxY = null; // reset nod state
+        await waitForChallenge(1);
+        
+        // -- Capture 3 (Frames 8,9,10) --
+        _captureState = 'capturing'; updateHint();
+        for(let i=0; i<3; i++) await captureFrame();
+
+        _captureState = 'ready';
+        setLivenessState('lv-capture', 'done');
+        popCard('lv-capture');
+        updateHint();
+        
+        // Auto Submit
+        submitFaceAttendance();
+      } catch (e) {
+        console.error("Capture interrupted", e);
+      }
     }
 
     function onFaceMeshResults(results) {
@@ -759,41 +843,26 @@
       const W = video.videoWidth || 640;
       const H = video.videoHeight || 480;
 
-      // Overlay hidden — user requested clean video without blue/green lines
       if (overlayC) clearOverlay(overlayC);
       if (wrap) wrap.className = 'fm-video-wrap face-ok';
       setFaceBadge(true);
 
-      // EAR — MediaPipe 468-point mesh
       const ear = calcEAR(lm, W, H);
-
-      // Score bars
       updateScoreBar('ear-bar', Math.max(0, Math.min(1, (0.40 - ear) / 0.28)), ear < 0.20 ? '#2563EB' : '#94A3B8');
-
       if (pill) pill.textContent = `EAR:${ear.toFixed(2)}`;
 
-      // ── Blink detection ──
-      if (_blinkCount < 2 && _captureState === 'blink_check') {
-        if (ear < 0.20) {
-          if (!_eyeWasClosed) {
-            _eyeWasClosed = true;
-            setLivenessState('lv-blink', 'active');
+      // Evaluate challenge if active
+      if (_captureState === 'challenge') {
+          let currentId = _activeChallenges[_currentChallengeIndex];
+          if(evaluateChallenge(currentId, lm, W, H)) {
+             _challengeResults.push({ id: currentId, passed: true });
+             _captureState = 'passed_challenge'; 
           }
-        } else {
-          if (_eyeWasClosed) {
-            _eyeWasClosed = false;
-            _blinkCount = Math.min(_blinkCount + 1, 2);
-            document.getElementById('lv-blink-count').textContent = _blinkCount;
-            console.log('[FaceAI] Blink', _blinkCount, 'EAR was', ear.toFixed(3));
-            if (_blinkCount >= 2) {
-              setLivenessState('lv-blink', 'done'); popCard('lv-blink');
-              // Auto-start multi-frame capture after blinks pass
-              startMultiFrameCapture();
-            } else {
-              setLivenessState('lv-blink', '');
-            }
-          }
-        }
+      }
+
+      // Auto start on first face detection if init
+      if (_captureState === 'init') {
+          startMultiFrameCapture();
       }
 
       updateHint();
@@ -909,8 +978,7 @@
     }
 
     function resetLivenessUI() {
-      ['lv-blink', 'lv-capture'].forEach(id => setLivenessState(id, ''));
-      document.getElementById('lv-blink-count').textContent = '0';
+      setLivenessState('lv-capture', '');
       const captureCount = document.getElementById('lv-capture-count');
       if (captureCount) captureCount.textContent = '0';
       document.getElementById('fm-geo-status').style.display = 'none';
@@ -936,20 +1004,29 @@
         hint.textContent = '📍 Waiting for location verification…';
         submitBtn.disabled = true; return;
       }
-      if (_captureState === 'blink_check') {
-        hint.textContent = `👁️ Blink your eyes slowly… (${_blinkCount}/2 detected)`;
+      if (_captureState === 'init' || _captureState === 'retry' || _captureState === 'starting') {
+        hint.textContent = '👤 Keep your face directly in the frame...';
         submitBtn.disabled = true; return;
       }
       if (_captureState === 'capturing') {
-        hint.innerHTML = `📸 Capturing verification frames… <strong>${_capturedFrames.length}/5</strong>`;
+        hint.innerHTML = `<i class="fa-solid fa-camera fa-fade"></i> <strong>Capturing frames...</strong> (Frame ${_capturedFrames.length}/10)`;
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'challenge') {
+        let currentId = _activeChallenges[_currentChallengeIndex];
+        hint.innerHTML = `<span style="color:#0284C7;font-weight:700;font-size:15px;letter-spacing:.2px;">👉 ${CHALLENGE_TEXT[currentId]}</span>`;
+        submitBtn.disabled = true; return;
+      }
+      if (_captureState === 'passed_challenge') {
+        hint.innerHTML = `<span style="color:#16A34A;font-weight:700;font-size:14px;">✅ Good!</span>`;
         submitBtn.disabled = true; return;
       }
       if (_captureState === 'submitting') {
-        hint.innerHTML = '⏳ <strong>Server is analyzing your frames…</strong> Please wait.';
+        hint.innerHTML = '⏳ <strong>Server is verifying your attendance…</strong> Please wait.';
         submitBtn.disabled = true; return;
       }
       if (_captureState === 'ready') {
-        hint.innerHTML = '✅ <strong>All checks passed!</strong> Click "Submit Attendance".';
+        hint.innerHTML = '✅ <strong>Verification Complete!</strong>';
         submitBtn.disabled = false; return;
       }
     }
@@ -977,14 +1054,11 @@
       _captureState = 'submitting';
       updateHint();
 
-      // Do NOT stop camera here! Stopping and recreating FaceMesh causes WASM crash on retry.
-      // The camera will naturally continue feeding frames but we ignore them while state is 'submitting'.
-
-      // Build FormData with all captured frames
+      // Build FormData with all captured frames and challenge results
       const fd = new FormData();
       fd.append('session_id', _faceSessionId);
-      fd.append('blink_count', _blinkCount);
       fd.append('device_id', getDeviceId());
+      fd.append('challenge_results', JSON.stringify(_challengeResults));
       if (_geoLat && _geoLng) { fd.append('latitude', _geoLat); fd.append('longitude', _geoLng); }
       _capturedFrames.forEach((blob, i) => fd.append('photos', blob, `frame_${i}.jpg`));
 
@@ -995,19 +1069,34 @@
         toast('📵 Phone detected by server — Attendance marked ABSENT.', 'error');
         loadSessions(); return;
       }
+      if (r?.data?.code === 'PHONE_WARNING') {
+        toast('📵 WARNING: Mobile phone detected! Final chance.', 'warning');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Try Again';
+        _capturedFrames = []; _challengeResults = [];
+        _captureState = 'retry';
+        _currentChallengeIndex = 0;
+        resetLivenessUI();
+        updateHint();
+        return;
+      }
       if (!r || !r.ok) {
-        // Failure: reset state machine so blink detection resumes on the running camera
         toast(r?.data?.error || 'Verification failed. Try again.', 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Attendance';
-        _blinkCount = 0; _eyeWasClosed = false;
-        _capturedFrames = []; _lastLandmarks = null;
-        // IMPORTANT: set _captureState AFTER clearing other vars so onFaceMeshResults
-        // picks up blink_check state on the very next frame from the still-running camera
-        _captureState = 'blink_check';
+        
+        let pool = [...CHALLENGE_POOL];
+        _activeChallenges = [];
+        for(let i=0; i<2; i++) {
+          let idx = Math.floor(Math.random() * pool.length);
+          _activeChallenges.push(pool.splice(idx, 1)[0]);
+        }
+        
+        _capturedFrames = []; _lastLandmarks = null; _challengeResults = [];
+        _currentChallengeIndex = 0;
+        _captureState = 'retry';
         resetLivenessUI();
         updateHint();
-        console.log('[FaceAI] Retry: state reset to blink_check, camera still running');
         return;
       }
       closeFaceModal();
@@ -1181,18 +1270,11 @@
           </div>
         </div>
 
-        <!-- Liveness cards — 2 column -->
-        <div style="padding:10px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div id="lv-blink" class="lv-item">
-            <div class="lv-icon"><i class="fa-solid fa-eye"></i></div>
-            <div class="lv-label">Blink <span id="lv-blink-count">0</span>/2</div>
-            <div class="score-bar-wrap">
-              <div class="score-bar" id="ear-bar" style="width:0%;"></div>
-            </div>
-          </div>
-          <div id="lv-capture" class="lv-item">
+        <!-- Liveness cards — 1 column full width -->
+        <div style="padding:10px 16px 0;display:flex;flex-direction:column;gap:8px;">
+          <div id="lv-capture" class="lv-item" style="flex:1;">
             <div class="lv-icon"><i class="fa-solid fa-camera-rotate"></i></div>
-            <div class="lv-label">Frames <span id="lv-capture-count">0</span>/5</div>
+            <div class="lv-label">Analysis Frames <span id="lv-capture-count">0</span>/10</div>
             <div class="score-bar-wrap">
               <div class="score-bar" id="capture-bar" style="width:0%;"></div>
             </div>
@@ -1204,26 +1286,10 @@
           style="margin:8px 16px 0;font-size:12.5px;color:var(--text-3);text-align:center;background:var(--surface-2);border-radius:8px;padding:8px 12px;min-height:36px;display:flex;align-items:center;justify-content:center;">
         </div>
 
-        <!-- Instructions -->
-        <div
-          style="margin:8px 16px 10px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;">
-          <div
-            style="font-size:10.5px;font-weight:700;color:#0369A1;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
-            <i class="fa-solid fa-circle-info"></i> How it works</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
-                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">1</span>
-              Face seedha rakhein, achi roshni mein</div>
-            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
-                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">2</span>
-              Slowly 2 baar aankhein jhapkaein (liveness check)</div>
-            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
-                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">3</span>
-              5 photos auto-capture hongi → server verify karega</div>
-            <div style="font-size:11.5px;color:#0c4a6e;display:flex;align-items:center;gap:7px;"><span
-                style="width:18px;height:18px;border-radius:50%;background:#0284C7;color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">4</span>
-              Server: face match + phone detection + anti-proxy check</div>
-          </div>
+        <!-- Phone Note (minimal, clean) -->
+        <div style="margin:6px 16px 10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:7px 12px;font-size:12px;color:#9A3412;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-triangle-exclamation" style="flex-shrink:0;"></i>
+          <span><strong>Note:</strong> Phones are not allowed in the camera frame — if a phone is detected, attendance will be marked <strong>Absent</strong>.</span>
         </div>
 
         <!-- Geo status -->

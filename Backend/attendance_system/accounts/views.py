@@ -300,13 +300,11 @@ class StudentCreateView(generics.CreateAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # FIX: Convert QueryDict to a plain dict before processing.
         # When FormData (multipart) is submitted, request.data is a QueryDict.
-        # DRF's nested serializer calls html.parse_html_dict() on it, looking for
-        # keys like 'profile[name]', 'profile[dob]' — but we send 'profile' as a
-        # JSON string, so the profile field appears empty → 400 error.
-        # Solution: convert QueryDict to plain Python dict first.
-        # ─────────────────────────────────────────────────────────────────────
+        # DRF's nested serializer calls html.parse_html_dict() on it looking for
+        # keys like 'profile[name]', but we send 'profile' as a JSON string,
+        # so the field appears empty → 400 error.
+        # Convert the QueryDict to a plain Python dict first to avoid this.
         data = {}
         for key in request.data:
             data[key] = request.data[key]   # take last value (standard QueryDict behaviour)
@@ -322,17 +320,12 @@ class StudentCreateView(generics.CreateAPIView):
                     data[key] = _json.loads(data[key])
                 except (ValueError, TypeError):
                     pass
-
-        print("DEBUG: data keys =", list(data.keys()))
-        print("DEBUG: profile =", data.get('profile'))
         serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
-            print("DEBUG: validation errors =", serializer.errors)
             return Response(
                 {'error': 'Validation failed', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        print("DEBUG: validated_data keys =", list(serializer.validated_data.keys()))
         try:
             student = serializer.save()
         except Exception as exc:
@@ -359,7 +352,7 @@ class StudentCreateView(generics.CreateAPIView):
                 section  = profile.section.strip().upper()
                 semester = int(profile.current_semester)
 
-                # Strategy 1 ★ BEST: Subject is directly tagged with branch + semester
+                # Strategy 1 (preferred): subjects directly tagged with branch + semester
                 subjects = list(Subject.objects.filter(
                     branch=branch,
                     semester=semester,
@@ -372,7 +365,7 @@ class StudentCreateView(generics.CreateAPIView):
                         courseregistration__semester=semester,
                     ).distinct())
 
-                # Strategy 3: TimeTable se
+                # Strategy 3: Derive subjects from TimeTable
                 if not subjects:
                     from academics.models import TimeTable
                     subjects = list(Subject.objects.filter(
@@ -387,8 +380,8 @@ class StudentCreateView(generics.CreateAPIView):
                         semester=semester,
                         defaults={'branch': branch, 'section': section}
                     )
-        except Exception:
-            pass  # Auto-enroll failure must not prevent student creation
+        except Exception as _e:
+            _logger.warning(f'Auto-enroll failed for student (non-fatal): {_e}')
 
         try:
             response_data = StudentSerializer(student).data
@@ -656,7 +649,7 @@ class ForgotPasswordView(APIView):
         threading.Thread(target=_send_email, daemon=True).start()
 
         return Response({
-            'message': f'OTP successfully bhej diya gaya hai {self._mask_email(email)} par.',
+            'message': f'OTP has been sent successfully to {self._mask_email(email)}.',
             'email':   self._mask_email(email),
         })
 
@@ -716,7 +709,7 @@ class ResetPasswordView(APIView):
 
         if not otp_record:
             return Response(
-                {'error': 'Koi OTP nahi mila. Pehle forgot password request karo.'},
+                {'error': 'No OTP found. Please initiate a forgot password request first.'},
                 status=400
             )
 
@@ -724,7 +717,7 @@ class ResetPasswordView(APIView):
             otp_record.is_used = True
             otp_record.save()
             return Response(
-                {'error': 'OTP expire ho gaya hai. Dobara forgot password karo.'},
+                {'error': 'OTP has expired. Please request a new forgot password OTP.'},
                 status=400
             )
 
@@ -745,14 +738,14 @@ class ResetPasswordView(APIView):
             pass
 
         return Response({
-            'message': 'Password successfully change ho gaya hai. Ab naye password se login karo.',
+            'message': 'Password changed successfully. Please log in with your new password.',
         })
 
 class NextStudentIdView(APIView):
     """
     GET /api/auth/next-student-id/?branch=ECE
     Returns next available student_id, enrollment_number, roll_number for a branch.
-    DB mein check karke guaranteed unique IDs deta hai.
+    Checks the database to guarantee unique IDs with no collisions.
     """
     permission_classes = [IsAdmin]
 

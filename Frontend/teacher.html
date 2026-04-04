@@ -141,7 +141,7 @@
           <div style="font-size:11px;color:var(--red);margin-top:3px;">Absent</div>
         </div>
       </div>
-      <p style="font-size:13px;color:var(--text-2);text-align:center;">Kya aap yeh attendance submit karna chahte hain? Ek baar submit hone ke baad edit nahi ho sakti.</p>
+      <p style="font-size:13px;color:var(--text-2);text-align:center;">Are you sure you want to submit this attendance? It cannot be edited after submission.</p>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('m-att-confirm');openModal('m-manual-att')">
@@ -198,8 +198,7 @@
         <h1 class="page-title">Faculty Dashboard <span class="page-title-rule"></span></h1>
         <p class="page-sub">Overview of your sessions, subjects, and pending tasks</p>
       </div>
-      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/dashboard/teacher/</span></div>
-      <div class="stats-grid" id="dash-stats">
+<div class="stats-grid" id="dash-stats">
         <div class="loader" style="grid-column:1/-1;"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
       </div>
       <div class="card">
@@ -218,8 +217,7 @@
       <div class="card card-accent">
         <div class="card-title">
           <div class="card-title-left"><i class="fa-solid fa-circle-play"></i> Session Details</div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/sessions/start/</span></div>
-        </div>
+</div>
 
         <!-- Row 1: Subject + Branch -->
         <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
@@ -303,7 +301,7 @@
                 <div class="sess-row-title">Session Duration</div>
                 <span id="dur-badge">No Limit</span>
               </div>
-              <div class="sess-row-desc" style="margin-bottom:10px;">Set karein kitne minute baad session expire ho — proxy attendance automatically block hogi</div>
+              <div class="sess-row-desc" style="margin-bottom:10px;">Set how many minutes until the session expires — proxy attendance will be automatically blocked</div>
               <!-- Segmented control -->
               <div class="dur-seg" role="group" aria-label="Duration">
                 <button type="button" class="dur-seg-btn active" data-val="0"  onclick="selectDuration(this)">∞ No limit</button>
@@ -376,12 +374,11 @@
     <div id="sec-attreq" class="section">
       <div class="page-header">
         <h1 class="page-title">Attendance Requests <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Students ki missed attendance ke liye admin ko request bhejein</p>
+        <p class="page-sub">Submit a request to the admin for a student's missed attendance</p>
       </div>
       <div class="card card-accent">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-file-circle-plus"></i> New Request</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/attendance-requests/</span></div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
+<div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-id-badge"></i> Student ID</label>
             <input type="text" id="ar-student-id" placeholder="e.g. BCS2024001" oninput="lookupStudent()">
@@ -395,7 +392,7 @@
         <div class="form-group">
           <label><i class="fa-solid fa-hashtag"></i> Session</label>
           <select id="ar-session">
-            <option value="">— Select session (pehle student ID enter karo) —</option>
+            <option value="">— Select session (enter student ID first) —</option>
           </select>
         </div>
         <div class="form-group">
@@ -410,8 +407,7 @@
           <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> My Submitted Requests</div>
           <button class="btn btn-outline btn-sm" onclick="loadMyAttReqs()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/attendance-requests/</span></div>
-        <div id="attreq-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
+<div id="attreq-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
       </div>
     </div>
 
@@ -426,8 +422,7 @@
           <div class="card-title-left"><i class="fa-solid fa-inbox"></i> Pending Applications</div>
           <button class="btn btn-outline btn-sm" onclick="loadLeaves()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/leaves/?status=pending</span></div>
-        <div id="leaves-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
+<div id="leaves-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
       </div>
     </div>
 
@@ -437,8 +432,7 @@
         <h1 class="page-title">My Timetable <span class="page-title-rule"></span></h1>
         <p class="page-sub">Your weekly class schedule at Invertis University</p>
       </div>
-      <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/academics/my-timetable/</span></div>
-      <div class="card card-accent">
+<div class="card card-accent">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-sun"></i> <span id="tt-today-lbl">Today's Schedule</span></div></div>
         <div id="timetable-today"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
       </div>
@@ -456,8 +450,7 @@
         <p class="page-sub">Search and view student details (read-only access)</p>
       </div>
       <div class="card card-accent">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/students/</span></div>
-        <div class="filters" style="flex-wrap:wrap;gap:12px;">
+<div class="filters" style="flex-wrap:wrap;gap:12px;">
           <div class="filter-group">
             <label><i class="fa-solid fa-magnifying-glass"></i> Search</label>
             <input type="text" id="ts-search" placeholder="Name / Enrollment / Student ID / Roll No" style="width:260px;" oninput="teacherSearchStudents()">
@@ -505,8 +498,7 @@
       </div>
       <div class="card card-accent">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-bell"></i> Send Attendance Alert</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/notify-parent/</span></div>
-        <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's registered email. Make sure parent email is added in student's family details.</span></div>
+<div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's registered email. Make sure parent email is added in student's family details.</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
@@ -651,10 +643,10 @@
     document.getElementById('session-actions').style.display='flex';
     const fbtn=document.getElementById('btn-facial-sess');
     if(fbtn) fbtn.style.display=s.facial_enabled?'inline-flex':'none';
-    // Start session button disable karo — session already active hai
+    // Disable start session button — a session is already active
     const startBtn=document.querySelector('button[onclick="startSession()"]');
-    if(startBtn){ startBtn.disabled=true; startBtn.style.opacity='0.4'; startBtn.title='Pehle current session close karo'; }
-    // Card title update karo
+    if(startBtn){ startBtn.disabled=true; startBtn.style.opacity='0.4'; startBtn.title='Please close the current session first'; }
+    // Update card title
     const cardTitle=document.querySelector('#session-result .card-title-left');
     if(cardTitle) cardTitle.innerHTML=justCreated
       ? '<i class="fa-solid fa-circle-check"></i> Session Started Successfully'
@@ -662,10 +654,10 @@
   }
 
   async function closeSession(){
-    if(!activeSession){toast('Koi active session nahi hai','error');return;}
+    if(!activeSession){toast('No active session found','error');return;}
     const r=await PATCH(`attendance/sessions/${activeSession.id}/close/`,{});
     if(!r||!r.ok){toast(r?.data?.error||'Failed to close session','error');return;}
-    toast('Session closed successfully. Absent students ka record save ho gaya.','success');
+    toast('Session closed successfully. Absent students have been recorded.','success');
     activeSession=null; studentsList=[]; attendance={};
     document.getElementById('session-result').style.display='none';
     document.getElementById('session-actions').style.display='none';
@@ -679,10 +671,10 @@
     const lng = document.getElementById('s-lng').value.trim();
     // Validate: agar geo enable hai toh lat/lng zaroor hona chahiye
     if(geoEnabled && (!lat || !lng)){
-      toast('Geo-Fencing enable hai par location fetch nahi hui. Dobara checkbox tick karo ya location permission allow karo.','error');
+      toast('Geo-Fencing is enabled but location could not be fetched. Please re-check the checkbox or allow location permission.','error');
       return;
     }
-    // Duration calculate karo — active chip se
+    // Calculate duration from the active chip
     const activeChip = document.querySelector('.dur-seg-btn.active');
     const chipVal    = activeChip ? activeChip.dataset.val : '0';
     const customVal  = document.getElementById('s-duration-custom').value;
@@ -720,7 +712,7 @@
   /* ═══ MANUAL ATTENDANCE MODAL ═══ */
 
   function openManualModal(){
-    if(!activeSession||!studentsList.length){toast('Pehle session start karo','error');return;}
+    if(!activeSession||!studentsList.length){toast('Please start a session first','error');return;}
     // Re-default all to present
     studentsList.forEach(s=>{if(attendance[s.student_id]===undefined)attendance[s.student_id]=true;});
     // Fill modal
@@ -791,9 +783,9 @@
     const r=await POST('attendance/mark/manual/',body);
     closeModal('m-att-confirm');
     if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
-    toast(r.data.message||'Attendance submitted successfully! Session abhi bhi active hai.','success');
+    toast(r.data.message||'Attendance submitted successfully! Session is still active.','success');
     // Session active rehti hai — teacher End Session button se manually close karega
-    // activeSession, studentsList, attendance reset mat karo
+    // Do not reset activeSession, studentsList, or attendance state
   }
 
   /* ═══ ATTENDANCE REQUESTS ═══ */
@@ -849,7 +841,7 @@
 
     sel.innerHTML='<option value="">— Select session —</option>';
 
-    // Agar active session chal rahi ho to sabse pehle dikhao
+    // Show the active session first if one is running
     if(activeSession){
       const alreadyInList=sessions.find(s=>s.id===activeSession.id);
       if(!alreadyInList){
@@ -861,7 +853,7 @@
     }
 
     if(sessions.length===0 && !activeSession){
-      sel.innerHTML='<option value="">Koi session nahi mili — activeSession check karo</option>';
+      sel.innerHTML='<option value="">No sessions found — check if a session is active</option>';
       return;
     }
 
@@ -876,8 +868,8 @@
     const student_id = document.getElementById('ar-student-id').value.trim();
     const session_id = document.getElementById('ar-session').value;
     const reason     = document.getElementById('ar-reason').value.trim();
-    if(!student_id||!session_id||!reason){toast('Sab fields fill karo','error');return;}
-    // student_id hi primary key hai — seedha bhejo
+    if(!student_id||!session_id||!reason){toast('Please fill in all fields','error');return;}
+    // student_id is the primary key — send it directly
     const body={ student_id: student_id, session_id: parseInt(session_id), reason };
     const r=await POST('attendance/attendance-requests/',body);
     if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
@@ -894,7 +886,7 @@
     const r=await GET('attendance/attendance-requests/');
     if(!r||!r.ok){document.getElementById('attreq-list').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Failed to load.</p></div>';return;}
     const reqs=r.data.requests||r.data||[];
-    if(!reqs.length){document.getElementById('attreq-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>Koi request submit nahi ki hai abhi tak.</p></div>';return;}
+    if(!reqs.length){document.getElementById('attreq-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No requests have been submitted yet.</p></div>';return;}
     const sMap={'pending':'badge-warn','approved':'badge-safe','rejected':'badge-crit'};
     const iMap={'pending':'fa-clock','approved':'fa-circle-check','rejected':'fa-circle-xmark'};
     let html='<div class="table-wrap"><table><thead><tr><th>Student</th><th>Subject</th><th>Date</th><th>Reason</th><th>Status</th><th>Admin Remark</th></tr></thead><tbody>';
@@ -970,7 +962,7 @@
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  /** Academic year calculate karo current date se */
+  /** Calculate the academic year from the current date */
   function getAcademicYear() {
     const now   = new Date();
     const month = now.getMonth(); // 0-indexed: July = 6
@@ -997,13 +989,13 @@
     panel.style.display = 'block';
     statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;font-size:12.5px;color:#92400E;">
       <i class="fa-solid fa-spinner fa-spin" style="color:#D97706;"></i>
-      <span>Location permission maang raha hai… Browser popup mein <strong>Allow</strong> click karo.</span>
+      <span>Requesting location permission… Click <strong>Allow</strong> in the browser popup.</span>
     </div>`;
 
     if (!navigator.geolocation) {
       statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12.5px;color:#DC2626;">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>Is browser mein Geolocation support nahi hai. Kisi doosre browser se try karo.</span>
+        <span>Geolocation is not supported in this browser. Please try a different browser.</span>
       </div>`;
       document.getElementById('s-geo').checked = false;
       panel.style.display = 'none';
@@ -1019,18 +1011,18 @@
         lngEl.value = lng;
         statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:12.5px;color:#15803D;">
           <i class="fa-solid fa-circle-check"></i>
-          <span>Location mil gayi! &nbsp;<strong>${lat},&nbsp;${lng}</strong> &nbsp;·&nbsp; Accuracy: ±${acc}m &nbsp;·&nbsp; Ab neeche Radius set karo.</span>
+          <span>Location obtained! &nbsp;<strong>${lat},&nbsp;${lng}</strong> &nbsp;·&nbsp; Accuracy: ±${acc}m &nbsp;·&nbsp; Now set the allowed radius below.</span>
         </div>`;
       },
       function(err) {
         const msgs = {
-          1: 'Permission deny kar diya. Browser settings → Site Settings → Location → Allow karo.',
-          2: 'Location unavailable. GPS ya WiFi check karo.',
-          3: 'Timeout. Dobara checkbox tick karo.'
+          1: 'Permission denied. Go to Browser settings → Site Settings → Location → Allow.',
+          2: 'Location unavailable. Please check your GPS or Wi-Fi.',
+          3: 'Timeout. Please re-check the checkbox.'
         };
         statusEl.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;padding:9px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12.5px;color:#DC2626;">
           <i class="fa-solid fa-triangle-exclamation" style="margin-top:1px;"></i>
-          <span>${msgs[err.code] || 'Location error aaya. Dobara try karo.'}</span>
+          <span>${msgs[err.code] || 'Location error. Please try again.'}</span>
         </div>`;
         document.getElementById('s-geo').checked = false;
         panel.style.display = 'none';
@@ -1083,7 +1075,7 @@
     }
   }
 
-  /** Live countdown timer — session result mein dikhao */
+  /** Live countdown timer — display in the session result panel */
   let _countdownInterval = null;
   function startCountdown(expiresAtISO) {
     if (_countdownInterval) clearInterval(_countdownInterval);
@@ -1115,7 +1107,7 @@
     _countdownInterval = setInterval(tick, 1000);
   }
 
-  /** Session ka time khatam — automatically close karo (no confirm dialog) */
+  /** Session time has expired — auto-close without confirmation dialog */
   async function autoCloseExpiredSession() {
     if (!activeSession) return;
     const sessionId = activeSession.id;
@@ -1131,9 +1123,9 @@
     const r = await PATCH(`attendance/sessions/${sessionId}/close/`, {});
 
     if (r && r.ok) {
-      toast('⏰ Session time khatam — automatically close ho gayi. Absent students ka record save ho gaya.', 'success');
+      toast('⏰ Session time expired — session was automatically closed. Absent students have been recorded.', 'success');
     } else {
-      toast('Session time khatam. Auto-close fail hua — manually "End Session" click karo.', 'error');
+      toast('Session time expired. Auto-close failed — please click "End Session" manually.', 'error');
       // Mark countdown as expired but keep UI visible for manual close
       if (el) { el.textContent = '⏰ Time Over'; }
       return;

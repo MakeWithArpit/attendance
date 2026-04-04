@@ -375,31 +375,6 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .eye-btn:hover { color: var(--text-2); }
 
 /* ── API Tag ─────────────────────────────────────────────── */
-.api-tag {
-  display: inline-flex; align-items: center; gap: 0;
-  border: 1px solid var(--border-2);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  margin-bottom: 14px;
-  font-size: 11.5px;
-  box-shadow: var(--shadow-sm);
-}
-.api-method {
-  padding: 3px 9px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.3px;
-  font-size: 10.5px;
-}
-.api-ep {
-  padding: 3px 10px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border-left: 1px solid var(--border-2);
-}
-
 /* ── Session Cards ───────────────────────────────────────── */
 .session-card {
   background: var(--surface);

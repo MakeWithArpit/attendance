@@ -571,15 +571,14 @@
       <div class="card">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-plug"></i> System API Endpoints</div></div>
         <div class="endpoints-grid">
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/students/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/teachers/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/academics/subjects/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/branches/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/analytics/report/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/face/register/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:#d97706;">PATCH</span><span class="api-ep">/api/attendance/edit/</span></div>
-          <div class="api-tag" style="margin:0;"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/admin/device-reset/</span></div>
-        </div>
+
+
+
+
+
+
+
+</div>
       </div>
     </div>
 
@@ -596,8 +595,7 @@
       </div>
 
       <div id="students-tab-list" class="tab-content active">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/students/</span></div>
-        <div class="search-wrap">
+<div class="search-wrap">
           <i class="fa-solid fa-magnifying-glass"></i>
           <input class="search-input" id="student-search" placeholder="Search by name, enrollment or ID…" oninput="filterStudents()">
         </div>
@@ -607,8 +605,7 @@
       </div>
 
       <div id="students-tab-add" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/students/create/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-user-plus"></i> Register New Student</div></div>
           <!-- Account -->
           <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-lock" style="color:var(--blue);"></i> Account Credentials</div>
@@ -694,7 +691,7 @@
               <i class="fa-solid fa-triangle-exclamation"></i> Koi Subject Nahi Mila
             </div>
             <div style="font-size:12px;color:#78350f;margin-top:4px;">
-              Is branch+semester ke liye koi subject tagged nahi hai. Pehle <strong>Subjects</strong> mein subject add karo aur Branch+Semester set karo.
+              No subject is tagged for this branch+semester. Please add a subject in <strong>Subjects</strong> and set the Branch+Semester.
             </div>
           </div>
           <!-- Family -->
@@ -715,8 +712,7 @@
       </div>
 
       <div id="students-tab-face" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/face/register/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-camera"></i> Register Face Photo</div></div>
           <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Upload a clear, front-facing photo of the student with good lighting. This will be used for face recognition attendance.</span></div>
           <div class="form-row">
@@ -740,12 +736,10 @@
         <button class="tab-btn" onclick="switchTab('teachers','add',this)"><i class="fa-solid fa-user-plus"></i> Add Faculty</button>
       </div>
       <div id="teachers-tab-list" class="tab-content active">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/teachers/</span></div>
-        <div class="table-wrap"><div id="teachers-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
+<div class="table-wrap"><div id="teachers-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
       </div>
       <div id="teachers-tab-add" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/teachers/create/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-user-plus"></i> Add Faculty Member</div></div>
           <div class="form-row">
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Employee ID <span style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text" id="nt-id" placeholder="Enter department" readonly style="background:#F1F5F9;color:#64748B;cursor:not-allowed;border-color:#E2E8F0;" title="This field is auto-generated and cannot be edited"></div>
@@ -804,8 +798,7 @@
 
       <!-- Subject List Tab -->
       <div id="subjects-tab-list" class="tab-content active">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/academics/subjects/</span></div>
-        <!-- Subject Filters -->
+<!-- Subject Filters -->
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-bottom:14px;align-items:end;">
           <div class="form-group" style="margin:0;">
             <label style="font-size:11px;"><i class="fa-solid fa-code"></i> Subject Code</label>
@@ -836,8 +829,7 @@
 
       <!-- Add Subject Tab -->
       <div id="subjects-tab-add" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/academics/subjects/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-plus"></i> Add New Subject</div></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
             <div class="form-group" style="margin:0;">
@@ -898,7 +890,7 @@
             <div class="form-group" style="margin:0;grid-column:1/-1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;">
               <p style="margin:0;font-size:12px;color:#15803d;">
                 <i class="fa-solid fa-circle-info"></i>
-                <strong>Auto-Enrollment:</strong> Branch aur Semester set karo — jab bhi us branch+semester ka naya student create hoga, yeh subject automatically enroll ho jaayega.
+                <strong>Auto-Enrollment:</strong> Set Branch and Semester — any new student in that branch+semester will be automatically enrolled in this subject.
               </p>
             </div>
           </div>
@@ -918,12 +910,10 @@
         <button class="tab-btn" onclick="switchTab('branches','add',this)"><i class="fa-solid fa-plus"></i> Add Branch</button>
       </div>
       <div id="branches-tab-list" class="tab-content active">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/branches/</span></div>
-        <div class="table-wrap"><div id="branches-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
+<div class="table-wrap"><div id="branches-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
       </div>
       <div id="branches-tab-add" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/branches/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-plus"></i> Add New Branch</div></div>
           <div class="form-row">
             <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-code"></i> Branch Code *</label><input type="text" id="nb-code" placeholder="e.g. CSE"></div>
@@ -943,8 +933,7 @@
       </div>
       <div class="card card-accent">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-sliders"></i> Report Filters</div></div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/analytics/report/</span></div>
-        <div class="form-row">
+<div class="form-row">
           <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building-columns"></i> Branch</label><select id="an-branch"><option value="">Select</option></select></div>
           <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-layer-group"></i> Semester</label>
             <select id="an-sem"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
@@ -976,8 +965,7 @@
           <div class="card-title-left"><i class="fa-solid fa-inbox"></i> Pending Requests</div>
           <button class="btn btn-outline btn-sm" onclick="loadAttRequests()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
         </div>
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/admin/attendance-requests/</span></div>
-        <div id="att-requests-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
+<div id="att-requests-body"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
       </div>
     </div>
 
@@ -992,12 +980,10 @@
         <button class="tab-btn" onclick="switchTab('devices','reset',this)"><i class="fa-solid fa-rotate-left"></i> Reset Device</button>
       </div>
       <div id="devices-tab-list" class="tab-content active">
-        <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/auth/admin/device-reset/</span></div>
-        <div class="table-wrap"><div id="devices-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
+<div class="table-wrap"><div id="devices-list"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div></div>
       </div>
       <div id="devices-tab-reset" class="tab-content">
-        <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/auth/admin/device-reset/</span></div>
-        <div class="card card-accent">
+<div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-rotate-left"></i> Reset Student Device</div></div>
           <div class="info-box amber mb-3"><i class="fa-solid fa-triangle-exclamation"></i><span>This will remove all trusted devices for the student. They will need to verify via OTP on their next login.</span></div>
           <div class="form-row">
@@ -1026,8 +1012,7 @@
             <div class="card-title-left"><i class="fa-solid fa-clock"></i> Pending Leave Requests</div>
             <button class="btn btn-outline btn-sm" onclick="loadAdminLeaves('pending')"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
           </div>
-          <div class="api-tag"><span class="api-method" style="background:var(--blue);">GET</span><span class="api-ep">/api/attendance/leaves/?status=pending</span></div>
-          <div id="admin-leaves-pending"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
+<div id="admin-leaves-pending"><div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div></div>
         </div>
       </div>
       <div id="leaves-tab-approved" class="tab-content">
@@ -1056,8 +1041,7 @@
       </div>
       <div class="card card-accent">
         <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-pen-to-square"></i> Find &amp; Edit Record</div></div>
-        <div class="api-tag"><span class="api-method" style="background:#d97706;">PATCH</span><span class="api-ep">/api/attendance/edit/</span></div>
-        <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Enter Student ID, Date, and Subject Code to find the attendance record. Then toggle Present/Absent and save.</span></div>
+<div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Enter Student ID, Date, and Subject Code to find the attendance record. Then toggle Present/Absent and save.</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
           <div class="form-group" style="margin:0;">
             <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
@@ -1110,8 +1094,7 @@
       <div id="notify-tab-email" class="tab-content active">
         <div class="card card-accent">
           <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-envelope"></i> Send Email Alert</div></div>
-          <div class="api-tag"><span class="api-method" style="background:#16a34a;">POST</span><span class="api-ep">/api/attendance/notify-parent/</span></div>
-          <div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's registered email. Make sure parent email is added in student details.</span></div>
+<div class="info-box blue mb-3"><i class="fa-solid fa-circle-info"></i><span>Email will be sent to the parent's registered email. Make sure parent email is added in student details.</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
             <div class="form-group" style="margin:0;">
               <label><i class="fa-solid fa-id-badge"></i> Student ID *</label>
@@ -1427,14 +1410,13 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   }
 
   // ── fetchAllPages: pagination bypass ──────────────────────────────────────
-  // Backend PAGE_SIZE=50 hai. page_size param kabhi kabhi ignore hota hai.
+  // Backend PAGE_SIZE is 50. page_size param is sometimes ignored by the server.
   // Yeh helper saari pages loop karke ek flat array return karta hai.
   async function fetchAllPages(endpoint) {
     const all = [];
-    // First page fetch karo (page_size=200 try karo, agar server ignore kare toh bhi loop chalega)
-    const API_BASE_URL = 'http://127.0.0.1:8000/api/';
+    // Fetch the first page (try page_size=200; the loop will handle pagination even if the server ignores it)
     const sep = endpoint.includes('?') ? '&' : '?';
-    let url = API_BASE_URL + endpoint + sep + 'page_size=200';
+    let url = API_BASE + endpoint + sep + 'page_size=200';
     while (url) {
       const res = await fetch(url, {
         headers: {
@@ -1446,7 +1428,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       const data = await res.json();
       const items = data.results || (Array.isArray(data) ? data : []);
       all.push(...items);
-      // Agar next page hai toh usi URL pe jao, warna ruko
+      // If there is a next page, follow that URL; otherwise stop
       url = data.next || null;
     }
     return all;
@@ -1513,7 +1495,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
   async function loadSubjects(){
     document.getElementById('subjects-list').innerHTML='<div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
-    // Subjects + Teachers dono parallel fetch karo (fetchAllPages se sab pages aayengi)
+    // Fetch Subjects + Teachers in parallel (fetchAllPages handles all pages)
     const [allSubjectsRaw, teacherList] = await Promise.all([
       fetchAllPages('academics/subjects/'),
       fetchAllPages('auth/teachers/')
@@ -1528,7 +1510,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     // teacherList already fetched above via fetchAllPages
     teacherList.forEach(t => { if(t.employee_id && t.name) teacherMap[t.employee_id] = t.name; });
 
-    // Normalize: assigned_teacher_name missing ho toh teacherMap se fill karo
+    // Normalize: if assigned_teacher_name is missing, fill it from teacherMap
     allSubjects = allSubjects.map(s => ({
       ...s,
       assigned_teacher_name: (s.assigned_teacher_name && s.assigned_teacher_name.trim())
@@ -1540,9 +1522,9 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     if(teachSel) {
       teachSel.innerHTML = '<option value=>All Teachers</option><option value=__unassigned__>Unassigned</option>';
       const nameSet = new Map();
-      // Subjects se assigned teachers collect karo
+      // Collect assigned teachers from subjects
       allSubjects.forEach(s => { if(s.assigned_teacher_name) nameSet.set(s.assigned_teacher_name, 1); });
-      // Teachers API se bhi sab teachers add karo
+      // Also add all teachers from the Teachers API
       teacherList.forEach(t => { if(t.name) nameSet.set(t.name, 1); });
       [...nameSet.keys()].sort().forEach(name => {
         const opt = document.createElement('option');
@@ -2355,8 +2337,8 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
     const pct = '';
     document.getElementById('wa-message').value =
       `Respected ${pd.father_name || 'Parent/Guardian'},\n\n`
-      + `Aapke ward ${p.name || sid} (ID: ${sid}) ki attendance Prahari Attendance System mein ` 
-      + `record ki gayi hai.\n\n`
+      + `Your ward ${p.name || sid} (ID: ${sid})'s attendance has been recorded ` 
+      + `in the Prahari Attendance System.\n\n`
       + `Please ensure their regular attendance.\n\n`
       + `— Invertis University, Bareilly`;
 

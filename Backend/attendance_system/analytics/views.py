@@ -70,7 +70,7 @@ class SubjectWiseAnalyticsView(APIView):
             total_students = len(thresholds["above_75"]) + len(thresholds["below_75"])
 
             # Average attendance for this subject — only for students in this branch+section
-            # FIX: Added branch_id and section filters to prevent mixing data across sections
+            # Filter by branch_id and section to prevent mixing data across sections
             records = Attendance.objects.filter(
                 subject=subject,
                 semester=semester,

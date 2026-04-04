@@ -74,7 +74,7 @@ class AttendanceSession(models.Model):
     """
     Teacher starts a session for attendance.
     Ab facial_enabled flag bhi hai — teacher decide karta hai
-    ki is session mein facial recognition allowed hai ya nahi.
+    whether facial recognition is allowed in this session.
     """
 
     STATUS_CHOICES = [("active", "Active"), ("closed", "Closed")]
