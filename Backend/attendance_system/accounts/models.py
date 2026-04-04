@@ -231,12 +231,7 @@ class PasswordResetOTP(models.Model):
 # Device Token
 # ─────────────────────────────────────────────
 class DeviceToken(models.Model):
-    """
-    Stores the browser fingerprint (device_id) for each student.
-    First login from a device registers it automatically.
-    New device requires OTP verification before login.
-    Admin can reset (clear) device tokens.
-    """
+
     student        = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='device_tokens')
     device_id      = models.CharField(max_length=100)
     device_label   = models.CharField(max_length=200, blank=True, help_text='User-Agent snippet')
@@ -250,3 +245,49 @@ class DeviceToken(models.Model):
 
     def __str__(self):
         return f"{self.student_id} — {self.device_id[:12]}"
+
+
+# ─────────────────────────────────────────────
+# WebAuthn Passkey Credential
+# ─────────────────────────────────────────────
+class WebAuthnCredential(models.Model):
+    """
+    Stores a student's WebAuthn passkey credential (registered once per device).
+
+    Flow:
+      Registration  → browser generates a public/private key pair on the device.
+                      Private key never leaves the device.
+                      We store only the public key + credential_id here.
+
+      Authentication → browser signs a server challenge with the private key.
+                       We verify the signature using the stored public_key.
+                       sign_count is incremented each time — if the incoming
+                       count is <= stored count, it signals a cloned authenticator
+                       (replay / proxy attempt) and we reject the request.
+
+    One credential per student (enforced via OneToOneField).
+    Admin can delete this record (along with DeviceToken) to let a student
+    re-register from a new device — see AdminDeviceResetView.
+    """
+
+    student       = models.OneToOneField(
+        'Student',
+        on_delete=models.CASCADE,
+        related_name='webauthn_credential',
+    )
+    # Raw credential ID returned by the browser (base64url-encoded bytes stored as text)
+    credential_id = models.TextField(unique=True)
+    # CBOR-encoded public key (base64url stored as text) — used to verify signatures
+    public_key    = models.TextField()
+    # Monotonically increasing counter — each successful auth increments this.
+    # A value that doesn't increase signals a cloned authenticator.
+    sign_count    = models.PositiveIntegerField(default=0)
+    # Human-readable label — e.g. "Chrome on Android", "Safari on iPhone"
+    device_label  = models.CharField(max_length=200, blank=True)
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'webauthn_credentials'
+
+    def __str__(self):
+        return f"{self.student_id} — passkey ({self.device_label or 'unknown device'})"
