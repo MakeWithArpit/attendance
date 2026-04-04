@@ -433,11 +433,14 @@ class ActiveSessionsForStudentView(APIView):
                 'campus_latitude':        float(s.campus_latitude)  if s.campus_latitude  else None,
                 'campus_longitude':       float(s.campus_longitude) if s.campus_longitude else None,
                 'allowed_radius_meters':  s.allowed_radius_meters,
-                'already_marked':         already_marked,
-                'marked_method':          marked_method,
-                'expires_at':             s.expires_at.isoformat() if s.expires_at else None,
-                'duration_minutes':       s.duration_minutes,
-                'has_face_registered':    bool(student.registered_photo),
+                'already_marked':           already_marked,
+                'marked_method':            marked_method,
+                'expires_at':               s.expires_at.isoformat() if s.expires_at else None,
+                'duration_minutes':         s.duration_minutes,
+                'has_face_registered':      bool(student.registered_photo),
+                # WebAuthn passkey fields
+                'webauthn_enabled':         s.webauthn_enabled,
+                'has_passkey_registered':   hasattr(student, 'webauthn_credential'),
             })
 
         return Response({
@@ -1318,3 +1321,346 @@ class SendParentNotificationView(APIView):
             'percentage': percentage,
             'message':    f'Parent notification successfully sent to {masked}',
         })
+
+# ═══════════════════════════════════════════════════════════════════
+# METHOD 5 — WebAuthn (Passkey) Attendance
+# ═══════════════════════════════════════════════════════════════════
+#
+# Two-step flow — mirrors the browser's credential.get() API:
+#
+#   Step A (begin):    Student selects session → backend generates a
+#                      one-time challenge → returns auth options to frontend
+#
+#   Step B (complete): Browser signs the challenge with the device's
+#                      private key → frontend sends signature → backend
+#                      verifies → marks attendance
+#
+# Security layers:
+#   1. WebAuthn signature — private key never leaves device
+#   2. sign_count check   — replay / cloned authenticator detected
+#   3. Session window     — session must be active and not expired
+#   4. Enrollment check   — student must be enrolled in the subject
+#   5. Geo-fencing        — student must be within campus boundary
+# ═══════════════════════════════════════════════════════════════════
+
+class WebAuthnAuthBeginView(APIView):
+    """
+    POST /api/attendance/webauthn/auth/begin/
+
+    Student hits this endpoint when they click "Mark Attendance with Passkey".
+    Returns WebAuthn authentication options (challenge + allowed credentials).
+
+    Body: { "session_id": 42 }
+
+    Pre-flight checks (all must pass before generating a challenge):
+      - Session is active and not expired
+      - Session has webauthn_enabled = True
+      - Student has a registered WebAuthnCredential
+      - Student is enrolled in the session's subject
+
+    Returns: PublicKeyCredentialRequestOptions JSON consumed by
+             navigator.credentials.get() on the frontend.
+    """
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        import webauthn
+        import json as _json
+        import base64
+        from webauthn.helpers.structs import (
+            UserVerificationRequirement,
+            PublicKeyCredentialDescriptor,
+        )
+        from django.conf import settings as _s
+        from accounts.models import WebAuthnCredential, WebAuthnChallenge
+
+        session_id = request.data.get('session_id')
+        if not session_id:
+            return Response({'error': 'session_id is required.'}, status=400)
+
+        student = get_object_or_404(Student, user=request.user)
+        session = get_object_or_404(AttendanceSession, id=session_id, status='active')
+
+        # ── Check: Session not expired ───────────────────────────
+        if session.is_expired:
+            return Response(
+                {'error': 'Session has expired. Contact your teacher.'},
+                status=400,
+            )
+
+        # ── Check: WebAuthn enabled for this session ─────────────
+        if not session.webauthn_enabled:
+            return Response(
+                {'error': 'Passkey attendance is not enabled for this session.'},
+                status=403,
+            )
+
+        # ── Check: Student has a registered passkey ───────────────
+        try:
+            cred = student.webauthn_credential
+        except WebAuthnCredential.DoesNotExist:
+            return Response(
+                {'error': 'No passkey registered. Please register your passkey '
+                          'from your profile page first.'},
+                status=403,
+            )
+
+        # ── Check: Enrolled in this subject ──────────────────────
+        from academics.models import CourseRegistration
+        enrolled = CourseRegistration.objects.filter(
+            student=student,
+            subject=session.subject,
+            semester=session.semester,
+        ).exists()
+        if not enrolled:
+            return Response(
+                {'error': 'You are not enrolled in this subject.'},
+                status=403,
+            )
+
+        # ── All pre-flight checks passed → generate challenge ─────
+        def _b64url_decode(s):
+            s = s + '=' * (4 - len(s) % 4)
+            return base64.urlsafe_b64decode(s)
+
+        def _b64url_encode(data):
+            return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+
+        # Build the allowed credential descriptor (limits auth to this student's key)
+        credential_id_bytes = _b64url_decode(cred.credential_id)
+
+        options = webauthn.generate_authentication_options(
+            rp_id=getattr(_s, 'WEBAUTHN_RP_ID', 'localhost'),
+            allow_credentials=[
+                PublicKeyCredentialDescriptor(id=credential_id_bytes)
+            ],
+            user_verification=UserVerificationRequirement.REQUIRED,
+            timeout=60000,
+        )
+
+        # Store challenge — delete any previous pending auth challenge first
+        WebAuthnChallenge.objects.filter(
+            student=student, purpose='auth'
+        ).delete()
+        WebAuthnChallenge.objects.create(
+            student=student,
+            purpose='auth',
+            challenge=_b64url_encode(options.challenge),
+        )
+
+        options_dict = _json.loads(webauthn.options_to_json(options))
+        return Response(options_dict, status=200)
+
+
+class WebAuthnAuthCompleteView(APIView):
+    """
+    POST /api/attendance/webauthn/auth/complete/
+
+    Called after navigator.credentials.get() resolves on the frontend.
+
+    Body:
+    {
+        "session_id": 42,
+        "latitude":   28.6139,      (optional — required if geo_fencing_enabled)
+        "longitude":  77.2090,
+        "credential": { ...PublicKeyCredential JSON from browser... }
+    }
+
+    Steps:
+      1. Session + enrollment checks (same as begin)
+      2. Retrieve pending auth challenge
+      3. Verify WebAuthn signature using stored public key
+      4. sign_count check — monotonically increasing (replay / clone protection)
+      5. Geo-fencing check (if session.geo_fencing_enabled)
+      6. Mark attendance method='webauthn'
+      7. Delete used challenge
+    """
+    permission_classes = [IsStudent]
+
+    def post(self, request):
+        import webauthn
+        import json as _json
+        import base64
+        from datetime import timedelta
+        from webauthn.helpers.structs import AuthenticationCredential
+        from django.conf import settings as _s
+        from accounts.models import WebAuthnCredential, WebAuthnChallenge
+        from django.utils import timezone as _tz
+
+        session_id = request.data.get('session_id')
+        latitude   = request.data.get('latitude')
+        longitude  = request.data.get('longitude')
+        credential_data = request.data.get('credential')
+
+        if not session_id:
+            return Response({'error': 'session_id is required.'}, status=400)
+        if not credential_data:
+            return Response({'error': 'credential is required.'}, status=400)
+
+        student = get_object_or_404(Student, user=request.user)
+        session = get_object_or_404(AttendanceSession, id=session_id, status='active')
+
+        # ── Session checks ───────────────────────────────────────
+        if session.is_expired:
+            return Response(
+                {'error': 'Session has expired. Contact your teacher.'},
+                status=400,
+            )
+        if not session.webauthn_enabled:
+            return Response(
+                {'error': 'Passkey attendance is not enabled for this session.'},
+                status=403,
+            )
+
+        # ── Credential + enrollment checks ───────────────────────
+        try:
+            stored_cred = student.webauthn_credential
+        except WebAuthnCredential.DoesNotExist:
+            return Response(
+                {'error': 'No passkey registered. Please register from your profile page.'},
+                status=403,
+            )
+
+        from academics.models import CourseRegistration
+        enrolled = CourseRegistration.objects.filter(
+            student=student,
+            subject=session.subject,
+            semester=session.semester,
+        ).exists()
+        if not enrolled:
+            return Response(
+                {'error': 'You are not enrolled in this subject.'},
+                status=403,
+            )
+
+        # ── Retrieve pending challenge ────────────────────────────
+        def _b64url_decode(s):
+            s = s + '=' * (4 - len(s) % 4)
+            return base64.urlsafe_b64decode(s)
+
+        def _b64url_encode(data):
+            return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+
+        timeout_secs = getattr(_s, 'WEBAUTHN_CHALLENGE_TIMEOUT', 300)
+        cutoff = _tz.now() - timedelta(seconds=timeout_secs)
+
+        challenge_record = WebAuthnChallenge.objects.filter(
+            student=student,
+            purpose='auth',
+            created_at__gte=cutoff,
+        ).first()
+
+        if not challenge_record:
+            return Response(
+                {'error': 'No valid challenge found. '
+                          'Please start the attendance process again (challenge may have expired).'},
+                status=400,
+            )
+
+        challenge_bytes = _b64url_decode(challenge_record.challenge)
+
+        # ── Parse credential from frontend ───────────────────────
+        try:
+            credential = AuthenticationCredential.parse_raw(
+                _json.dumps(credential_data)
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Invalid credential format: {str(e)}'},
+                status=400,
+            )
+
+        # ── Verify WebAuthn signature ────────────────────────────
+        rp_id      = getattr(_s, 'WEBAUTHN_RP_ID',  'localhost')
+        origin     = getattr(_s, 'WEBAUTHN_ORIGIN', 'http://localhost')
+        public_key = _b64url_decode(stored_cred.public_key)
+
+        try:
+            verification = webauthn.verify_authentication_response(
+                credential=credential,
+                expected_challenge=challenge_bytes,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+                credential_public_key=public_key,
+                credential_current_sign_count=stored_cred.sign_count,
+                require_user_verification=True,
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Passkey verification failed: {str(e)}'},
+                status=400,
+            )
+
+        # ── sign_count check — replay / cloned authenticator ─────
+        # py_webauthn raises an exception if new count <= stored count,
+        # but we also guard explicitly for clarity.
+        new_sign_count = verification.new_sign_count
+        if new_sign_count > 0 and new_sign_count <= stored_cred.sign_count:
+            return Response(
+                {'error': 'Security violation: passkey replay or cloned authenticator detected. '
+                          'Contact admin immediately.'},
+                status=403,
+            )
+
+        # ── Geo-fencing check ────────────────────────────────────
+        location_verified = False
+        if session.geo_fencing_enabled:
+            if not latitude or not longitude:
+                return Response(
+                    {'error': 'Location access is required. '
+                              'Please allow location and try again.'},
+                    status=400,
+                )
+            geo_result = verify_student_location(
+                session, float(latitude), float(longitude)
+            )
+            if not geo_result['allowed']:
+                return Response(
+                    {
+                        'error':           geo_result['message'],
+                        'distance_meters': geo_result['distance_meters'],
+                        'allowed_radius':  geo_result['allowed_radius'],
+                    },
+                    status=403,
+                )
+            location_verified = True
+
+        # ── All checks passed — mark attendance ──────────────────
+        from django.db import transaction
+
+        with transaction.atomic():
+            # Update sign_count first — inside transaction so it rolls back
+            # if attendance creation fails
+            stored_cred.sign_count = new_sign_count
+            stored_cred.save(update_fields=['sign_count'])
+
+            attendance, created = Attendance.objects.update_or_create(
+                student=student,
+                subject=session.subject,
+                date=session.date,
+                defaults={
+                    'session':           session,
+                    'is_present':        True,
+                    'day':               session.date.strftime('%A'),
+                    'semester':          session.semester,
+                    'academic_year':     session.academic_year or _auto_academic_year(),
+                    'marked_by':         session.teacher,
+                    'method':            'webauthn',
+                    'latitude':          latitude,
+                    'longitude':         longitude,
+                    'location_verified': location_verified,
+                },
+            )
+
+            # Delete the used challenge inside the transaction
+            challenge_record.delete()
+
+        return Response(
+            {
+                'message':           'Attendance marked successfully via Passkey ✅',
+                'subject':           session.subject.subject_name,
+                'date':              str(session.date),
+                'location_verified': location_verified,
+            },
+            status=200,
+        )
