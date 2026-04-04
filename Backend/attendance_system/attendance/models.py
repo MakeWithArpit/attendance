@@ -4,7 +4,6 @@ Attendance,Leave Requests
 """
 
 from django.db import models
-from django.utils import timezone
 from accounts.models import Student, Teacher, Branch
 from academics.models import Subject
 
@@ -15,9 +14,10 @@ class Attendance(models.Model):
     """
 
     METHOD_CHOICES = [
-        ("manual", "Manual"),
-        ("facial", "Facial Recognition"),
-        ("rfid", "RFID"),
+        ("manual",   "Manual"),
+        ("facial",   "Facial Recognition"),
+        ("rfid",     "RFID"),
+        ("webauthn", "Passkey (WebAuthn)"),
     ]
 
     student = models.ForeignKey(
@@ -104,7 +104,11 @@ class AttendanceSession(models.Model):
         return timezone.now() > self.expires_at
 
     # ── Attendance method flags ──────────────────
-    facial_enabled = models.BooleanField(default=False)
+    facial_enabled   = models.BooleanField(default=False)
+    webauthn_enabled = models.BooleanField(
+        default=False,
+        help_text="Allow students to mark attendance using their device passkey (WebAuthn).",
+    )
 
     # ── Geo-fencing settings ─────────────────────
     geo_fencing_enabled = models.BooleanField(default=False)
@@ -123,7 +127,7 @@ class AttendanceSession(models.Model):
         db_table = "attendance_sessions"
 
     def __str__(self):
-        return f"Session: {self.subject.subject_code} | {self.date} | Facial: {self.facial_enabled}"
+        return f"Session: {self.subject.subject_code} | {self.date} | Facial: {self.facial_enabled} | Passkey: {self.webauthn_enabled}"
 
 
 class LeaveRequest(models.Model):
