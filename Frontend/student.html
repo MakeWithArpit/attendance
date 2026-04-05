@@ -566,14 +566,26 @@
 
         // Method-aware badge
         let actionBtn;
+        const hasPasskey = s.webauthn_enabled && s.has_passkey_registered;
         if (s.already_marked) {
           const methodLabel = {
-            'facial': '📷 Face se Marked',
-            'manual': '✋ Teacher ne Marked',
-            'rfid': '🔖 RFID se Marked',
-            'qr': '📱 QR se Marked',
+            'facial':   '📷 Face se Marked',
+            'manual':   '✋ Teacher ne Marked',
+            'rfid':     '🔖 RFID se Marked',
+            'qr':       '📱 QR se Marked',
+            'webauthn': '🔑 Passkey se Marked',
           }[s.marked_method] || '✅ Marked';
           actionBtn = `<span class="btn-marked" title="Method: ${s.marked_method || 'unknown'}"><i class="fa-solid fa-circle-check"></i> ${methodLabel}</span>`;
+        } else if (s.webauthn_enabled && s.has_passkey_registered) {
+          // Passkey attendance (primary button when enabled + registered)
+          actionBtn = `<button id="btn-passkey-${s.session_id}" class="btn btn-sm" style="background:#7C3AED;color:#fff;" onclick="doPasskeyAttendance(${s.session_id})">
+                       <i class="fa-solid fa-fingerprint"></i> Mark with Passkey
+                     </button>`;
+        } else if (s.webauthn_enabled && !s.has_passkey_registered) {
+          // Passkey ON for session but student hasn't registered their passkey yet
+          actionBtn = `<span class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;font-size:11px;">
+                         <i class="fa-solid fa-key"></i> Register passkey in Profile first
+                       </span>`;
         } else if (s.facial_enabled) {
           actionBtn = `<button class="btn btn-blue btn-sm" onclick="openFaceModal(${s.session_id},'${s.subject_name.replace(/'/g, "\\'")}',${hasFace})">
                        <i class="fa-solid fa-camera"></i> Face Attendance
@@ -590,6 +602,7 @@
             <i class="fa-solid fa-chalkboard-user"></i>${s.teacher_name}
             &nbsp;<i class="fa-regular fa-calendar"></i>${s.date}
             ${s.facial_enabled ? '<span class="badge badge-blue" style="font-size:10px;"><i class="fa-solid fa-camera" style="font-size:9px;"></i> Face ON</span>' : ''}
+            ${s.webauthn_enabled ? '<span class="badge" style="font-size:10px;background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;"><i class="fa-solid fa-fingerprint" style="font-size:9px;"></i> Passkey ON</span>' : ''}
             ${s.geo_fencing_enabled ? '<span class="badge" style="font-size:10px;background:#FFF7ED;color:#EA580C;border:1px solid #FDBA74;"><i class="fa-solid fa-location-dot" style="font-size:9px;"></i> Geo-Fence</span>' : ''}
             ${s.expires_at ? `<span id="sc-${s.session_id}" class="session-countdown"></span>` : '<span style="font-size:11px;color:var(--text-3);margin-left:6px;">No time limit</span>'}
           </p>
@@ -1139,7 +1152,10 @@
         if (semSel) semSel.value = String(p.current_semester);
       }
       const faceColor = d.has_face_registered ? 'var(--green)' : 'var(--red)';
-      const faceIcon = d.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
+      const faceIcon  = d.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
+      const passkeyRegistered = d.webauthn_registered === true;
+      const passkeyColor = passkeyRegistered ? 'var(--green)' : '#F59E0B';
+      const passkeyIcon  = passkeyRegistered ? 'fa-circle-check' : 'fa-circle-xmark';
       const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name || '—') : (p.branch || '—');
 
       function sec(icon, title, color = 'var(--blue)') {
@@ -1159,6 +1175,12 @@
       ${row('list-ol', 'Roll Number', d.roll_number)}
       <div class="profile-field"><strong><i class="fa-solid fa-camera-retro"></i> Face Recognition</strong>
         <span style="color:${faceColor};font-weight:600;"><i class="fa-solid ${faceIcon}"></i> ${d.has_face_registered ? 'Registered' : 'Not Registered'}</span>
+      </div>
+      <div class="profile-field"><strong><i class="fa-solid fa-fingerprint"></i> Passkey (WebAuthn)</strong>
+        <span style="color:${passkeyColor};font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span><i class="fa-solid ${passkeyIcon}"></i> ${passkeyRegistered ? `Registered — ${d.webauthn_device_label || 'Device'}` : 'Not Registered'}</span>
+          ${!passkeyRegistered ? `<button id="btn-register-passkey" class="btn btn-sm" style="background:#7C3AED;color:#fff;padding:4px 12px;font-size:11.5px;border-radius:6px;border:none;cursor:pointer;" onclick="doPasskeyRegister()"><i class="fa-solid fa-key"></i> Register Passkey</button>` : `<span style="font-size:11px;color:#6B7280;">${d.webauthn_registered_at ? 'Registered on ' + new Date(d.webauthn_registered_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : ''}</span>`}
+        </span>
       </div>
     </div>`;
 
@@ -1221,6 +1243,75 @@
 
       html += `</div>`;
       document.getElementById('profile-body').innerHTML = html;
+    }
+
+    // ── Passkey Registration ─────────────────────────────────────
+    async function doPasskeyRegister() {
+      const btn = document.getElementById('btn-register-passkey');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registering…'; }
+
+      // Step 1: Begin
+      const beginRes = await webauthnRegisterBegin();
+      if (!beginRes.ok) {
+        toast(beginRes.data?.error || 'Could not start passkey registration.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-key"></i> Register Passkey'; }
+        return;
+      }
+
+      // Step 2: Complete (triggers biometric prompt)
+      const completeRes = await webauthnRegisterComplete(beginRes.data);
+      if (!completeRes.ok) {
+        toast(completeRes.data?.error || 'Passkey registration failed.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-key"></i> Register Passkey'; }
+        return;
+      }
+
+      toast('Passkey registered successfully! 🔑', 'success');
+      // Reload profile to reflect new status
+      setTimeout(() => loadProfile(), 800);
+    }
+
+    // ── Passkey Attendance ────────────────────────────────────────
+    async function doPasskeyAttendance(sessionId) {
+      const btn = document.getElementById(`btn-passkey-${sessionId}`);
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying…'; }
+
+      const session = window._activeSessions && window._activeSessions[sessionId];
+      let latitude = null, longitude = null;
+
+      // Geo-fencing: location required check
+      if (session && session.geo_fencing_enabled) {
+        try {
+          const pos = await new Promise((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
+          );
+          latitude  = pos.coords.latitude;
+          longitude = pos.coords.longitude;
+        } catch {
+          toast('Location access denied. Enable location and try again.', 'error');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
+          return;
+        }
+      }
+
+      // Step 3: Auth begin
+      const beginRes = await webauthnAuthBegin(sessionId);
+      if (!beginRes.ok) {
+        toast(beginRes.data?.error || 'Could not start passkey authentication.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
+        return;
+      }
+
+      // Step 4: Auth complete (triggers biometric prompt)
+      const completeRes = await webauthnAuthComplete(sessionId, beginRes.data, latitude, longitude);
+      if (!completeRes.ok) {
+        toast(completeRes.data?.error || 'Passkey attendance failed.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
+        return;
+      }
+
+      toast('Attendance marked via Passkey! ✅', 'success');
+      setTimeout(() => loadSessions(), 800);
     }
   </script>
 
