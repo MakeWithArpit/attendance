@@ -197,3 +197,147 @@ function apiTag(method,endpoint) {
   const mc={GET:'#2563eb',POST:'#16a34a',PATCH:'#d97706',DELETE:'#dc2626'};
   return `<div class="api-tag"><span class="api-method" style="background:${mc[method]||'#6b7280'}">${method}</span><code class="api-ep">/api/${endpoint}</code></div>`;
 }
+
+// ══════════════════════════════════════════════════════════════════
+// WebAuthn (Passkey) Helper Functions
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * ArrayBuffer  →  base64url string (no padding)
+ */
+function _bufToB64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+/**
+ * base64url string  →  ArrayBuffer
+ */
+function _b64urlToBuf(b64url) {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+/**
+ * Server se aayi PublicKeyCredentialCreationOptions ko browser format mein convert karta hai.
+ * challenge aur user.id ArrayBuffer chahiye navigator.credentials.create() ko.
+ */
+function _prepareCreationOptions(opts) {
+  opts.challenge = _b64urlToBuf(opts.challenge);
+  opts.user.id   = _b64urlToBuf(opts.user.id);
+  if (opts.excludeCredentials) {
+    opts.excludeCredentials = opts.excludeCredentials.map(c => ({
+      ...c, id: _b64urlToBuf(c.id)
+    }));
+  }
+  return opts;
+}
+
+/**
+ * Server se aayi PublicKeyCredentialRequestOptions ko browser format mein convert karta hai.
+ */
+function _prepareRequestOptions(opts) {
+  opts.challenge = _b64urlToBuf(opts.challenge);
+  if (opts.allowCredentials) {
+    opts.allowCredentials = opts.allowCredentials.map(c => ({
+      ...c, id: _b64urlToBuf(c.id)
+    }));
+  }
+  return opts;
+}
+
+/**
+ * Browser ka PublicKeyCredential (registration) ko JSON-serialisable object mein convert karta hai.
+ */
+function _serializeRegistrationCredential(cred) {
+  return {
+    id:    cred.id,
+    rawId: _bufToB64url(cred.rawId),
+    type:  cred.type,
+    response: {
+      clientDataJSON:    _bufToB64url(cred.response.clientDataJSON),
+      attestationObject: _bufToB64url(cred.response.attestationObject),
+    },
+  };
+}
+
+/**
+ * Browser ka PublicKeyCredential (authentication) ko JSON-serialisable object mein convert karta hai.
+ */
+function _serializeAuthenticationCredential(cred) {
+  return {
+    id:    cred.id,
+    rawId: _bufToB64url(cred.rawId),
+    type:  cred.type,
+    response: {
+      clientDataJSON:    _bufToB64url(cred.response.clientDataJSON),
+      authenticatorData: _bufToB64url(cred.response.authenticatorData),
+      signature:         _bufToB64url(cred.response.signature),
+      userHandle: cred.response.userHandle
+        ? _bufToB64url(cred.response.userHandle)
+        : null,
+    },
+  };
+}
+
+/**
+ * Step 1 — Registration begin: server se creation options maango.
+ * Returns { ok, data } — data is the raw server response.
+ */
+async function webauthnRegisterBegin() {
+  return await POST('auth/webauthn/register/begin/', {});
+}
+
+/**
+ * Step 2 — Registration complete: browser se credential banao, server ko bhejo.
+ * @param {object} serverOptions  — webauthnRegisterBegin() ka data
+ * Returns { ok, data }
+ */
+async function webauthnRegisterComplete(serverOptions) {
+  const creationOptions = _prepareCreationOptions(serverOptions);
+  let credential;
+  try {
+    credential = await navigator.credentials.create({ publicKey: creationOptions });
+  } catch (err) {
+    return { ok: false, data: { error: `Passkey creation cancelled or failed: ${err.message}` } };
+  }
+  const body = _serializeRegistrationCredential(credential);
+  return await POST('auth/webauthn/register/complete/', body);
+}
+
+/**
+ * Step 3 — Auth begin: server se authentication options maango.
+ * @param {number|string} sessionId  — attendance session ID
+ * Returns { ok, data }
+ */
+async function webauthnAuthBegin(sessionId) {
+  return await POST('attendance/webauthn/auth/begin/', { session_id: sessionId });
+}
+
+/**
+ * Step 4 — Auth complete: browser se credential sign karwao, server ko bhejo.
+ * @param {number|string} sessionId  — attendance session ID
+ * @param {object}        serverOptions — webauthnAuthBegin() ka data
+ * @param {number|null}   latitude   — optional geo-fencing ke liye
+ * @param {number|null}   longitude  — optional geo-fencing ke liye
+ * Returns { ok, data }
+ */
+async function webauthnAuthComplete(sessionId, serverOptions, latitude = null, longitude = null) {
+  const requestOptions = _prepareRequestOptions(serverOptions);
+  let credential;
+  try {
+    credential = await navigator.credentials.get({ publicKey: requestOptions });
+  } catch (err) {
+    return { ok: false, data: { error: `Passkey sign-in cancelled or failed: ${err.message}` } };
+  }
+  const body = {
+    session_id: sessionId,
+    credential: _serializeAuthenticationCredential(credential),
+  };
+  if (latitude  !== null) body.latitude  = latitude;
+  if (longitude !== null) body.longitude = longitude;
+  return await POST('attendance/webauthn/auth/complete/', body);
+}
