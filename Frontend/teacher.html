@@ -275,6 +275,22 @@
             </label>
           </div>
 
+          <!-- Row: Passkey (WebAuthn) Attendance -->
+          <div class="sess-row" id="webauthn-row" onclick="document.getElementById('s-webauthn').click()">
+            <div class="sess-row-icon" style="background:#F5F3FF;color:#7C3AED;">
+              <i class="fa-solid fa-fingerprint"></i>
+            </div>
+            <div class="sess-row-text">
+              <div class="sess-row-title">Passkey Attendance</div>
+              <div class="sess-row-desc">Students apne device ke fingerprint/PIN se attendance mark kar sakte hain</div>
+            </div>
+            <label class="sw" onclick="event.stopPropagation()">
+              <input type="checkbox" id="s-webauthn"
+                onchange="document.getElementById('webauthn-row').classList.toggle('sess-row-on',this.checked)">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+
           <!-- Row: Geo-Fencing -->
           <div class="sess-row" id="geo-row" onclick="document.getElementById('s-geo').click()">
             <div class="sess-row-icon" style="background:#FFF3E0;color:#EA580C;">
@@ -636,6 +652,7 @@
           : '<span style="color:#8A95A3;">No Limit (Manual Close)</span>'}
       </div></div>
       <div class="result-field"><div class="result-label"><i class="fa-solid fa-camera"></i> Face Recognition</div><div class="result-value" style="color:${s.facial_enabled?'var(--green)':'var(--text-3)'};">${s.facial_enabled?'Enabled':'Disabled'}</div></div>
+      <div class="result-field"><div class="result-label"><i class="fa-solid fa-fingerprint"></i> Passkey</div><div class="result-value" style="color:${s.webauthn_enabled?'var(--green)':'var(--text-3)'};">${s.webauthn_enabled?'Enabled':'Disabled'}</div></div>
       <div class="result-field"><div class="result-label"><i class="fa-solid fa-location-dot"></i> Geo-Fencing</div><div class="result-value" style="color:${s.geo_fencing_enabled?'var(--green)':'var(--text-3)'};">${s.geo_fencing_enabled?'Enabled':'Disabled'}</div></div>
       ${s.geo_fencing_enabled && s.campus_latitude ? `<div class="result-field" style="grid-column:1/-1;background:#FFF7ED;border-radius:8px;padding:8px 12px;"><div class="result-label" style="color:#EA580C;"><i class="fa-solid fa-map-pin"></i> Geo-Fence Centre &amp; Radius</div><div class="result-value" style="font-family:monospace;font-size:12px;">Lat: ${parseFloat(s.campus_latitude).toFixed(6)} &nbsp;&nbsp; Lng: ${parseFloat(s.campus_longitude).toFixed(6)} &nbsp;&nbsp;·&nbsp;&nbsp; Radius: <strong style="color:#EA580C;">${s.allowed_radius_meters}m</strong></div></div>` : ''}
     `;
@@ -689,7 +706,8 @@
       section:         document.getElementById('s-section').value,
       date:            document.getElementById('s-date').value,
       academic_year:   document.getElementById('s-year').value,
-      facial_enabled:  document.getElementById('s-facial').checked,
+      facial_enabled:   document.getElementById('s-facial').checked,
+      webauthn_enabled: document.getElementById('s-webauthn').checked,
       geo_fencing_enabled: geoEnabled,
     };
     if (durationMins > 0) body.duration_minutes = durationMins;

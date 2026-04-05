@@ -883,8 +883,8 @@
           }
       }
 
-      // Auto start on first face detection if init
-      if (_captureState === 'init') {
+      // Auto start on first face detection — both fresh open and after retry
+      if (_captureState === 'init' || _captureState === 'retry') {
           startMultiFrameCapture();
       }
 
