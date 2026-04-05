@@ -873,8 +873,8 @@
           }
       }
 
-      // Auto start on first face detection if init
-      if (_captureState === 'init') {
+      // Auto start on first face detection — both fresh open AND after retry
+      if (_captureState === 'init' || _captureState === 'retry') {
           startMultiFrameCapture();
       }
 
@@ -1086,9 +1086,19 @@
         toast('📵 WARNING: Mobile phone detected! Final chance.', 'warning');
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Try Again';
-        _capturedFrames = []; _challengeResults = [];
+
+        // Refresh challenges for the retry attempt
+        let pwPool = [...CHALLENGE_POOL];
+        _activeChallenges = [];
+        for (let i = 0; i < 2; i++) {
+          let idx = Math.floor(Math.random() * pwPool.length);
+          _activeChallenges.push(pwPool.splice(idx, 1)[0]);
+        }
+
+        _capturedFrames = []; _challengeResults = []; _lastLandmarks = null;
         _captureState = 'retry';
         _currentChallengeIndex = 0;
+        window._noseMinY = null; window._noseMaxY = null; // reset nod tracking
         resetLivenessUI();
         updateHint();
         return;
@@ -1108,6 +1118,7 @@
         _capturedFrames = []; _lastLandmarks = null; _challengeResults = [];
         _currentChallengeIndex = 0;
         _captureState = 'retry';
+        window._noseMinY = null; window._noseMaxY = null; // reset nod tracking
         resetLivenessUI();
         updateHint();
         return;
