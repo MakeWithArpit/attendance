@@ -2,7 +2,7 @@
  * api.js — AttendX Shared Utilities
  * Invertis University, Bareilly — Attendance Management System
  */
-const API_BASE = 'https://gymnospermal-patronymically-val.ngrok-free.dev/api/';
+const API_BASE = 'https://ram-rapids-ethical-chose.trycloudflare.com/api/';
 
 const Auth = {
   save(d) {
