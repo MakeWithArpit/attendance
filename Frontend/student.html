@@ -225,6 +225,10 @@
       gap: 10px;
       flex-shrink: 0;
     }
+      /* ── Passkey button ── */
+      .btn-passkey { background:#7C3AED; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background .15s; }
+      .btn-passkey:hover:not(:disabled) { background:#6D28D9; }
+      .btn-passkey:disabled { background:#C4B5FD; cursor:not-allowed; }
   </style>
 </head>
 
@@ -565,8 +569,8 @@
           : '';
 
         // Method-aware badge
+        const hasPasskey = s.has_passkey_registered === true;
         let actionBtn;
-        const hasPasskey = s.webauthn_enabled && s.has_passkey_registered;
         if (s.already_marked) {
           const methodLabel = {
             'facial':   '📷 Face se Marked',
@@ -576,22 +580,28 @@
             'webauthn': '🔑 Passkey se Marked',
           }[s.marked_method] || '✅ Marked';
           actionBtn = `<span class="btn-marked" title="Method: ${s.marked_method || 'unknown'}"><i class="fa-solid fa-circle-check"></i> ${methodLabel}</span>`;
-        } else if (s.webauthn_enabled && s.has_passkey_registered) {
-          // Passkey attendance (primary button when enabled + registered)
-          actionBtn = `<button id="btn-passkey-${s.session_id}" class="btn btn-sm" style="background:#7C3AED;color:#fff;" onclick="doPasskeyAttendance(${s.session_id})">
-                       <i class="fa-solid fa-fingerprint"></i> Mark with Passkey
-                     </button>`;
-        } else if (s.webauthn_enabled && !s.has_passkey_registered) {
-          // Passkey ON for session but student hasn't registered their passkey yet
-          actionBtn = `<span class="badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;font-size:11px;">
-                         <i class="fa-solid fa-key"></i> Register passkey in Profile first
-                       </span>`;
-        } else if (s.facial_enabled) {
-          actionBtn = `<button class="btn btn-blue btn-sm" onclick="openFaceModal(${s.session_id},'${s.subject_name.replace(/'/g, "\\'")}',${hasFace})">
-                       <i class="fa-solid fa-camera"></i> Face Attendance
-                     </button>`;
         } else {
-          actionBtn = '<span class="badge badge-neutral"><i class="fa-solid fa-hand-pointer"></i> Manual only</span>';
+          const btns = [];
+          if (s.facial_enabled) {
+            btns.push(`<button class="btn btn-blue btn-sm" onclick="openFaceModal(${s.session_id},'${s.subject_name.replace(/'/g, "\\'")}',${hasFace})">
+                         <i class="fa-solid fa-camera"></i> Face
+                       </button>`);
+          }
+          if (s.webauthn_enabled) {
+            if (hasPasskey) {
+              btns.push(`<button class="btn btn-passkey btn-sm" onclick="markWithPasskey(${s.session_id},'${s.subject_name.replace(/'/g, "\\'")}')">
+                           <i class="fa-solid fa-fingerprint"></i> Passkey
+                         </button>`);
+            } else {
+              btns.push(`<span class="badge badge-neutral" title="Register your passkey from My Profile first">
+                           <i class="fa-solid fa-fingerprint"></i> Passkey (Register first)
+                         </span>`);
+            }
+          }
+          if (!btns.length) {
+            btns.push('<span class="badge badge-neutral"><i class="fa-solid fa-hand-pointer"></i> Manual only</span>');
+          }
+          actionBtn = `<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">${btns.join('')}</div>`;
         }
 
         return `
@@ -873,8 +883,8 @@
           }
       }
 
-      // Auto start on first face detection — both fresh open AND after retry
-      if (_captureState === 'init' || _captureState === 'retry') {
+      // Auto start on first face detection if init
+      if (_captureState === 'init') {
           startMultiFrameCapture();
       }
 
@@ -1086,19 +1096,9 @@
         toast('📵 WARNING: Mobile phone detected! Final chance.', 'warning');
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Try Again';
-
-        // Refresh challenges for the retry attempt
-        let pwPool = [...CHALLENGE_POOL];
-        _activeChallenges = [];
-        for (let i = 0; i < 2; i++) {
-          let idx = Math.floor(Math.random() * pwPool.length);
-          _activeChallenges.push(pwPool.splice(idx, 1)[0]);
-        }
-
-        _capturedFrames = []; _challengeResults = []; _lastLandmarks = null;
+        _capturedFrames = []; _challengeResults = [];
         _captureState = 'retry';
         _currentChallengeIndex = 0;
-        window._noseMinY = null; window._noseMaxY = null; // reset nod tracking
         resetLivenessUI();
         updateHint();
         return;
@@ -1118,7 +1118,6 @@
         _capturedFrames = []; _lastLandmarks = null; _challengeResults = [];
         _currentChallengeIndex = 0;
         _captureState = 'retry';
-        window._noseMinY = null; window._noseMaxY = null; // reset nod tracking
         resetLivenessUI();
         updateHint();
         return;
@@ -1163,10 +1162,7 @@
         if (semSel) semSel.value = String(p.current_semester);
       }
       const faceColor = d.has_face_registered ? 'var(--green)' : 'var(--red)';
-      const faceIcon  = d.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
-      const passkeyRegistered = d.webauthn_registered === true;
-      const passkeyColor = passkeyRegistered ? 'var(--green)' : '#F59E0B';
-      const passkeyIcon  = passkeyRegistered ? 'fa-circle-check' : 'fa-circle-xmark';
+      const faceIcon = d.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
       const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name || '—') : (p.branch || '—');
 
       function sec(icon, title, color = 'var(--blue)') {
@@ -1187,11 +1183,9 @@
       <div class="profile-field"><strong><i class="fa-solid fa-camera-retro"></i> Face Recognition</strong>
         <span style="color:${faceColor};font-weight:600;"><i class="fa-solid ${faceIcon}"></i> ${d.has_face_registered ? 'Registered' : 'Not Registered'}</span>
       </div>
-      <div class="profile-field"><strong><i class="fa-solid fa-fingerprint"></i> Passkey (WebAuthn)</strong>
-        <span style="color:${passkeyColor};font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span><i class="fa-solid ${passkeyIcon}"></i> ${passkeyRegistered ? `Registered — ${d.webauthn_device_label || 'Device'}` : 'Not Registered'}</span>
-          ${!passkeyRegistered ? `<button id="btn-register-passkey" class="btn btn-sm" style="background:#7C3AED;color:#fff;padding:4px 12px;font-size:11.5px;border-radius:6px;border:none;cursor:pointer;" onclick="doPasskeyRegister()"><i class="fa-solid fa-key"></i> Register Passkey</button>` : `<span style="font-size:11px;color:#6B7280;">${d.webauthn_registered_at ? 'Registered on ' + new Date(d.webauthn_registered_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : ''}</span>`}
-        </span>
+      <div class="profile-field" id="passkey-profile-field">
+        <strong><i class="fa-solid fa-fingerprint"></i> Passkey</strong>
+        <span id="passkey-profile-val">Loading…</span>
       </div>
     </div>`;
 
@@ -1254,75 +1248,102 @@
 
       html += `</div>`;
       document.getElementById('profile-body').innerHTML = html;
+
+      // ── Render Passkey status after profile HTML is in DOM ──
+      _renderPasskeyProfileRow(d);
     }
 
-    // ── Passkey Registration ─────────────────────────────────────
-    async function doPasskeyRegister() {
-      const btn = document.getElementById('btn-register-passkey');
-      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registering…'; }
+    function _renderPasskeyProfileRow(d) {
+      const el = document.getElementById('passkey-profile-val');
+      if (!el) return;
 
-      // Step 1: Begin
-      const beginRes = await webauthnRegisterBegin();
-      if (!beginRes.ok) {
-        toast(beginRes.data?.error || 'Could not start passkey registration.', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-key"></i> Register Passkey'; }
+      if (d.webauthn_registered) {
+        // Already registered — show info + disabled indicator
+        const regDate = d.webauthn_registered_at
+          ? new Date(d.webauthn_registered_at).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})
+          : '';
+        const deviceLabel = d.webauthn_device_label || 'Unknown device';
+        el.innerHTML = `
+          <span style="color:var(--green);font-weight:600;">
+            <i class="fa-solid fa-circle-check"></i> Registered
+          </span>
+          <span style="font-size:11px;color:var(--text-3);margin-left:8px;">
+            ${deviceLabel}${regDate ? ' &middot; ' + regDate : ''}
+          </span>
+          <span style="font-size:11px;color:var(--text-3);margin-left:6px;">(Contact admin to reset)</span>`;
+      } else {
+        // Not registered — show one-time register button
+        el.innerHTML = `
+          <button class="btn btn-passkey btn-sm" id="passkey-register-btn" onclick="registerPasskey()">
+            <i class="fa-solid fa-fingerprint"></i> Register Passkey
+          </button>`;
+      }
+    }
+
+    async function registerPasskey() {
+      const btn = document.getElementById('passkey-register-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Waiting…'; }
+      try {
+        // Step 1: get registration options from backend
+        const options = await webauthnRegisterBegin();
+        // Step 2: trigger device biometric prompt + send result to backend
+        const result  = await webauthnRegisterComplete(options);
+        toast('Passkey registered successfully! 🔑', 'success');
+        // Reload profile to reflect new state (button becomes disabled)
+        await loadProfile();
+      } catch (err) {
+        toast(err.message || 'Passkey registration failed.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Register Passkey'; }
+      }
+    }
+
+    /* ══ PASSKEY ATTENDANCE ══ */
+
+    async function markWithPasskey(sessionId, subjectName) {
+      // Check if WebAuthn is supported
+      if (!window.PublicKeyCredential) {
+        toast('Your browser does not support Passkey authentication. Please use Chrome or Safari.', 'error');
         return;
       }
 
-      // Step 2: Complete (triggers biometric prompt)
-      const completeRes = await webauthnRegisterComplete(beginRes.data);
-      if (!completeRes.ok) {
-        toast(completeRes.data?.error || 'Passkey registration failed.', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-key"></i> Register Passkey'; }
-        return;
-      }
-
-      toast('Passkey registered successfully! 🔑', 'success');
-      // Reload profile to reflect new status
-      setTimeout(() => loadProfile(), 800);
-    }
-
-    // ── Passkey Attendance ────────────────────────────────────────
-    async function doPasskeyAttendance(sessionId) {
-      const btn = document.getElementById(`btn-passkey-${sessionId}`);
+      const btn = document.querySelector(`button[onclick*="markWithPasskey(${sessionId}"]`);
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying…'; }
 
-      const session = window._activeSessions && window._activeSessions[sessionId];
-      let latitude = null, longitude = null;
+      try {
+        // Step 1: get geo-location if needed
+        const session = window._activeSessions?.[sessionId];
+        let latitude = null, longitude = null;
 
-      // Geo-fencing: location required check
-      if (session && session.geo_fencing_enabled) {
-        try {
-          const pos = await new Promise((res, rej) =>
-            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
-          );
-          latitude  = pos.coords.latitude;
-          longitude = pos.coords.longitude;
-        } catch {
-          toast('Location access denied. Enable location and try again.', 'error');
-          if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
-          return;
+        if (session?.geo_fencing_enabled) {
+          toast('Getting your location…', 'info');
+          try {
+            const pos = await new Promise((res, rej) =>
+              navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000 })
+            );
+            latitude  = pos.coords.latitude;
+            longitude = pos.coords.longitude;
+          } catch (e) {
+            toast('Location access denied. Enable GPS and try again.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Passkey'; }
+            return;
+          }
         }
-      }
 
-      // Step 3: Auth begin
-      const beginRes = await webauthnAuthBegin(sessionId);
-      if (!beginRes.ok) {
-        toast(beginRes.data?.error || 'Could not start passkey authentication.', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
-        return;
-      }
+        // Step 2: get authentication challenge from backend
+        const options = await webauthnAuthBegin(sessionId);
 
-      // Step 4: Auth complete (triggers biometric prompt)
-      const completeRes = await webauthnAuthComplete(sessionId, beginRes.data, latitude, longitude);
-      if (!completeRes.ok) {
-        toast(completeRes.data?.error || 'Passkey attendance failed.', 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Mark with Passkey'; }
-        return;
-      }
+        // Step 3: trigger device biometric/PIN prompt + complete verification
+        toast('Touch your fingerprint sensor or enter your device PIN…', 'info');
+        const result = await webauthnAuthComplete(sessionId, options, latitude, longitude);
 
-      toast('Attendance marked via Passkey! ✅', 'success');
-      setTimeout(() => loadSessions(), 800);
+        toast(`Attendance marked for ${subjectName}! ✅`, 'success');
+        // Reload sessions to reflect marked state
+        await loadSessions();
+
+      } catch (err) {
+        toast(err.message || 'Passkey attendance failed. Please try again.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Passkey'; }
+      }
     }
   </script>
 

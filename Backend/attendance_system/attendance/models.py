@@ -4,6 +4,7 @@ Attendance,Leave Requests
 """
 
 from django.db import models
+from django.utils import timezone
 from accounts.models import Student, Teacher, Branch
 from academics.models import Subject
 

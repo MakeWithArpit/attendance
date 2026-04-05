@@ -2,7 +2,7 @@
  * api.js — AttendX Shared Utilities
  * Invertis University, Bareilly — Attendance Management System
  */
-const API_BASE = 'https://ram-rapids-ethical-chose.trycloudflare.com/api/';
+const API_BASE = 'https://beautifully-supreme-installed-downloading.trycloudflare.com/api/';
 
 const Auth = {
   save(d) {
@@ -197,147 +197,118 @@ function apiTag(method,endpoint) {
   const mc={GET:'#2563eb',POST:'#16a34a',PATCH:'#d97706',DELETE:'#dc2626'};
   return `<div class="api-tag"><span class="api-method" style="background:${mc[method]||'#6b7280'}">${method}</span><code class="api-ep">/api/${endpoint}</code></div>`;
 }
+// ══════════════════════════════════════════════════════
+// WebAuthn (Passkey) API helpers
+// ══════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════════
-// WebAuthn (Passkey) Helper Functions
-// ══════════════════════════════════════════════════════════════════
-
-/**
- * ArrayBuffer  →  base64url string (no padding)
- */
-function _bufToB64url(buf) {
+// Base64url encode/decode helpers (WebAuthn needs these)
+function _b64urlEncode(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
-
-/**
- * base64url string  →  ArrayBuffer
- */
-function _b64urlToBuf(b64url) {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-  const bin = atob(b64);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-  return buf.buffer;
+function _b64urlDecode(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  return Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer;
 }
 
-/**
- * Server se aayi PublicKeyCredentialCreationOptions ko browser format mein convert karta hai.
- * challenge aur user.id ArrayBuffer chahiye navigator.credentials.create() ko.
- */
-function _prepareCreationOptions(opts) {
-  opts.challenge = _b64urlToBuf(opts.challenge);
-  opts.user.id   = _b64urlToBuf(opts.user.id);
-  if (opts.excludeCredentials) {
-    opts.excludeCredentials = opts.excludeCredentials.map(c => ({
-      ...c, id: _b64urlToBuf(c.id)
-    }));
+// Convert all ArrayBuffer fields in a WebAuthn credential to base64url strings
+// so they can be JSON-serialised and sent to the backend
+function _credentialToJSON(cred) {
+  const obj = {};
+  for (const key of ['id', 'rawId', 'type', 'authenticatorAttachment']) {
+    if (cred[key] !== undefined && cred[key] !== null) {
+      obj[key] = cred[key] instanceof ArrayBuffer
+        ? _b64urlEncode(cred[key])
+        : cred[key];
+    }
   }
-  return opts;
-}
-
-/**
- * Server se aayi PublicKeyCredentialRequestOptions ko browser format mein convert karta hai.
- */
-function _prepareRequestOptions(opts) {
-  opts.challenge = _b64urlToBuf(opts.challenge);
-  if (opts.allowCredentials) {
-    opts.allowCredentials = opts.allowCredentials.map(c => ({
-      ...c, id: _b64urlToBuf(c.id)
-    }));
+  if (cred.response) {
+    const resp = {};
+    for (const k of Object.keys(Object.getPrototypeOf(cred.response))) {
+      const v = cred.response[k];
+      if (v instanceof ArrayBuffer)      resp[k] = _b64urlEncode(v);
+      else if (typeof v === 'function')  { /* skip methods */ }
+      else if (v !== undefined)          resp[k] = v;
+    }
+    // Explicitly grab the properties we know about
+    for (const k of ['clientDataJSON','attestationObject','authenticatorData','signature','userHandle']) {
+      try {
+        const v = cred.response[k];
+        if (v instanceof ArrayBuffer) resp[k] = _b64urlEncode(v);
+      } catch(e) {}
+    }
+    obj.response = resp;
   }
-  return opts;
+  if (cred.clientExtensionResults) obj.clientExtensionResults = cred.getClientExtensionResults();
+  return obj;
 }
 
-/**
- * Browser ka PublicKeyCredential (registration) ko JSON-serialisable object mein convert karta hai.
- */
-function _serializeRegistrationCredential(cred) {
-  return {
-    id:    cred.id,
-    rawId: _bufToB64url(cred.rawId),
-    type:  cred.type,
-    response: {
-      clientDataJSON:    _bufToB64url(cred.response.clientDataJSON),
-      attestationObject: _bufToB64url(cred.response.attestationObject),
-    },
-  };
-}
+// ── Registration (one-time, from profile page) ──────────────────
 
-/**
- * Browser ka PublicKeyCredential (authentication) ko JSON-serialisable object mein convert karta hai.
- */
-function _serializeAuthenticationCredential(cred) {
-  return {
-    id:    cred.id,
-    rawId: _bufToB64url(cred.rawId),
-    type:  cred.type,
-    response: {
-      clientDataJSON:    _bufToB64url(cred.response.clientDataJSON),
-      authenticatorData: _bufToB64url(cred.response.authenticatorData),
-      signature:         _bufToB64url(cred.response.signature),
-      userHandle: cred.response.userHandle
-        ? _bufToB64url(cred.response.userHandle)
-        : null,
-    },
-  };
-}
-
-/**
- * Step 1 — Registration begin: server se creation options maango.
- * Returns { ok, data } — data is the raw server response.
- */
 async function webauthnRegisterBegin() {
-  return await POST('auth/webauthn/register/begin/', {});
+  const r = await POST('auth/webauthn/register/begin/', {});
+  if (!r.ok) throw new Error(r.data?.error || 'Failed to get registration options');
+  return r.data;
 }
 
-/**
- * Step 2 — Registration complete: browser se credential banao, server ko bhejo.
- * @param {object} serverOptions  — webauthnRegisterBegin() ka data
- * Returns { ok, data }
- */
-async function webauthnRegisterComplete(serverOptions) {
-  const creationOptions = _prepareCreationOptions(serverOptions);
-  let credential;
-  try {
-    credential = await navigator.credentials.create({ publicKey: creationOptions });
-  } catch (err) {
-    return { ok: false, data: { error: `Passkey creation cancelled or failed: ${err.message}` } };
+async function webauthnRegisterComplete(options) {
+  // Convert challenge and user.id from base64url to ArrayBuffer for the browser
+  options.challenge = _b64urlDecode(options.challenge);
+  if (options.user?.id) options.user.id = _b64urlDecode(options.user.id);
+  if (options.excludeCredentials) {
+    options.excludeCredentials = options.excludeCredentials.map(c => ({
+      ...c, id: _b64urlDecode(c.id)
+    }));
   }
-  const body = _serializeRegistrationCredential(credential);
-  return await POST('auth/webauthn/register/complete/', body);
+
+  let cred;
+  try {
+    cred = await navigator.credentials.create({ publicKey: options });
+  } catch (e) {
+    if (e.name === 'NotAllowedError') throw new Error('Passkey registration cancelled or timed out.');
+    if (e.name === 'InvalidStateError') throw new Error('A passkey is already registered on this device.');
+    throw new Error(e.message || 'Passkey creation failed.');
+  }
+
+  const r = await POST('auth/webauthn/register/complete/', _credentialToJSON(cred));
+  if (!r.ok) throw new Error(r.data?.error || 'Failed to complete registration');
+  return r.data;
 }
 
-/**
- * Step 3 — Auth begin: server se authentication options maango.
- * @param {number|string} sessionId  — attendance session ID
- * Returns { ok, data }
- */
+// ── Authentication (per attendance session) ─────────────────────
+
 async function webauthnAuthBegin(sessionId) {
-  return await POST('attendance/webauthn/auth/begin/', { session_id: sessionId });
+  const r = await POST('attendance/webauthn/auth/begin/', { session_id: sessionId });
+  if (!r.ok) throw new Error(r.data?.error || 'Failed to get authentication options');
+  return r.data;
 }
 
-/**
- * Step 4 — Auth complete: browser se credential sign karwao, server ko bhejo.
- * @param {number|string} sessionId  — attendance session ID
- * @param {object}        serverOptions — webauthnAuthBegin() ka data
- * @param {number|null}   latitude   — optional geo-fencing ke liye
- * @param {number|null}   longitude  — optional geo-fencing ke liye
- * Returns { ok, data }
- */
-async function webauthnAuthComplete(sessionId, serverOptions, latitude = null, longitude = null) {
-  const requestOptions = _prepareRequestOptions(serverOptions);
-  let credential;
-  try {
-    credential = await navigator.credentials.get({ publicKey: requestOptions });
-  } catch (err) {
-    return { ok: false, data: { error: `Passkey sign-in cancelled or failed: ${err.message}` } };
+async function webauthnAuthComplete(sessionId, options, latitude, longitude) {
+  // Convert challenge and allowCredentials ids to ArrayBuffer
+  options.challenge = _b64urlDecode(options.challenge);
+  if (options.allowCredentials) {
+    options.allowCredentials = options.allowCredentials.map(c => ({
+      ...c, id: _b64urlDecode(c.id)
+    }));
   }
+
+  let cred;
+  try {
+    cred = await navigator.credentials.get({ publicKey: options });
+  } catch (e) {
+    if (e.name === 'NotAllowedError') throw new Error('Passkey verification cancelled or timed out.');
+    throw new Error(e.message || 'Passkey verification failed.');
+  }
+
   const body = {
     session_id: sessionId,
-    credential: _serializeAuthenticationCredential(credential),
+    credential: _credentialToJSON(cred),
   };
-  if (latitude  !== null) body.latitude  = latitude;
-  if (longitude !== null) body.longitude = longitude;
-  return await POST('attendance/webauthn/auth/complete/', body);
+  if (latitude  != null) body.latitude  = latitude;
+  if (longitude != null) body.longitude = longitude;
+
+  const r = await POST('attendance/webauthn/auth/complete/', body);
+  if (!r.ok) throw new Error(r.data?.error || 'Failed to mark attendance');
+  return r.data;
 }

@@ -1560,9 +1560,8 @@ class WebAuthnAuthCompleteView(APIView):
 
         # ── Parse credential from frontend ───────────────────────
         try:
-            credential = webauthn.parse_authentication_credential_json(
-                _json.dumps(credential_data)
-            )
+            from webauthn.helpers import parse_authentication_credential_json
+            credential = parse_authentication_credential_json(_json.dumps(credential_data))
         except Exception as e:
             return Response(
                 {'error': f'Invalid credential format: {str(e)}'},
