@@ -563,23 +563,64 @@
     <div id="sec-overview" class="section active">
       <div class="page-header">
         <h1 class="page-title">Admin Dashboard <span class="page-title-rule"></span></h1>
-        <p class="page-sub">Invertis University — Prahari System Overview</p>
+        <p class="page-sub">Invertis University — Prahari Attendance System</p>
       </div>
+
+      <!-- Stats Row -->
       <div class="stats-grid" id="overview-stats">
-        <div class="loader" style="grid-column:1/-1;"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>
+        <div class="loader" style="grid-column:1/-1;"><i class="fa-solid fa-spinner fa-spin"></i> Loading&hellip;</div>
       </div>
+
+      <!-- Quick Actions + Passkey Status -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+        <div class="card" style="margin:0;">
+          <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-bolt"></i> Quick Actions</div></div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn" style="background:var(--blue);color:#fff;justify-content:flex-start;gap:10px;width:100%;"
+              onclick="go('students',document.querySelector('.nav-item[onclick*=\'students\']'))">
+              <i class="fa-solid fa-user-plus"></i> Add New Student
+            </button>
+            <button class="btn" style="background:#7C3AED;color:#fff;justify-content:flex-start;gap:10px;width:100%;"
+              onclick="go('teachers',document.querySelector('.nav-item[onclick*=\'teachers\']'))">
+              <i class="fa-solid fa-chalkboard-user"></i> Add New Teacher
+            </button>
+            <button class="btn" style="background:var(--green);color:#fff;justify-content:flex-start;gap:10px;width:100%;"
+              onclick="go('device',document.querySelector('.nav-item[onclick*=\'device\']'))">
+              <i class="fa-solid fa-mobile-screen"></i> Device Management
+            </button>
+            <button class="btn" style="background:var(--amber);color:#fff;justify-content:flex-start;gap:10px;width:100%;"
+              onclick="go('attendance',document.querySelector('.nav-item[onclick*=\'attendance\']'))">
+              <i class="fa-solid fa-calendar-check"></i> View Attendance
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="margin:0;">
+          <div class="card-title">
+            <div class="card-title-left"><i class="fa-solid fa-fingerprint"></i> Passkey Status</div>
+            <button class="btn btn-sm" style="font-size:11px;padding:4px 10px;" onclick="loadPasskeyStatus()">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+          </div>
+          <div id="passkey-status-body">
+            <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading&hellip;</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Recent Students -->
       <div class="card">
-        <div class="card-title"><div class="card-title-left"><i class="fa-solid fa-plug"></i> System API Endpoints</div></div>
-        <div class="endpoints-grid">
-
-
-
-
-
-
-
-</div>
+        <div class="card-title">
+          <div class="card-title-left"><i class="fa-solid fa-clock-rotate-left"></i> Recently Added Students</div>
+          <span id="recent-students-count" style="font-size:12px;color:var(--text-3);"></span>
+        </div>
+        <div id="recent-students-body">
+          <div class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Loading&hellip;</div>
+        </div>
       </div>
+
     </div>
 
     <!-- Students -->
@@ -1212,8 +1253,13 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
   }
 
   async function loadOverview(){
-    const[sr,tr,subr,br]=await Promise.all([GET('auth/students/'),GET('auth/teachers/'),GET('academics/subjects/?page_size=500'),GET('auth/branches/')]);
+    const[sr,tr,subr,br]=await Promise.all([
+      GET('auth/students/'),GET('auth/teachers/'),
+      GET('academics/subjects/?page_size=500'),GET('auth/branches/')
+    ]);
     const c=r=>r?.data?.count??(r?.data?.results?.length??(Array.isArray(r?.data)?r.data.length:'—'));
+    const students = Array.isArray(sr?.data?.results) ? sr.data.results : (Array.isArray(sr?.data) ? sr.data : []);
+    const faceReg  = students.filter(s=>s.has_face_registered).length;
     document.getElementById('overview-stats').innerHTML=`
       <div class="stat-card" style="--stat-bg:var(--blue-dim);--stat-color:var(--blue);">
         <div class="stat-icon"><i class="fa-solid fa-graduation-cap"></i></div>
@@ -1230,7 +1276,80 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       <div class="stat-card" style="--stat-bg:var(--gold-dim);--stat-color:var(--gold);">
         <div class="stat-icon"><i class="fa-solid fa-building-columns"></i></div>
         <div class="stat-val">${c(br)}</div><div class="stat-lbl">Branches</div>
+      </div>
+      <div class="stat-card" style="--stat-bg:#FFF0F3;--stat-color:#E11D48;">
+        <div class="stat-icon"><i class="fa-solid fa-camera-retro"></i></div>
+        <div class="stat-val">${faceReg}</div><div class="stat-lbl">Face Registered</div>
+      </div>
+      <div class="stat-card" style="--stat-bg:#F5F3FF;--stat-color:#7C3AED;">
+        <div class="stat-icon"><i class="fa-solid fa-fingerprint"></i></div>
+        <div class="stat-val" id="dash-passkey-count">—</div><div class="stat-lbl">Passkey Registered</div>
       </div>`;
+    loadPasskeyStatus();
+    loadRecentStudents(students);
+  }
+
+  async function loadPasskeyStatus(){
+    const r = await GET('auth/webauthn/admin/status/');
+    if(!r||!r.ok){
+      document.getElementById('passkey-status-body').innerHTML='<div class="empty" style="padding:12px;"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load</div>';
+      return;
+    }
+    const d = r.data;
+    const countEl = document.getElementById('dash-passkey-count');
+    if(countEl) countEl.textContent = d.registered_count ?? '—';
+    const pct = d.total_students > 0 ? Math.round((d.registered_count/d.total_students)*100) : 0;
+    const barColor = pct >= 60 ? 'var(--green)' : pct >= 30 ? 'var(--amber)' : 'var(--red)';
+    let rows = '';
+    (d.students||[]).filter(s=>s.passkey_status==='registered').slice(0,5).forEach(s=>{
+      rows += `<tr>
+        <td><code style="font-size:11px;">${s.student_id}</code></td>
+        <td style="font-size:12px;">${s.name||'—'}</td>
+        <td style="font-size:11px;color:var(--text-3);">${s.device_label||'—'}</td>
+        <td><span class="badge" style="background:#ECFDF5;color:#059669;border:none;font-size:10px;"><i class="fa-solid fa-circle-check" style="font-size:9px;"></i> Active</span></td>
+      </tr>`;
+    });
+    document.getElementById('passkey-status-body').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="flex:1;background:var(--surface-2);border-radius:20px;height:8px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:20px;transition:width .5s;"></div>
+        </div>
+        <span style="font-size:12px;font-weight:600;color:${barColor};min-width:36px;">${pct}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-2);margin-bottom:10px;">
+        <span><i class="fa-solid fa-circle-check" style="color:var(--green);"></i> ${d.registered_count} registered</span>
+        <span><i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> ${d.unregistered_count} pending</span>
+      </div>
+      ${rows ? `<div class="table-wrap" style="margin:0;max-height:160px;overflow-y:auto;"><table style="font-size:12px;"><thead><tr><th>ID</th><th>Name</th><th>Device</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty" style="padding:8px;font-size:12px;">No passkeys registered yet.</div>'}
+    `;
+  }
+
+  function loadRecentStudents(students){
+    const el = document.getElementById('recent-students-body');
+    const countEl = document.getElementById('recent-students-count');
+    if(!students||!students.length){
+      if(el) el.innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No students found.</p></div>';
+      return;
+    }
+    const recent = [...students].reverse().slice(0,8);
+    if(countEl) countEl.textContent = `${students.length} total`;
+    let html = '<div class="table-wrap" style="margin:0;"><table><thead><tr><th>Student ID</th><th>Name</th><th>Branch</th><th>Semester</th><th>Face</th><th>Actions</th></tr></thead><tbody>';
+    recent.forEach(s=>{
+      const p = s.profile||{};
+      const fc = s.has_face_registered ? 'var(--green)' : '#94A3B8';
+      const fi = s.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
+      const branchName = typeof p.branch==='object' ? (p.branch?.branch_name||p.branch?.branch_code||'—') : (p.branch||'—');
+      html+=`<tr>
+        <td><code style="font-size:11px;">${s.student_id}</code></td>
+        <td><strong style="font-size:13px;">${p.name||'—'}</strong></td>
+        <td style="font-size:12px;">${branchName}</td>
+        <td style="font-size:12px;">${p.current_semester ? 'Sem '+p.current_semester : '—'}</td>
+        <td><i class="fa-solid ${fi}" style="color:${fc};"></i></td>
+        <td><button class="act-btn act-view" onclick="go('students',document.querySelector('.nav-item[onclick*=\'students\']'))" style="font-size:11px;padding:3px 8px;"><i class="fa-solid fa-eye"></i> View</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    if(el) el.innerHTML = html;
   }
 
   let allStudents=[];

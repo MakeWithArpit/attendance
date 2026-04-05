@@ -2,7 +2,7 @@
  * api.js — AttendX Shared Utilities
  * Invertis University, Bareilly — Attendance Management System
  */
-const API_BASE = 'https://cook-follows-juvenile-defining.trycloudflare.com/api/';
+const API_BASE = 'https://initiative-following-positive-wanna.trycloudflare.com/api/';
 
 const Auth = {
   save(d) {

@@ -134,6 +134,7 @@ class StartAttendanceSessionView(APIView):
             academic_year=data.get('academic_year') or _auto_academic_year(),
             status='active',
             facial_enabled=data.get('facial_enabled', False),
+            webauthn_enabled=data.get('webauthn_enabled', False),
             geo_fencing_enabled=data.get('geo_fencing_enabled', False),
             campus_latitude=data.get('campus_latitude'),
             campus_longitude=data.get('campus_longitude'),
@@ -1482,6 +1483,7 @@ class WebAuthnAuthCompleteView(APIView):
         import json as _json
         import base64
         from datetime import timedelta
+        from webauthn.helpers.structs import AuthenticationCredential
         from django.conf import settings as _s
         from accounts.models import WebAuthnCredential, WebAuthnChallenge
         from django.utils import timezone as _tz
@@ -1560,8 +1562,9 @@ class WebAuthnAuthCompleteView(APIView):
 
         # ── Parse credential from frontend ───────────────────────
         try:
-            from webauthn.helpers import parse_authentication_credential_json
-            credential = parse_authentication_credential_json(_json.dumps(credential_data))
+            credential = AuthenticationCredential.parse_raw(
+                _json.dumps(credential_data)
+            )
         except Exception as e:
             return Response(
                 {'error': f'Invalid credential format: {str(e)}'},

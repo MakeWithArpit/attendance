@@ -801,9 +801,17 @@
     const r=await POST('attendance/mark/manual/',body);
     closeModal('m-att-confirm');
     if(!r||!r.ok){toast(r?.data?.error||'Failed to submit','error');return;}
-    toast(r.data.message||'Attendance submitted successfully! Session is still active.','success');
-    // Session active rehti hai — teacher End Session button se manually close karega
-    // Do not reset activeSession, studentsList, or attendance state
+    toast('Attendance submitted successfully!','success');
+    // Auto-close session after manual attendance
+    const cr = await PATCH(`attendance/sessions/${activeSession.id}/close/`,{});
+    if(cr&&cr.ok){
+      toast('Session closed automatically.','info');
+      activeSession=null; studentsList=[]; attendance={};
+      document.getElementById('session-result').style.display='none';
+      await loadDashboardData();
+    } else {
+      toast('Attendance saved. Click "End Session" to close the session.','warning');
+    }
   }
 
   /* ═══ ATTENDANCE REQUESTS ═══ */
