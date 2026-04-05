@@ -13,6 +13,8 @@ from .views import (
     LeaveRequestListCreateView, LeaveRequestActionView,
     TeacherDashboardView, TeacherSessionListView,
     TeacherAttendanceRequestView, AdminAttendanceRequestView,
+    # WebAuthn (Passkey) — Method 5
+    WebAuthnAuthBeginView, WebAuthnAuthCompleteView,
 )
 
 urlpatterns = [
@@ -33,6 +35,10 @@ urlpatterns = [
     path('rfid/mark/',               RFIDAttendanceView.as_view(),        name='rfid_attendance'),
     path('rfid/bulk/',               BulkRFIDAttendanceView.as_view(),    name='rfid_bulk'),
 
+    # Method 5 - WebAuthn (Passkey)
+    path('webauthn/auth/begin/',     WebAuthnAuthBeginView.as_view(),     name='webauthn_auth_begin'),
+    path('webauthn/auth/complete/',  WebAuthnAuthCompleteView.as_view(),  name='webauthn_auth_complete'),
+
     # View & Edit
     path('',                         AttendanceListView.as_view(),        name='attendance_list'),
     path('edit/',                    AttendanceEditView.as_view(),        name='attendance_edit'),
@@ -47,10 +53,10 @@ urlpatterns = [
     # Teacher Dashboard
     path('dashboard/teacher/',       TeacherDashboardView.as_view(),         name='teacher_dashboard'),
 
-    # Attendance Requests (Teacher → Admin)
-    path('attendance-requests/',          TeacherAttendanceRequestView.as_view(), name='att_requests_teacher'),
-    path('admin/attendance-requests/',    AdminAttendanceRequestView.as_view(),   name='att_requests_admin_list'),
-    path('admin/attendance-requests/<int:pk>/', AdminAttendanceRequestView.as_view(), name='att_requests_admin_detail'),
+    # Attendance Requests (Teacher -> Admin)
+    path('attendance-requests/',                    TeacherAttendanceRequestView.as_view(), name='att_requests_teacher'),
+    path('admin/attendance-requests/',              AdminAttendanceRequestView.as_view(),   name='att_requests_admin_list'),
+    path('admin/attendance-requests/<int:pk>/',     AdminAttendanceRequestView.as_view(),   name='att_requests_admin_detail'),
 
     # Parent Notification
     path('notify-parent/', SendParentNotificationView.as_view(), name='notify_parent'),

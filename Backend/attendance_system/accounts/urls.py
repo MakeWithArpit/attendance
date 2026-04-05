@@ -11,6 +11,9 @@ from .views import (
     TeacherListView, TeacherCreateView, TeacherDetailView,
     VerifyDeviceOTPView, AdminDeviceResetView,
     NextStudentIdView, NextTeacherIdView,
+    # WebAuthn (Passkey)
+    WebAuthnRegisterBeginView, WebAuthnRegisterCompleteView,
+    AdminWebAuthnStatusView,
 )
 
 urlpatterns = [
@@ -48,4 +51,12 @@ urlpatterns = [
     path('teachers/',           TeacherListView.as_view(),   name='teacher_list'),
     path('teachers/create/',    TeacherCreateView.as_view(), name='teacher_create'),
     path('teachers/<str:pk>/',  TeacherDetailView.as_view(), name='teacher_detail'),
+
+    # ── WebAuthn (Passkey) ────────────────────────────────────────
+    # Registration — one-time, from student's profile page
+    path('webauthn/register/begin/',    WebAuthnRegisterBeginView.as_view(),    name='webauthn_register_begin'),
+    path('webauthn/register/complete/', WebAuthnRegisterCompleteView.as_view(), name='webauthn_register_complete'),
+
+    # Admin — passkey status dashboard
+    path('webauthn/admin/status/',      AdminWebAuthnStatusView.as_view(),      name='webauthn_admin_status'),
 ]

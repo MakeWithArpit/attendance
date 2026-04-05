@@ -13,7 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import User, Student, Teacher, Branch, PasswordResetOTP, DeviceToken, StudentProfile, ParentDetail, PermanentAddress, PresentAddress
+from .models import User, Student, Teacher, Branch, PasswordResetOTP, DeviceToken, StudentProfile, ParentDetail, PermanentAddress, PresentAddress, WebAuthnCredential, WebAuthnChallenge
 from .serializers import (
     CustomTokenObtainPairSerializer,
     StudentSerializer, StudentCreateSerializer,
@@ -509,7 +509,21 @@ class MyProfileView(APIView):
             student = Student.objects.select_related(
                 'profile', 'parent_detail', 'permanent_address', 'present_address'
             ).get(user=user)
-            return Response(StudentSerializer(student).data)
+            data = StudentSerializer(student).data
+
+            # WebAuthn passkey status — frontend uses this to enable/disable
+            # the "Register Passkey" button in the profile page.
+            try:
+                cred = student.webauthn_credential
+                data['webauthn_registered'] = True
+                data['webauthn_registered_at'] = cred.registered_at.isoformat()
+                data['webauthn_device_label']   = cred.device_label
+            except WebAuthnCredential.DoesNotExist:
+                data['webauthn_registered']     = False
+                data['webauthn_registered_at']  = None
+                data['webauthn_device_label']   = None
+
+            return Response(data)
         elif user.role == 'teacher':
             teacher = Teacher.objects.get(user=user)
             return Response(TeacherSerializer(teacher).data)
@@ -553,38 +567,70 @@ class TeacherDetailView(generics.RetrieveUpdateDestroyAPIView):
 class AdminDeviceResetView(APIView):
     """
     POST /api/auth/admin/device-reset/
-    Clears all registered device tokens for a student so they can
-    log in from a new device (OTP will be required on next login).
+    Full device reset for a student — used when a student loses their phone
+    or needs to register a new device.
+
+    Atomically deletes (all-or-nothing):
+      - DeviceToken(s)         -> forces OTP verification on next login
+      - WebAuthnCredential     -> removes registered passkey
+      - WebAuthnChallenge(s)   -> cleans up any pending challenges
+
+    After reset the student:
+      1. Logs into the new device (OTP required — existing DeviceToken flow)
+      2. Profile page shows "Register Passkey" button again (one-time option restored)
 
     GET /api/auth/admin/device-reset/
-    Lists all students and their registered device tokens.
+    Lists all students with their device tokens.
     """
     permission_classes = [IsAdmin]
 
     def post(self, request):
+        from django.shortcuts import get_object_or_404
+        from django.db import transaction
+
         student_id = request.data.get('student_id', '').strip()
         if not student_id:
             return Response({'error': 'student_id is required'}, status=400)
 
-        from django.shortcuts import get_object_or_404
         student = get_object_or_404(Student, pk=student_id)
-        count   = DeviceToken.objects.filter(student=student).count()
-        DeviceToken.objects.filter(student=student).delete()
 
+        # Snapshot counts before deletion (for response message)
+        device_count    = DeviceToken.objects.filter(student=student).count()
+        passkey_existed = hasattr(student, 'webauthn_credential')
+
+        # Atomic delete — all-or-nothing
+        # If any deletion fails the entire operation rolls back,
+        # leaving the student's data in a consistent state.
+        with transaction.atomic():
+            DeviceToken.objects.filter(student=student).delete()
+            WebAuthnCredential.objects.filter(student=student).delete()
+            WebAuthnChallenge.objects.filter(student=student).delete()
+
+        # Notify student via email (non-blocking, non-critical)
         try:
             profile = student.profile
             if profile.email:
-                from analytics.utils import send_device_reset_email
-                send_device_reset_email(
-                    user_email=profile.email,
-                    user_name=profile.name,
-                )
+                import threading as _t
+                _email = profile.email
+                _name  = profile.name
+                def _send():
+                    try:
+                        from analytics.utils import send_device_reset_email
+                        send_device_reset_email(
+                            user_email=_email,
+                            user_name=_name,
+                        )
+                    except Exception:
+                        pass
+                _t.Thread(target=_send, daemon=True).start()
         except Exception:
             pass
 
         return Response({
-            'message':    f'{count} device token(s) cleared for {student_id}.',
-            'student_id': student_id,
+            'message':         'Device reset successful. Student must log in again from new device.',
+            'student_id':      student_id,
+            'devices_cleared': device_count,
+            'passkey_cleared': passkey_existed,
         })
 
     def get(self, request):
@@ -872,7 +918,6 @@ import json as _json
 from django.conf import settings as django_settings
 from django.utils import timezone as _tz
 
-from .models import WebAuthnCredential, WebAuthnChallenge
 from .permissions import IsStudent
 
 
@@ -1139,3 +1184,103 @@ def _parse_device_label(user_agent: str) -> str:
         os_label = 'Unknown Device'
 
     return f"{browser} on {os_label}"
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 4 — Admin WebAuthn Status View
+# ─────────────────────────────────────────────────────────────────
+
+class AdminWebAuthnStatusView(APIView):
+    """
+    GET /api/auth/webauthn/admin/status/
+
+    Admin dashboard view — shows passkey registration status for all students.
+
+    Response:
+    {
+        "total_students":    120,
+        "registered_count":  47,
+        "unregistered_count": 73,
+        "students": [
+            {
+                "student_id":     "BCS2024001",
+                "name":           "Arpit Gangwar",
+                "branch":         "BCS",
+                "passkey_status": "registered",          // or "not_registered"
+                "registered_at":  "2026-01-12T10:30:00", // null if not registered
+                "device_label":   "Chrome on Android",   // null if not registered
+            },
+            ...
+        ]
+    }
+
+    Optional query params:
+        ?status=registered        — show only registered students
+        ?status=not_registered    — show only unregistered students
+        ?branch=BCS               — filter by branch code
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        status_filter = request.query_params.get('status', '').strip()
+        branch_filter = request.query_params.get('branch', '').strip().upper()
+
+        # Fetch all students with profile + passkey credential (if any)
+        students_qs = Student.objects.select_related(
+            'profile', 'profile__branch',
+        ).prefetch_related('webauthn_credential').all()
+
+        if branch_filter:
+            students_qs = students_qs.filter(profile__branch_id=branch_filter)
+
+        students_data = []
+        registered_count = 0
+
+        for student in students_qs:
+            # Check if passkey is registered
+            try:
+                cred = student.webauthn_credential
+                has_passkey = True
+                registered_at = cred.registered_at.isoformat()
+                device_label  = cred.device_label
+            except WebAuthnCredential.DoesNotExist:
+                has_passkey   = False
+                registered_at = None
+                device_label  = None
+
+            if has_passkey:
+                registered_count += 1
+
+            # Apply status filter
+            if status_filter == 'registered' and not has_passkey:
+                continue
+            if status_filter == 'not_registered' and has_passkey:
+                continue
+
+            # Student name + branch from profile
+            try:
+                name   = student.profile.name
+                branch = student.profile.branch.branch_code if student.profile.branch else None
+            except Exception:
+                name   = student.student_id
+                branch = None
+
+            students_data.append({
+                'student_id':     student.student_id,
+                'name':           name,
+                'branch':         branch,
+                'passkey_status': 'registered' if has_passkey else 'not_registered',
+                'registered_at':  registered_at,
+                'device_label':   device_label,
+            })
+
+        total = Student.objects.count()
+        if branch_filter:
+            total = students_qs.count()
+
+        return Response({
+            'total_students':     total,
+            'registered_count':   registered_count,
+            'unregistered_count': total - registered_count,
+            'students':           students_data,
+        })
