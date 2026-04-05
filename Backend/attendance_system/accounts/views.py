@@ -1070,8 +1070,7 @@ class WebAuthnRegisterCompleteView(APIView):
 
     def post(self, request):
         import webauthn
-        from webauthn.helpers.structs import RegistrationCredential
-        from webauthn.exceptions import InvalidCBORData, InvalidRegistrationResponse
+        from webauthn.helpers.exceptions import InvalidCBORData, InvalidRegistrationResponse
 
         student = getattr(request.user, 'student', None)
         if not student:
@@ -1095,7 +1094,7 @@ class WebAuthnRegisterCompleteView(APIView):
 
         # Parse the browser's credential response
         try:
-            credential = RegistrationCredential.parse_raw(
+            credential = webauthn.parse_registration_credential_json(
                 _json.dumps(request.data)
             )
         except Exception as e:

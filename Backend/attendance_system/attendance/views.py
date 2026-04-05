@@ -1482,7 +1482,6 @@ class WebAuthnAuthCompleteView(APIView):
         import json as _json
         import base64
         from datetime import timedelta
-        from webauthn.helpers.structs import AuthenticationCredential
         from django.conf import settings as _s
         from accounts.models import WebAuthnCredential, WebAuthnChallenge
         from django.utils import timezone as _tz
@@ -1561,7 +1560,7 @@ class WebAuthnAuthCompleteView(APIView):
 
         # ── Parse credential from frontend ───────────────────────
         try:
-            credential = AuthenticationCredential.parse_raw(
+            credential = webauthn.parse_authentication_credential_json(
                 _json.dumps(credential_data)
             )
         except Exception as e:
