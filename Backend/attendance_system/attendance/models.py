@@ -74,7 +74,7 @@ class Attendance(models.Model):
 class AttendanceSession(models.Model):
     """
     Teacher starts a session for attendance.
-    Ab facial_enabled flag bhi hai — teacher decide karta hai
+    Includes facial_enabled flag — teacher decides
     whether facial recognition is allowed in this session.
     """
 
@@ -172,7 +172,7 @@ class LeaveRequest(models.Model):
 class AttendanceRequest(models.Model):
     """
     Teacher requests admin to manually mark attendance for a student
-    who was unable to mark via face/RFID during the session.
+    who was unable to mark via face recognition during the session.
     Flow: Teacher creates → Admin approves/rejects → Teacher sees remark.
     """
 

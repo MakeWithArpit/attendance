@@ -266,7 +266,7 @@
             </div>
             <div class="sess-row-text">
               <div class="sess-row-title">Face Attendance</div>
-              <div class="sess-row-desc">Students selfie se attendance mark kar sakte hain</div>
+              <div class="sess-row-desc">Students can mark attendance using a selfie</div>
             </div>
             <label class="sw" onclick="event.stopPropagation()">
               <input type="checkbox" id="s-facial" checked
@@ -282,7 +282,7 @@
             </div>
             <div class="sess-row-text">
               <div class="sess-row-title">Passkey Attendance</div>
-              <div class="sess-row-desc">Students apne device ke fingerprint/PIN se attendance mark kar sakte hain</div>
+              <div class="sess-row-desc">Students can mark attendance using their device's fingerprint or PIN</div>
             </div>
             <label class="sw" onclick="event.stopPropagation()">
               <input type="checkbox" id="s-webauthn"
@@ -298,7 +298,7 @@
             </div>
             <div class="sess-row-text">
               <div class="sess-row-title">Geo-Fencing</div>
-              <div class="sess-row-desc">Campus ke bahar se attendance block ho jaayegi</div>
+              <div class="sess-row-desc">Attendance from outside campus will be blocked</div>
             </div>
             <label class="sw" onclick="event.stopPropagation()">
               <input type="checkbox" id="s-geo"
@@ -413,7 +413,7 @@
         </div>
         <div class="form-group">
           <label><i class="fa-solid fa-pen-to-square"></i> Reason</label>
-          <textarea id="ar-reason" rows="3" placeholder="e.g. Face recognition fail hua / network error / session expire ho gayi…"></textarea>
+          <textarea id="ar-reason" rows="3" placeholder="e.g. Face recognition failed / network error / session expired…"></textarea>
         </div>
         <button class="btn btn-navy" onclick="submitAttReq()"><i class="fa-solid fa-paper-plane"></i> Submit to Admin</button>
       </div>
@@ -624,7 +624,7 @@
       });
     }
 
-    // Agar active session already hai (page reload pe bhi) — dikhao
+    // If an active session already exists (persists on page reload) — show it
     const existingSession = sr?.data?.active_session;
     if(existingSession){
       activeSession = existingSession;
@@ -686,7 +686,7 @@
     const geoEnabled = document.getElementById('s-geo').checked;
     const lat = document.getElementById('s-lat').value.trim();
     const lng = document.getElementById('s-lng').value.trim();
-    // Validate: agar geo enable hai toh lat/lng zaroor hona chahiye
+    // Validate: if geo-fencing is enabled, lat/lng must be provided
     if(geoEnabled && (!lat || !lng)){
       toast('Geo-Fencing is enabled but location could not be fetched. Please re-check the checkbox or allow location permission.','error');
       return;
@@ -861,7 +861,7 @@
     const sel=document.getElementById('ar-session');
     sel.innerHTML='<option value="">Loading sessions…</option>';
 
-    // Naya endpoint: teacher ki sessions, student ke enrolled subjects se filter
+    // New endpoint: teacher's sessions, filtered by student's enrolled subjects
     const r=await GET(`attendance/sessions/?student_pk=${encodeURIComponent(studentPk)}`);
     const sessions=(r?.data?.sessions)||[];
 

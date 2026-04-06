@@ -586,11 +586,11 @@
               <i class="fa-solid fa-chalkboard-user"></i> Add New Teacher
             </button>
             <button class="btn" style="background:var(--green);color:#fff;justify-content:flex-start;gap:10px;width:100%;"
-              onclick="go('device',document.querySelector('.nav-item[onclick*=\'device\']'))">
+              onclick="go('devices',document.querySelector('.nav-item[onclick*=\'devices\']'))">
               <i class="fa-solid fa-mobile-screen"></i> Device Management
             </button>
             <button class="btn" style="background:var(--amber);color:#fff;justify-content:flex-start;gap:10px;width:100%;"
-              onclick="go('attendance',document.querySelector('.nav-item[onclick*=\'attendance\']'))">
+              onclick="go('analytics',document.querySelector('.nav-item[onclick*=\'analytics\']'))">
               <i class="fa-solid fa-calendar-check"></i> View Attendance
             </button>
           </div>
@@ -723,13 +723,13 @@
           <!-- Auto-Enrollment Preview -->
           <div id="enrollment-preview" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;border:1px solid #bbf7d0;background:#f0fdf4;">
             <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:6px;">
-              <i class="fa-solid fa-circle-check"></i> Auto-Enrollment — Yeh subjects milenge:
+              <i class="fa-solid fa-circle-check"></i> Auto-Enrollment — The following subjects will be assigned:
             </div>
             <div id="enrollment-preview-list" style="font-size:12px;color:#166534;"></div>
           </div>
           <div id="enrollment-warning" style="display:none;margin-bottom:16px;padding:12px 14px;border-radius:10px;border:1px solid #fde68a;background:#fffbeb;">
             <div style="font-size:12px;font-weight:700;color:#92400e;">
-              <i class="fa-solid fa-triangle-exclamation"></i> Koi Subject Nahi Mila
+              <i class="fa-solid fa-triangle-exclamation"></i> No Subjects Found
             </div>
             <div style="font-size:12px;color:#78350f;margin-top:4px;">
               No subject is tagged for this branch+semester. Please add a subject in <strong>Subjects</strong> and set the Branch+Semester.
@@ -915,7 +915,7 @@
               </select>
             </div>
             <div class="form-group" style="margin:0;">
-              <label><i class="fa-solid fa-building-columns"></i> Branch <span style="color:#8A95A3;font-size:10px;">(auto-enroll ke liye)</span></label>
+              <label><i class="fa-solid fa-building-columns"></i> Branch <span style="color:#8A95A3;font-size:10px;">(for auto-enrollment)</span></label>
               <select id="nsub-branch"><option value="">Select Branch (optional)</option></select>
             </div>
             <div class="form-group" style="margin:0;grid-column:1/-1;">
@@ -1196,7 +1196,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
           <button class="btn" style="background:#25D366;color:#fff;font-weight:700;" onclick="sendWhatsApp()">
             <i class="fa-brands fa-whatsapp"></i> Open WhatsApp
           </button>
-          <span style="font-size:11px;color:#8A95A3;margin-left:12px;">WhatsApp Web ya App mein khulega — manually send karna hoga</span>
+          <span style="font-size:11px;color:#8A95A3;margin-left:12px;">Opens in WhatsApp Web or App — you must send manually</span>
         </div>
       </div>
 
@@ -1530,7 +1530,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
 
   // ── fetchAllPages: pagination bypass ──────────────────────────────────────
   // Backend PAGE_SIZE is 50. page_size param is sometimes ignored by the server.
-  // Yeh helper saari pages loop karke ek flat array return karta hai.
+  // This helper loops through all pages and returns a flat array.
   async function fetchAllPages(endpoint) {
     const all = [];
     // Fetch the first page (try page_size=200; the loop will handle pagination even if the server ignores it)
@@ -1624,7 +1624,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       document.getElementById('subjects-list').innerHTML='<div class="empty"><i class="fa-solid fa-inbox"></i><p>No subjects found.</p></div>';
       return;
     }
-    // employee_id → name map banao (fallback ke liye agar assigned_teacher_name missing ho)
+    // Build employee_id → name map (fallback if assigned_teacher_name is missing)
     const teacherMap = {};
     // teacherList already fetched above via fetchAllPages
     teacherList.forEach(t => { if(t.employee_id && t.name) teacherMap[t.employee_id] = t.name; });
@@ -1636,7 +1636,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
         || (s.assigned_teacher ? (teacherMap[s.assigned_teacher] || '') : '')
     }));
 
-    // Teacher dropdown REBUILD from scratch (stale data avoid karne ke liye)
+    // Rebuild teacher dropdown from scratch (to avoid stale data)
     const teachSel = document.getElementById('sf-teacher');
     if(teachSel) {
       teachSel.innerHTML = '<option value=>All Teachers</option><option value=__unassigned__>Unassigned</option>';
@@ -1896,7 +1896,7 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
         list.innerHTML = matched.map(s =>
           `<div style="padding:2px 0;"><span style="color:#16a34a;font-weight:700;">&#10003;</span> <strong>${s.subject_code}</strong> — ${s.subject_name}</div>`
         ).join('') + `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0;font-weight:600;color:#15803d;">
-          Student create hone par ${matched.length} subject(s) mein auto-enroll hoga
+          On creation, student will be auto-enrolled in ${matched.length} subject(s)
         </div>`;
       }
     } catch(e) {

@@ -82,10 +82,10 @@ class Student(models.Model):
     aadhar_number     = models.CharField(max_length=12, blank=True, null=True, unique=True)
 
     # ── Facial Recognition ───────────────────────────────────────────────────
-    # PURANA tha: face_encoding = BinaryField  (numpy array bytes store hote the)
+    # Previously: face_encoding = BinaryField (stored numpy array bytes)
     # New approach: registered_photo = ImageField (store only the photo)
     #
-    # Kyun badla?
+    # Why changed?
     #   face_recognition required dlib/CMake — difficult to install.
     #   DeepFace compares photos directly — no face encoding required.
     #   Admin/Teacher uploads a clear photo of the student once.
@@ -94,8 +94,8 @@ class Student(models.Model):
         upload_to='students/face_photos/',
         blank=True,
         null=True,
-        help_text="Facial recognition ke liye student ki clear front-facing photo. "
-                  "Admin ya Teacher upload karta hai."
+        help_text="Clear front-facing student photo for facial recognition. "
+                  "Uploaded by admin or teacher."
     )
 
     class Meta:
@@ -203,11 +203,11 @@ class Teacher(models.Model):
 # ─────────────────────────────────────────────
 class PasswordResetOTP(models.Model):
     """
-    Jab user 'Forgot Password' karta hai:
-    1. Ek 6-digit OTP generate hota hai
-    2. User ki email par bheja jaata hai
-    3. Yahan store hota hai with 10 min expiry
-    4. User OTP + new password bhejta hai → verified → password change
+    Generated when user initiates 'Forgot Password':
+    1. A 6-digit OTP is generated
+    2. Sent to the user's registered email
+    3. Stored here with a 10-minute expiry
+    4. User submits OTP + new password → verified → password changed
     """
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_requests')
     otp        = models.CharField(max_length=6)

@@ -7,7 +7,6 @@ from .views import (
     StartAttendanceSessionView, CloseSessionView,
     BulkManualAttendanceView,
     RegisterFaceView, FacialAttendanceView, ActiveSessionsForStudentView,
-    RFIDAttendanceView, BulkRFIDAttendanceView,
     AttendanceListView, AttendanceEditView,
     StudentAttendanceSummaryView,
     LeaveRequestListCreateView, LeaveRequestActionView,
@@ -30,10 +29,6 @@ urlpatterns = [
     # Method 2 - Facial Recognition
     path('face/register/',           RegisterFaceView.as_view(),          name='register_face'),
     path('face/mark/',               FacialAttendanceView.as_view(),      name='facial_attendance'),
-
-    # Method 3 - RFID
-    path('rfid/mark/',               RFIDAttendanceView.as_view(),        name='rfid_attendance'),
-    path('rfid/bulk/',               BulkRFIDAttendanceView.as_view(),    name='rfid_bulk'),
 
     # Method 5 - WebAuthn (Passkey)
     path('webauthn/auth/begin/',     WebAuthnAuthBeginView.as_view(),     name='webauthn_auth_begin'),

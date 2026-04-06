@@ -199,7 +199,7 @@ class CloseSessionView(APIView):
         session.save(update_fields=['status'])
 
         # Create absent records for all enrolled students who were not marked present
-        # Without this, facial/rfid sessions leave absent students with 0 records,
+        # Without this, facial/passkey sessions leave absent students with 0 records,
         # making total_classes=0 for them → wrong percentage in "My Attendance".
         from academics.models import CourseRegistration
         enrolled_students = CourseRegistration.objects.filter(
@@ -346,7 +346,7 @@ class RegisterFaceView(APIView):
 class ActiveSessionsForStudentView(APIView):
     """
     GET /api/attendance/sessions/active/
-    Student apne enrolled subjects ki active sessions dekhta hai.
+    Shows active sessions for a student's enrolled subjects.
     The student selects a session and marks attendance via face recognition.
 
     Response includes:
@@ -459,14 +459,14 @@ class FacialAttendanceView(APIView):
         photos[]   → 3-5 JPEG images captured at random intervals during liveness check
         session_id → the ID of the session started by the teacher
         blink_count → number of eye blinks detected on frontend (must be >= 2)
-        latitude   → student ki current latitude  (geo-fencing ke liye)
-        longitude  → student ki current longitude
+        latitude   → student's current latitude  (for geo-fencing)
+        longitude  → student's current longitude
         device_id  → browser fingerprint
 
     Backend checks:
-        1. Session active hai?
-        2. Facial_enabled = True hai?
-        3. Student enrolled hai?
+        1. Is session active?
+        2. Is facial_enabled = True?
+        3. Is student enrolled?
         4. Geo-fencing (if enabled)
         5. Blink count >= 2 (frontend liveness)
         6. Multi-frame verification:
@@ -696,97 +696,6 @@ class FacialAttendanceView(APIView):
                     os.unlink(path)
 
 
-# ─────────────────────────────────────────────
-# METHOD 4: RFID Attendance
-# ─────────────────────────────────────────────
-class RFIDAttendanceView(APIView):
-    """
-    POST /api/attendance/rfid/mark/
-    RFID reader app sends: { "rfid_number": "xxx", "session_id": 1 }
-    Server identifies student → marks present.
-    This API is called by your RFID reader application.
-    """
-    permission_classes = [IsTeacherOrAdmin]
-
-    def post(self, request):
-        rfid_number = request.data.get('rfid_number')
-        session_id  = request.data.get('session_id')
-
-        if not rfid_number:
-            return Response({'error': 'RFID number is required'}, status=400)
-
-        student = Student.objects.filter(rfid_number=rfid_number).first()
-        if not student:
-            return Response({'error': f'No student found with RFID: {rfid_number}'}, status=404)
-
-        session = get_object_or_404(AttendanceSession, id=session_id, status='active')
-        teacher = get_object_or_404(Teacher, user=request.user)
-
-        attendance, created = Attendance.objects.update_or_create(
-            student=student,
-            subject=session.subject,
-            date=session.date,
-            defaults={
-                'session':       session,
-                'is_present':    True,
-                'day':           session.date.strftime('%A'),
-                'semester':      session.semester,
-                'academic_year': session.academic_year,
-                'marked_by':     teacher,
-                'method':        'rfid',
-            }
-        )
-
-        return Response({
-            'message':           'Attendance marked via RFID',
-            'student_name':      getattr(student, 'profile', None) and student.profile.name,
-            'enrollment_number': student.enrollment_number,
-            'subject':           session.subject.subject_name,
-        })
-
-
-class BulkRFIDAttendanceView(APIView):
-    """
-    POST /api/attendance/rfid/bulk/
-    RFID reader sends multiple RFID numbers at once.
-    Body: { "session_id": 1, "rfid_numbers": ["abc", "def", ...], "academic_year": "2024-2025" }
-    """
-    permission_classes = [IsTeacherOrAdmin]
-
-    def post(self, request):
-        session_id   = request.data.get('session_id')
-        rfid_numbers = request.data.get('rfid_numbers', [])
-        academic_year = request.data.get('academic_year')
-
-        session = get_object_or_404(AttendanceSession, id=session_id, status='active')
-        teacher = get_object_or_404(Teacher, user=request.user)
-
-        results = {'marked': [], 'not_found': []}
-
-        for rfid in rfid_numbers:
-            student = Student.objects.filter(rfid_number=rfid).first()
-            if not student:
-                results['not_found'].append(rfid)
-                continue
-
-            Attendance.objects.update_or_create(
-                student=student,
-                subject=session.subject,
-                date=session.date,
-                defaults={
-                    'session':       session,
-                    'is_present':    True,
-                    'day':           session.date.strftime('%A'),
-                    'semester':      session.semester,
-                    'academic_year': academic_year or session.academic_year,
-                    'marked_by':     teacher,
-                    'method':        'rfid',
-                }
-            )
-            results['marked'].append(student.enrollment_number)
-
-        return Response(results)
-
 
 # ─────────────────────────────────────────────
 # Attendance List / Edit (Admin)
@@ -820,7 +729,7 @@ class AttendanceEditView(APIView):
 
         if not all([student_id, date, subject_id]):
             return Response(
-                {'error': 'student_id, date, subject_id — teeno zaruri hain'},
+                {'error': 'student_id, date, and subject_id are all required'},
                 status=400
             )
 
@@ -942,7 +851,7 @@ class LeaveRequestActionView(APIView):
 class TeacherSessionListView(APIView):
     """
     GET /api/attendance/sessions/
-    Teacher ki recent sessions list karta hai (last 60 days).
+    Lists the teacher's recent sessions (last 60 days).
     Optional filter: ?student_pk=<pk>  — filters sessions matching the student's enrolled subjects.
     """
     permission_classes = [IsTeacherOrAdmin]
@@ -955,7 +864,7 @@ class TeacherSessionListView(APIView):
             teacher=teacher
         ).select_related('subject').order_by('-date', '-created_at')[:60]
 
-        # Agar student_pk diya hai to sirf us student ke enrolled subjects ki sessions
+        # If student_pk is provided, only show sessions for that student's enrolled subjects
         if student_pk:
             try:
                 student = Student.objects.get(pk=student_pk)
@@ -1042,7 +951,7 @@ class TeacherDashboardView(APIView):
 class TeacherAttendanceRequestView(APIView):
     """
     Teacher creates an attendance request for a student who could not mark
-    attendance via face/RFID during the session.
+    attendance via face recognition during the session.
     GET  → list my submitted requests (with admin remark visible)
     POST → submit a new request
     """
@@ -1085,7 +994,7 @@ class TeacherAttendanceRequestView(APIView):
             )
 
         from accounts.models import Student
-        # student_id yahan string PK hai (e.g. "BCS2024002")
+        # student_id is a string PK here (e.g. "BCS2024002")
         student = get_object_or_404(Student, student_id=student_id)
         session = get_object_or_404(AttendanceSession, pk=session_id)
 
@@ -1483,7 +1392,7 @@ class WebAuthnAuthCompleteView(APIView):
         import json as _json
         import base64
         from datetime import timedelta
-        from webauthn.helpers.structs import AuthenticationCredential
+        from webauthn.helpers import parse_authentication_credential_json
         from django.conf import settings as _s
         from accounts.models import WebAuthnCredential, WebAuthnChallenge
         from django.utils import timezone as _tz
@@ -1562,7 +1471,7 @@ class WebAuthnAuthCompleteView(APIView):
 
         # ── Parse credential from frontend ───────────────────────
         try:
-            credential = AuthenticationCredential.parse_raw(
+            credential = parse_authentication_credential_json(
                 _json.dumps(credential_data)
             )
         except Exception as e:
