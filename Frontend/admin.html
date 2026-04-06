@@ -2630,8 +2630,10 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
       toast(r.data.message || 'Device reset successfully', 'success');
     }
 
-    loadOverview();
-    loadPasskeyStatus();  // Independent call — passkey status loads even if overview fails
+    // loadPasskeyStatus must run AFTER loadOverview, because #dash-passkey-count
+    // is created dynamically inside loadOverview's innerHTML injection.
+    // .finally() ensures passkey status still loads even if overview API fails.
+    loadOverview().finally(() => loadPasskeyStatus());
 
     /* ═══════════ MODAL HELPERS ═══════════ */
     function openModal(id) { document.getElementById(id).classList.add('open'); }
