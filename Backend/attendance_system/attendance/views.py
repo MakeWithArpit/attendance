@@ -1565,12 +1565,63 @@ class WebAuthnAuthCompleteView(APIView):
             # Delete the used challenge inside the transaction
             challenge_record.delete()
 
+        # ── Auto-close session if ALL enrolled students have been marked ──
+        session_auto_closed = False
+        try:
+            enrolled_count = CourseRegistration.objects.filter(
+                subject=session.subject,
+                semester=session.semester,
+                section=session.section,
+                branch_id=session.branch_id,
+            ).count()
+
+            marked_count = Attendance.objects.filter(
+                session=session, is_present=True,
+            ).count()
+
+            if enrolled_count > 0 and marked_count >= enrolled_count:
+                session.status = 'closed'
+                session.save(update_fields=['status'])
+                session_auto_closed = True
+
+                # Create absent records for any students not yet marked
+                enrolled_ids = set(CourseRegistration.objects.filter(
+                    subject=session.subject, semester=session.semester,
+                    section=session.section, branch_id=session.branch_id,
+                ).values_list('student_id', flat=True))
+
+                already_marked_ids = set(
+                    Attendance.objects.filter(session=session).values_list('student_id', flat=True)
+                )
+
+                absent_records = [
+                    Attendance(
+                        student_id=sid,
+                        subject=session.subject,
+                        date=session.date,
+                        day=session.date.strftime('%A'),
+                        semester=session.semester,
+                        academic_year=session.academic_year,
+                        is_present=False,
+                        method='manual',
+                        session=session,
+                    )
+                    for sid in enrolled_ids if sid not in already_marked_ids
+                ]
+                if absent_records:
+                    Attendance.objects.bulk_create(absent_records, ignore_conflicts=True)
+
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-close check failed (webauthn): {e}")
+
         return Response(
             {
-                'message':           'Attendance marked successfully via Passkey ✅',
-                'subject':           session.subject.subject_name,
-                'date':              str(session.date),
-                'location_verified': location_verified,
+                'message':             'Attendance marked successfully via Passkey ✅',
+                'subject':             session.subject.subject_name,
+                'date':                str(session.date),
+                'location_verified':   location_verified,
+                'session_auto_closed': session_auto_closed,
             },
             status=200,
         )
