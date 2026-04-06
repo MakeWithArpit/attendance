@@ -1029,7 +1029,8 @@
             <!-- Account -->
             <div
               style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;">
-              <i class="fa-solid fa-lock" style="color:var(--blue);"></i> Account Credentials</div>
+              <i class="fa-solid fa-lock" style="color:var(--blue);"></i> Account Credentials
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
               <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-id-badge"></i> Student ID <span
                     style="font-size:10px;color:#8A95A3;font-weight:400;">(auto)</span></label><input type="text"
@@ -1057,7 +1058,8 @@
             <!-- Personal -->
             <div
               style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;">
-              <i class="fa-solid fa-user" style="color:var(--blue);"></i> Personal Information</div>
+              <i class="fa-solid fa-user" style="color:var(--blue);"></i> Personal Information
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
               <div class="form-group" style="margin:0;grid-column:1/-1;"><label><i class="fa-solid fa-user"></i> Full
                   Name *</label><input type="text" id="ns-name"></div>
@@ -1123,7 +1125,8 @@
             <!-- Academic -->
             <div
               style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;">
-              <i class="fa-solid fa-graduation-cap" style="color:var(--blue);"></i> Academic Information</div>
+              <i class="fa-solid fa-graduation-cap" style="color:var(--blue);"></i> Academic Information
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
               <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-building-columns"></i> Branch
                   *</label><select id="ns-branch" onchange="autoGenerateNumbers()">
@@ -1180,7 +1183,8 @@
             <!-- Family -->
             <div
               style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8A95A3;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;">
-              <i class="fa-solid fa-house-user" style="color:var(--blue);"></i> Parent &amp; Family Details</div>
+              <i class="fa-solid fa-house-user" style="color:var(--blue);"></i> Parent &amp; Family Details
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div class="form-group" style="margin:0;"><label><i class="fa-solid fa-person"></i> Father's
                   Name</label><input type="text" id="ns-father-name" placeholder="Father's full name"></div>
@@ -1950,14 +1954,14 @@ e.g. Dear Parent, your ward [Name]'s attendance is below 75%. Please ensure regu
         const fc = s.has_face_registered ? 'var(--green)' : '#94A3B8';
         const fi = s.has_face_registered ? 'fa-circle-check' : 'fa-circle-xmark';
         const branchName = typeof p.branch === 'object' ? (p.branch?.branch_name || p.branch?.branch_code || '—') : (p.branch || '—');
-        html += `<tr>
-        <td><code style="font-size:11px;">${s.student_id}</code></td>
-        <td><strong style="font-size:13px;">${p.name || '—'}</strong></td>
-        <td style="font-size:12px;">${branchName}</td>
-        <td style="font-size:12px;">${p.current_semester ? 'Sem ' + p.current_semester : '—'}</td>
-        <td><i class="fa-solid ${fi}" style="color:${fc};"></i></td>
-        <td><button class="act-btn act-view" onclick="go('students',document.querySelector('.nav-item[onclick*=\'students\']'))" style="font-size:11px;padding:3px 8px;"><i class="fa-solid fa-eye"></i> View</button></td>
-      </tr>`;
+        html += `<tr data-obj='${JSON.stringify(s).replace(/'/g, "&#39;")}'>
+  <td><code style="font-size:11px;">${s.student_id}</code></td>
+  <td><strong style="font-size:13px;">${p.name || '—'}</strong></td>
+  <td style="font-size:12px;">${branchName}</td>
+  <td style="font-size:12px;">${p.current_semester ? 'Sem ' + p.current_semester : '—'}</td>
+  <td><i class="fa-solid ${fi}" style="color:${fc};"></i></td>
+  <td><button class="act-btn act-view" onclick="viewStudent(this)" style="font-size:11px;padding:3px 8px;"><i class="fa-solid fa-eye"></i> View</button></td>
+</tr>`;
       });
       html += '</tbody></table></div>';
       if (el) el.innerHTML = html;
