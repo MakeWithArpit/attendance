@@ -2,12 +2,15 @@
 Django Settings - Attendance Monitoring System
 """
 import os
+from dotenv import load_dotenv
 from pathlib import Path
 from datetime import timedelta
 
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-dwnmuiz7hg#8k9-muj(99_ww!#74tes_6u)4+t$&aa0xfkx($9"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 ALLOWED_HOSTS = ['*']
 
@@ -95,8 +98,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'arpitgangwar062@gmail.com'
-EMAIL_HOST_PASSWORD = 'gbhvugvjibswyanj'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -129,8 +132,8 @@ CORS_ALLOWED_ORIGINS = ["https://attendance-ashen-ten.vercel.app", "http://local
 # RP ID must match the domain where the frontend is hosted.
 # WebAuthn credentials are bound to this domain.
 # Change WEBAUTHN_ORIGIN if your Vercel URL changes.
-WEBAUTHN_RP_ID     = os.environ.get('WEBAUTHN_RP_ID',     'attendance-ashen-ten.vercel.app')
-WEBAUTHN_RP_NAME   = os.environ.get('WEBAUTHN_RP_NAME',   'Attendance System')
-WEBAUTHN_ORIGIN    = os.environ.get('WEBAUTHN_ORIGIN',    'https://attendance-ashen-ten.vercel.app')
+WEBAUTHN_RP_ID     = os.environ.get('WEBAUTHN_RP_ID')
+WEBAUTHN_RP_NAME   = os.environ.get('WEBAUTHN_RP_NAME')
+WEBAUTHN_ORIGIN    = os.environ.get('WEBAUTHN_ORIGIN')
 # Challenge expiry window in seconds (default 5 minutes)
-WEBAUTHN_CHALLENGE_TIMEOUT = int(os.environ.get('WEBAUTHN_CHALLENGE_TIMEOUT', 300))
+WEBAUTHN_CHALLENGE_TIMEOUT = int(os.environ.get('WEBAUTHN_CHALLENGE_TIMEOUT'))

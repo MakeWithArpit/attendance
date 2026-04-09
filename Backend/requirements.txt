@@ -21,3 +21,6 @@ reportlab
 
 # WebAuthn (Passkey) support
 webauthn==2.1.0
+
+# Environment variables
+python-dotenv
